@@ -34,6 +34,8 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
                 $toArg = $node->args[1];
 
                 if (
+                    $fromArg instanceof Arg &&
+                    $toArg instanceof Arg &&
                     $fromArg->value instanceof String_ &&
                     $toArg->value instanceof String_ &&
                     $fromArg->value->value === "name" &&
@@ -55,13 +57,13 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
         if ($methodName === "dropUnique") {
             if (count($node->args) >= 1) {
                 $arg = $node->args[0];
-                if ($arg->value instanceof \PhpParser\Node\Expr\Array_) {
+                if ($arg instanceof Arg && $arg->value instanceof \PhpParser\Node\Expr\Array_) {
                     $array = $arg->value;
                     $hasSubscriptionId = false;
                     $hasStripePrice = false;
 
                     foreach ($array->items as $item) {
-                        if ($item && $item->value instanceof String_) {
+                        if ($item !== null && $item->value instanceof String_) {
                             if ($item->value->value === "subscription_id") {
                                 $hasSubscriptionId = true;
                             }

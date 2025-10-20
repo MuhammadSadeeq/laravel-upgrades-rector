@@ -14,6 +14,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateSchemaMethodsRector extends AbstractRector
 {
+    /** @var array<int, string> */
     private array $schemaMethodsWithSchemaParam = [
         "getTables",
         "getViews",

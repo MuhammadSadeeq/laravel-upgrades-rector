@@ -36,6 +36,7 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
         // Check if the argument is an array
         if (
             !isset($node->args[0]) ||
+            !$node->args[0] instanceof \PhpParser\Node\Arg ||
             !$node->args[0]->value instanceof Array_
         ) {
             return null;

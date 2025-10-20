@@ -48,7 +48,7 @@ final class UpdateDatabaseTokenRepositoryRector extends AbstractRector
 
         // If the expires value is a number that looks like minutes (typically 60, 90, 120)
         // convert to seconds by multiplying by 60
-        if ($expiresArg->value instanceof LNumber) {
+        if ($expiresArg instanceof \PhpParser\Node\Arg && $expiresArg->value instanceof LNumber) {
             $minutes = $expiresArg->value->value;
 
             // Common minute values that should be converted to seconds

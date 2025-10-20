@@ -14,12 +14,14 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateCashierStripeRector extends AbstractRector
 {
+    /** @var array<int, string> */
     private array $paymentMethodMethods = [
         "hasPaymentMethod",
         "paymentMethods",
         "deletePaymentMethods",
     ];
 
+    /** @var array<string, string> */
     private array $removedMethods = [
         "isDeleted" => "Invoice",
     ];

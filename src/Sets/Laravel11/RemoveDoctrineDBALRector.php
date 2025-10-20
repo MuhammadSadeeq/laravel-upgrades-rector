@@ -15,6 +15,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class RemoveDoctrineDBALRector extends AbstractRector
 {
+    /** @var array<int, string> */
     private array $removedMethods = [
         "useNativeSchemaOperationsIfPossible",
         "usingNativeSchemaOperations",
@@ -26,12 +27,14 @@ final class RemoveDoctrineDBALRector extends AbstractRector
         "getDoctrineTableDiff",
     ];
 
+    /** @var array<int, string> */
     private array $removedClasses = [
         "Illuminate\Database\DBAL\TimestampType",
         "Illuminate\Database\Schema\Grammars\ChangeColumn",
         "Illuminate\Database\Schema\Grammars\RenameColumn",
     ];
 
+    /** @var array<string, string> */
     private array $replacementMethods = [
         "getAllTables" => "getTables",
         "getAllViews" => "getViews",

@@ -21,6 +21,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class Carbon3MigrationRector extends AbstractRector
 {
+    /** @var array<int, string> */
     private array $diffMethods = [
         'diffInYears',
         'diffInMonths',
@@ -33,6 +34,7 @@ final class Carbon3MigrationRector extends AbstractRector
         'diffInMicroseconds',
     ];
 
+    /** @var array<string, string> */
     private array $formatMappings = [
         '%A' => 'dddd', // Full weekday name
         '%a' => 'ddd',  // Abbreviated weekday name
@@ -64,7 +66,7 @@ final class Carbon3MigrationRector extends AbstractRector
         // 1. Rename named arg 'tz' to 'timezone' for consistency with Carbon 3
         if ($node instanceof MethodCall || $node instanceof StaticCall) {
             foreach ($node->args as $arg) {
-                if ($arg->name && $this->isName($arg->name, 'tz')) {
+                if ($arg instanceof Arg && $arg->name && $this->isName($arg->name, 'tz')) {
                     $arg->name = new Identifier('timezone');
                 }
             }
@@ -88,7 +90,7 @@ final class Carbon3MigrationRector extends AbstractRector
         return $node;
     }
 
-    private function refactorStaticCall(StaticCall $node): ?Node
+    private function refactorStaticCall(StaticCall $node): Node
     {
         if (!$this->isCarbonClass($node->class)) {
             return $node;
@@ -120,19 +122,19 @@ final class Carbon3MigrationRector extends AbstractRector
         return $node;
     }
 
-    private function refactorMethodCall(MethodCall $node): ?Node
+    private function refactorMethodCall(MethodCall $node): Node
     {
         $methodName = $this->getName($node->name);
 
         // Handle diffIn* methods - wrap with (int) abs() for Carbon 2 behavior
-        if (in_array($methodName, $this->diffMethods, true)) {
+        if ($methodName !== null && in_array($methodName, $this->diffMethods, true)) {
             // Apply the transformation to all diffIn* method calls, assuming they're Carbon instances
             $absFunc = new FuncCall(new Name('abs'), [new Arg($node)]);
             return new Cast\Int_($absFunc);
         }
 
         // isSameX() without args -> isCurrentX() to satisfy Carbon 3 signature
-        if (str_starts_with($methodName, 'isSame') && empty($node->args)) {
+        if ($methodName !== null && str_starts_with($methodName, 'isSame') && empty($node->args)) {
             $newMethod = 'isCurrent' . substr($methodName, 6);
             $node->name = new Identifier($newMethod);
             return $node;
@@ -143,7 +145,7 @@ final class Carbon3MigrationRector extends AbstractRector
             $node->name = new Identifier('isoFormat');
 
             // Convert format string if it's a direct string literal
-            if (isset($node->args[0]) && $node->args[0]->value instanceof String_) {
+            if (isset($node->args[0]) && $node->args[0] instanceof Arg && $node->args[0]->value instanceof String_) {
                 $formatString = $node->args[0]->value->value;
                 $convertedFormat = $this->convertFormatString($formatString);
                 $node->args[0]->value = new String_($convertedFormat);
@@ -153,14 +155,14 @@ final class Carbon3MigrationRector extends AbstractRector
         }
 
         // Drop methods that are no longer needed/available
-        if (in_array($methodName, ['setUtf8', 'setWeekStartsAt', 'setWeekEndsAt'], true)) {
+        if ($methodName !== null && in_array($methodName, ['setUtf8', 'setWeekStartsAt', 'setWeekEndsAt'], true)) {
             return $node->var; // Return the object the method was called on
         }
 
         return $node;
     }
 
-    private function refactorNew(New_ $node): ?Node
+    private function refactorNew(New_ $node): Node
     {
         if (!$node->class instanceof Name) {
             return $node;
@@ -174,6 +176,9 @@ final class Carbon3MigrationRector extends AbstractRector
         return $node;
     }
 
+    /**
+     * @param mixed $class
+     */
     private function isCarbonClass($class): bool
     {
         if (!$class instanceof Name) {
@@ -183,22 +188,6 @@ final class Carbon3MigrationRector extends AbstractRector
         return $this->isName($class, 'Carbon') ||
                $this->isName($class, 'Carbon\\Carbon') ||
                $this->isName($class, 'Illuminate\\Support\\Carbon');
-    }
-
-    private function isCarbonMethodCall(MethodCall $methodCall): bool
-    {
-        // Check if it's a static call to Carbon
-        if ($methodCall->var instanceof StaticCall) {
-            return $this->isCarbonClass($methodCall->var->class);
-        }
-
-        // Check if it's a method call on another method call (chaining)
-        if ($methodCall->var instanceof MethodCall) {
-            return $this->isCarbonMethodCall($methodCall->var);
-        }
-
-        // For variables and other expressions, be conservative
-        return false;
     }
 
     private function convertFormatString(string $format): string

@@ -45,7 +45,7 @@ final class UpdateImageValidationSvgRector extends AbstractRector
                 $value,
             );
 
-            if ($newValue !== $value) {
+            if ($newValue !== null && $newValue !== $value) {
                 return new String_($newValue);
             }
         }
@@ -79,7 +79,7 @@ final class UpdateImageValidationSvgRector extends AbstractRector
                     "image:allow_svg",
                     $value,
                 );
-                if ($newValue !== $value) {
+                if ($newValue !== null && $newValue !== $value) {
                     $item->value = new String_($newValue);
                     $hasChanges = true;
                 }

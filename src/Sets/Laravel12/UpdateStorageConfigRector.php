@@ -56,7 +56,7 @@ final class UpdateStorageConfigRector extends AbstractRector
         }
 
         // If this is a local disk with root configuration
-        if ($isLocalDisk && $hasRoot && $rootItem !== null) {
+        if ($isLocalDisk && $hasRoot && $rootItem !== null && $rootItem->value instanceof String_) {
             $currentRoot = $rootItem->value->value;
 
             // If root is set to storage/app, update to storage/app/private for Laravel 12

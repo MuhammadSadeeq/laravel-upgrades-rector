@@ -17,6 +17,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateRateLimitingRector extends AbstractRector
 {
+    /** @var array<int, string> */
     private array $rateLimitClasses = [
         "GlobalLimit",
         "Limit",
@@ -90,6 +91,9 @@ final class UpdateRateLimitingRector extends AbstractRector
                str_contains($className, 'ThrottlesExceptions');
     }
 
+    /**
+     * @param array<int, \PhpParser\Node\Arg|\PhpParser\Node\VariadicPlaceholder> $args
+     */
     private function convertTimeArgument(Node $node, string $className, array $args): ?Node
     {
         $updated = false;

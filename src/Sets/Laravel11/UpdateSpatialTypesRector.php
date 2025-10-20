@@ -13,6 +13,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateSpatialTypesRector extends AbstractRector
 {
+    /** @var array<int, string> */
     private array $removedSpatialMethods = [
         "point",
         "lineString",

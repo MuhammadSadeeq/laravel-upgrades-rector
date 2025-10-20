@@ -14,6 +14,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateComposerDependenciesRector extends AbstractRector
 {
+    /** @var array<string, string> */
     private array $dependencyUpdates = [
         'laravel/framework' => '^12.0',
         'phpunit/phpunit' => '^11.0',

@@ -14,6 +14,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
 {
+    /** @var array<string, string> */
     private array $dependencyUpdates = [
         'laravel/framework' => '^11.0',
         'nunomaduro/collision' => '^8.1',
@@ -31,6 +32,7 @@ final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
         'inertiajs/inertia-laravel' => '^1.0',
     ];
 
+    /** @var array<int, string> */
     private array $packagesToRemove = [
         'doctrine/dbal',
         'spatie/once',

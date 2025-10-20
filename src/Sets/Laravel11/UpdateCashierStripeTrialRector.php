@@ -12,6 +12,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateCashierStripeTrialRector extends AbstractRector
 {
+    /** @var array<int, string> */
     private array $subscriptionCancelMethods = [
         "cancel",
         "cancelNow",
