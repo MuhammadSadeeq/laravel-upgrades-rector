@@ -5,13 +5,14 @@ declare(strict_types=1);
 use Rector\Config\RectorConfig;
 use MuhammadSadeeq\LaravelUpgradesRector\LaravelUpgradeSetList;
 
-// Default configuration
+// Default configuration that includes both Laravel 11 and 12 upgrades
 // Users can override this by creating their own rector.php file
 
 return RectorConfig::configure()
     ->withSets([
         // Uncomment the upgrade path you need:
         // LaravelUpgradeSetList::LARAVEL_11, // For Laravel 10→11
+        // LaravelUpgradeSetList::LARAVEL_12, // For Laravel 11→12
     ])
     ->withPaths([
         __DIR__ . "/../../app",
