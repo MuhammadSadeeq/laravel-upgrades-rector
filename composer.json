@@ -12,6 +12,12 @@
     "php"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/muhammadsadeeq/laravel-upgrades-rector",
+  "support": {
+    "issues": "https://github.com/muhammadsadeeq/laravel-upgrades-rector/issues",
+    "source": "https://github.com/muhammadsadeeq/laravel-upgrades-rector",
+    "docs": "https://github.com/muhammadsadeeq/laravel-upgrades-rector/blob/main/README.md"
+  },
   "authors": [
     {
       "name": "Muhammad Sadeeq",
