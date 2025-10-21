@@ -26,7 +26,7 @@ class CreateCollectionsTable
     {
         Schema::create('collections', function (Blueprint $table) {
             $table->id();
-            $table->geometry('data');
+            $table->geometry('data', subtype: 'geometryCollection');
             $table->timestamps();
         });
     }

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel11;
 
 use PhpParser\Node;
+use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\Scalar\String_;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -43,14 +45,14 @@ final class UpdateSpatialTypesRector extends AbstractRector
             // Replace with geometry method
             $node->name = new Identifier("geometry");
 
-            // Add comment about the change
-            $node->setAttribute("comments", [
-                new \PhpParser\Comment\Doc(
-                    "/** Laravel 11: {$methodName}() method removed. " .
-                        "Use geometry() or geography() instead. " .
-                        "For specific types, use subtype parameter: geometry('column', subtype: '{$methodName}') */",
-                ),
-            ]);
+            // Add subtype parameter as a named argument
+            $node->args[] = new Arg(
+                new String_($methodName),
+                false,
+                false,
+                [],
+                new Identifier('subtype')
+            );
 
             return $node;
         }
@@ -61,17 +63,15 @@ final class UpdateSpatialTypesRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Update spatial column types to use geometry/geography methods for Laravel 11",
+            "Update spatial column types to use geometry/geography methods with subtype parameter for Laravel 11",
             [
                 new CodeSample(
                     '$table->point(\'coordinates\')',
-                    '/** Laravel 11: point() method removed. Use geometry() or geography() instead. For specific types, use subtype parameter: geometry(\'column\', subtype: \'point\') */
-$table->geometry(\'coordinates\')',
+                    '$table->geometry(\'coordinates\', subtype: \'point\')',
                 ),
                 new CodeSample(
                     '$table->polygon(\'area\')',
-                    '/** Laravel 11: polygon() method removed. Use geometry() or geography() instead. For specific types, use subtype parameter: geometry(\'column\', subtype: \'polygon\') */
-$table->geometry(\'area\')',
+                    '$table->geometry(\'area\', subtype: \'polygon\')',
                 ),
             ],
         );

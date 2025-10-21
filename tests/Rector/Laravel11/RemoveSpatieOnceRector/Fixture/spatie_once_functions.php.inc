@@ -6,12 +6,8 @@ class SpatieOnceExample
 {
     public function example()
     {
-        $result = spatieOnce(function () {
+        $result = once(function () {
             return expensive_operation();
-        });
-
-        $value = onceWithSpatie(function () {
-            return another_operation();
         });
     }
 }
@@ -20,18 +16,12 @@ class SpatieOnceExample
 -----
 <?php
 
-use Spatie\Once\Cache;
-
 class SpatieOnceExample
 {
     public function example()
     {
-        $result = spatieOnce(function () {
+        $result = once(function () {
             return expensive_operation();
-        });
-
-        $value = onceWithSpatie(function () {
-            return another_operation();
         });
     }
 }

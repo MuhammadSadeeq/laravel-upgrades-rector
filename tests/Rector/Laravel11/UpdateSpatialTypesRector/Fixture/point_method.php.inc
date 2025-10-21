@@ -26,7 +26,7 @@ class CreateLocationsTable
     {
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
-            $table->geometry('coordinates');
+            $table->geometry('coordinates', subtype: 'point');
             $table->timestamps();
         });
     }

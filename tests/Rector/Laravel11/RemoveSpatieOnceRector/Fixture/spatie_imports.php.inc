@@ -7,8 +7,7 @@ class ImportExample
 {
     public function example()
     {
-        $result = spatieOnce();
-        $cache = new Cache();
+        $result = once(fn() => expensive());
     }
 }
 
@@ -16,15 +15,11 @@ class ImportExample
 -----
 <?php
 
-use Spatie\Once\Cache;
-use Spatie\Once\OnceService;
-
 class ImportExample
 {
     public function example()
     {
-        $result = spatieOnce();
-        $cache = new Cache();
+        $result = once(fn() => expensive());
     }
 }
 

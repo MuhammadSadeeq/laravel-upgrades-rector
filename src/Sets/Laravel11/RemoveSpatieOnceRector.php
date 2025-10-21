@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel11;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr\FuncCall;
-use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\Use_;
+use PhpParser\NodeTraverser;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -15,31 +15,27 @@ final class RemoveSpatieOnceRector extends AbstractRector
 {
     public function getNodeTypes(): array
     {
-        return [FuncCall::class];
+        return [Use_::class];
     }
 
-    public function refactor(Node $node): ?Node
+    /**
+     * @return int|Node|null
+     */
+    public function refactor(Node $node)
     {
-        if (!$node instanceof FuncCall) {
+        if (!$node instanceof Use_) {
             return null;
         }
 
-        // Check for spatie/once function calls
-        if ($node->name instanceof Name) {
-            $functionName = $this->getName($node->name);
+        // Check for Spatie\Once namespace imports
+        foreach ($node->uses as $use) {
+            $name = $use->name->toString();
 
-            // If this is a call to spatie/once specific functions, add a comment
-            if (
-                str_contains($functionName, "spatie") ||
-                str_contains($functionName, "Once")
-            ) {
-                $node->setAttribute("comments", [
-                    new \PhpParser\Comment\Doc(
-                        "/** Laravel 11: Remove spatie/once package dependency. " .
-                            "Laravel now provides native once() function. */",
-                    ),
-                ]);
-                return $node;
+            // If importing from Spatie\Once namespace, remove the entire use statement
+            // Laravel 11 has native once() function with identical signature
+            if (str_starts_with($name, 'Spatie\\Once\\') || $name === 'Spatie\\Once') {
+                // Remove this use statement
+                return NodeTraverser::REMOVE_NODE;
             }
         }
 
@@ -49,7 +45,7 @@ final class RemoveSpatieOnceRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Add documentation about removing spatie/once package for Laravel 11",
+            "Remove Spatie\\Once use statements for Laravel 11 (Laravel now provides native once() function)",
             [
                 new CodeSample(
                     'use Spatie\Once\Cache;
@@ -57,8 +53,7 @@ final class RemoveSpatieOnceRector extends AbstractRector
 $result = once(function () {
     return expensive_operation();
 });',
-                    '/** Laravel 11: Remove spatie/once package dependency. Laravel now provides native once() function. */
-$result = once(function () {
+                    '$result = once(function () {
     return expensive_operation();
 });',
                 ),

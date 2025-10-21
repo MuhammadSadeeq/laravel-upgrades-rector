@@ -72,14 +72,15 @@ final class UpdateFloatingPointTypesRector extends AbstractRector
             // Change method name to base method
             $node->name = new Identifier($baseMethod);
 
-            // Add comment about chaining unsigned()
-            $node->setAttribute("comments", [
-                new \PhpParser\Comment\Doc(
-                    "/** Laravel 11: {$methodName}() removed. Use {$baseMethod}()->unsigned() instead */",
-                ),
-            ]);
+            // For double and float, remove precision arguments (keep only column name)
+            if (($baseMethod === "double" || $baseMethod === "float") && count($node->args) > 1) {
+                $node->args = [$node->args[0]];
+            }
 
-            return $node;
+            // Create a new method call that chains ->unsigned()
+            $unsignedCall = new MethodCall($node, new Identifier('unsigned'));
+
+            return $unsignedCall;
         }
 
         return null;
@@ -100,8 +101,7 @@ final class UpdateFloatingPointTypesRector extends AbstractRector
                 ),
                 new CodeSample(
                     '$table->unsignedDouble(\'amount\')',
-                    '/** Laravel 11: unsignedDouble() removed. Use double()->unsigned() instead */
-$table->double(\'amount\')',
+                    '$table->double(\'amount\')->unsigned()',
                 ),
             ],
         );

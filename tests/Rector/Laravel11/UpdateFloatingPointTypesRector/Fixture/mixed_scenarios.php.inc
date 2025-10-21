@@ -38,7 +38,7 @@ class CreateMixedTable
             $table->float('discount');
 
             // Should be converted from unsigned
-            $table->double('amount');
+            $table->double('amount')->unsigned();
 
             // Should not be changed
             $table->double('rating');

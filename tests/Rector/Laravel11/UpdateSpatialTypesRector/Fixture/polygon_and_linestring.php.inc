@@ -27,8 +27,8 @@ class CreateAreasTable
     {
         Schema::create('areas', function (Blueprint $table) {
             $table->id();
-            $table->geometry('boundary');
-            $table->geometry('path');
+            $table->geometry('boundary', subtype: 'polygon');
+            $table->geometry('path', subtype: 'lineString');
             $table->timestamps();
         });
     }

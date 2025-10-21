@@ -29,10 +29,10 @@ class CreateGeometryTable
     {
         Schema::create('geometry', function (Blueprint $table) {
             $table->id();
-            $table->geometry('points');
-            $table->geometry('lines');
-            $table->geometry('polygons');
-            $table->geometry('polygons_z');
+            $table->geometry('points', subtype: 'multiPoint');
+            $table->geometry('lines', subtype: 'multiLineString');
+            $table->geometry('polygons', subtype: 'multiPolygon');
+            $table->geometry('polygons_z', subtype: 'multiPolygonZ');
             $table->timestamps();
         });
     }
