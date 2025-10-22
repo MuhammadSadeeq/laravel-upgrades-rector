@@ -30,8 +30,8 @@ Upgrading Laravel manually is time-consuming and error-prone. This package:
 
 | From | To | Rules | Status |
 |------|-------|-------|--------|
-| Laravel 10 | Laravel 11 | 21 rules | ✅ Production Ready |
 | Laravel 11 | Laravel 12 | 11 rules | ✅ Production Ready |
+| Laravel 10 | Laravel 11 | 21 rules | ✅ Production Ready |
 
 ## Installation
 
@@ -40,6 +40,16 @@ composer require --dev muhammadsadeeq/laravel-upgrades-rector
 ```
 
 ## Quick Start
+
+### Upgrade Laravel 11 → 12
+
+```bash
+# Preview changes (recommended)
+vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-12.php
+
+# Apply changes
+vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-12.php
+```
 
 ### Upgrade Laravel 10 → 11
 
@@ -51,21 +61,7 @@ vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgra
 vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php
 ```
 
-### Upgrade Laravel 11 → 12
-
-```bash
-vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-12.php
-```
-
 ## What Gets Automated
-
-### Laravel 10 → 11 (21 Rules)
-- Dependency updates (composer.json)
-- Database schema changes (floating-point, spatial types)
-- Authentication updates (password rehashing, contracts)
-- Rate limiting (minutes → seconds conversion)
-- Doctrine DBAL removal
-- Package updates (Cashier, Passport, Sanctum, Telescope)
 
 ### Laravel 11 → 12 (11 Rules)
 - Composer dependencies (Laravel 12, PHPUnit 11, Pest 3)
@@ -74,6 +70,14 @@ vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector
 - Image validation (SVG handling)
 - Storage configuration updates
 - Database schema multi-schema support
+
+### Laravel 10 → 11 (21 Rules)
+- Dependency updates (composer.json)
+- Database schema changes (floating-point, spatial types)
+- Authentication updates (password rehashing, contracts)
+- Rate limiting (minutes → seconds conversion)
+- Doctrine DBAL removal
+- Package updates (Cashier, Passport, Sanctum, Telescope)
 
 ## Custom Configuration
 
@@ -87,7 +91,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\LaravelUpgradeSetList;
 
 return RectorConfig::configure()
     ->withSets([
-        LaravelUpgradeSetList::LARAVEL_11, // or LARAVEL_12
+        LaravelUpgradeSetList::LARAVEL_12, // or LARAVEL_11
     ])
     ->withPaths([
         __DIR__ . '/app',
@@ -106,18 +110,38 @@ vendor/bin/rector process
 
 ## Example Transformations
 
-### Before (Laravel 10)
+### Laravel 11 → 12
+
 ```php
+// Before
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
+$table->point('coordinates');
+$table->geometry('shapes');
+
+'photo' => 'required|image',
+
+// After
+use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
+
+$table->geometry('coordinates', subtype: 'point');
+$table->geometry('shapes');
+
+'photo' => 'required|image:allow_svg',
+```
+
+### Laravel 10 → 11
+
+```php
+// Before
 Schema::create('products', function (Blueprint $table) {
     $table->double('price', 8, 2);
     $table->unsignedDouble('weight');
 });
 
 new GlobalLimit($attempts, 2); // minutes
-```
 
-### After (Laravel 11)
-```php
+// After
 Schema::create('products', function (Blueprint $table) {
     $table->double('price');
     $table->double('weight')->unsigned();

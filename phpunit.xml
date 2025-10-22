@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
-         colors="true"
-         failOnWarning="true"
-         failOnRisky="true"
-         failOnEmptyTestSuite="true"
-         processIsolation="false"
-         stopOnFailure="false">
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.4/phpunit.xsd"
+    bootstrap="vendor/autoload.php"
+    colors="true"
+    failOnWarning="true"
+    failOnRisky="true"
+    failOnEmptyTestSuite="true"
+    processIsolation="false"
+    stopOnFailure="false"
+>
     <testsuites>
         <testsuite name="Laravel 11 Upgrade Rules">
             <directory>tests/Rector/Laravel11</directory>
@@ -16,6 +18,7 @@
             <directory>tests/Rector/Laravel12</directory>
         </testsuite>
     </testsuites>
+
     <source>
         <include>
             <directory>src</directory>
