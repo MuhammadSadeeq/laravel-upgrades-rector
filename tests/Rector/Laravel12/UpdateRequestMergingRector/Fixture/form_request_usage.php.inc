@@ -36,6 +36,7 @@ class CreateUserRequest extends FormRequest
 {
     public function prepareForValidation()
     {
+        // Laravel 12: mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.
         $this->mergeIfMissing([
             'slug' => Str::slug($this->input('name')),
             'is_active' => true,

@@ -6,7 +6,8 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\ArrayItem;
+use PhpParser\Node\ArrayItem;
+use PhpParser\Comment\Doc;
 use PhpParser\Node\Scalar\String_;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -37,17 +38,17 @@ final class UpdateStorageConfigRector extends AbstractRector
 
             // Check if this is a local disk configuration
             if (
-                $item->key->value === "driver" &&
+                $item->key->value === 'driver' &&
                 $item->value instanceof String_
             ) {
-                if ($item->value->value === "local") {
+                if ($item->value->value === 'local') {
                     $isLocalDisk = true;
                 }
             }
 
             // Check for root configuration
             if (
-                $item->key->value === "root" &&
+                $item->key->value === 'root' &&
                 $item->value instanceof String_
             ) {
                 $hasRoot = true;
@@ -59,33 +60,30 @@ final class UpdateStorageConfigRector extends AbstractRector
         if ($isLocalDisk && $hasRoot && $rootItem !== null && $rootItem->value instanceof String_) {
             $currentRoot = $rootItem->value->value;
 
-            // If root is set to storage/app, update to storage/app/private for Laravel 12
-            if (
-                $currentRoot === "storage/app" ||
-                str_ends_with($currentRoot, "/storage/app")
-            ) {
-                // Handle exact match case
-                if ($currentRoot === "storage/app") {
-                    $newRoot = "storage/app/private";
-                } else {
-                    // Handle paths ending with /storage/app
-                    $newRoot = str_replace(
-                        "/storage/app",
-                        "/storage/app/private",
-                        $currentRoot,
-                    );
-                }
-                $rootItem->value = new String_($newRoot);
-
-                // Add comment about the change
-                $rootItem->setAttribute("comments", [
-                    new \PhpParser\Comment\Doc(
-                        "/** Laravel 12: Local filesystem disk now defaults to storage/app/private */",
-                    ),
-                ]);
-
-                return $node;
+            // Idempotency: skip if root already ends with /private
+            if (str_ends_with($currentRoot, '/private')) {
+                return null;
             }
+
+            // If root is set to storage/app, update to storage/app/private for Laravel 12
+            if ($currentRoot === 'storage/app') {
+                $rootItem->value = new String_('storage/app/private');
+            } elseif (str_ends_with($currentRoot, '/storage/app')) {
+                $rootItem->value = new String_(
+                    substr($currentRoot, 0, -strlen('/storage/app')) . '/storage/app/private',
+                );
+            } else {
+                return null;
+            }
+
+            // Add comment about the change
+            $rootItem->setAttribute('comments', [
+                new Doc(
+                    '/** Laravel 12: Local filesystem disk now defaults to storage/app/private */',
+                ),
+            ]);
+
+            return $node;
         }
 
         return null;

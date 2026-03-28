@@ -21,7 +21,7 @@ use Carbon\Carbon;
 
 class Example
 {
-    /** Laravel 12: Container now respects default values for constructor parameters. Class-typed parameters with default values will use the default instead of being resolved from the container. */
+    // Laravel 12: Container now respects default parameter values when resolving dependencies. This constructor may behave differently.
     public function __construct(public ?Carbon $date = null)
     {
     }

@@ -4,14 +4,31 @@ use Laravel\SerializableClosure\SerializableClosure;
 
 function testSimpleArrayValues()
 {
-    // Non-associative arrays are not affected by the Laravel 12 change
-    $results = Concurrency::run([
+    Concurrency::run([
         fn() => Http::get('https://api.example1.com'),
         fn() => Http::get('https://api.example2.com'),
         fn() => Http::get('https://api.example3.com'),
     ]);
 
-    return $results;
+    return true;
+}
+
+?>
+-----
+<?php
+
+use Laravel\SerializableClosure\SerializableClosure;
+
+function testSimpleArrayValues()
+{
+    // Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.
+    Concurrency::run([
+        fn() => Http::get('https://api.example1.com'),
+        fn() => Http::get('https://api.example2.com'),
+        fn() => Http::get('https://api.example3.com'),
+    ]);
+
+    return true;
 }
 
 ?>

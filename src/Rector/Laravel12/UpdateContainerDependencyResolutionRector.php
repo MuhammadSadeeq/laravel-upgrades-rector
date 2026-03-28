@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
+use PhpParser\Comment;
 use PhpParser\Node;
-use PhpParser\Node\Stmt\Class_;
-use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Param;
-use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
+use PhpParser\Node\Param;
+use PhpParser\Node\Stmt\ClassMethod;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -27,7 +27,6 @@ final class UpdateContainerDependencyResolutionRector extends AbstractRector
             return null;
         }
 
-        // Only check constructors
         if (!$this->isName($node->name, '__construct')) {
             return null;
         }
@@ -45,41 +44,41 @@ final class UpdateContainerDependencyResolutionRector extends AbstractRector
             return null;
         }
 
-        // Add a comment to the constructor
-        $node->setAttribute('comments', [
-            new \PhpParser\Comment\Doc(
-                "/** Laravel 12: Container now respects default values for constructor parameters. " .
-                "Class-typed parameters with default values will use the default instead of being resolved from the container. */"
-            )
-        ]);
+        $existingComments = $node->getComments();
+        foreach ($existingComments as $comment) {
+            if (str_contains($comment->getText(), 'Laravel 12:')) {
+                return null;
+            }
+        }
+
+        $newComment = new Comment(
+            '// Laravel 12: Container now respects default parameter values when resolving dependencies. This constructor may behave differently.'
+        );
+
+        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }
 
     private function isAffectedParameter(Param $param): bool
     {
-        // Must have a default value
         if ($param->default === null) {
             return false;
         }
 
-        // Must have a type hint
         if ($param->type === null) {
             return false;
         }
 
-        // Check if the type is a class (not a built-in type like string, int, etc.)
         if ($param->type instanceof Name) {
-            // It's a class type
             return true;
         }
 
-        // Check for nullable types (e.g., ?Carbon)
         if ($param->type instanceof Node\NullableType) {
             return $param->type->type instanceof Name;
         }
 
-        // Check for union types that include class types
         if ($param->type instanceof Node\UnionType) {
             foreach ($param->type->types as $type) {
                 if ($type instanceof Name) {
@@ -94,14 +93,14 @@ final class UpdateContainerDependencyResolutionRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Add documentation for container dependency resolution behavior change in Laravel 12',
+            'Add advisory comment for container dependency resolution behavior change in Laravel 12',
             [
                 new CodeSample(
                     'class Example {
     public function __construct(public ?Carbon $date = null) {}
 }',
-                    '/** Laravel 12: Container now respects default values for constructor parameters. Class-typed parameters with default values will use the default instead of being resolved from the container. */
-class Example {
+                    'class Example {
+    // Laravel 12: Container now respects default parameter values when resolving dependencies. This constructor may behave differently.
     public function __construct(public ?Carbon $date = null) {}
 }'
                 ),

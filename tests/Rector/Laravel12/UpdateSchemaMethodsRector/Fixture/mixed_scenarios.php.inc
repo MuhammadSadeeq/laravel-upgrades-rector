@@ -6,20 +6,16 @@ class MixedSchemaUsage
 {
     public function analyze()
     {
-        // Should get comments - no parameters
         $allTables = Schema::getTables();
         $allViews = Schema::getViews();
 
-        // Should not change - has parameters
         $publicTables = Schema::getTables('public');
         $testViews = Schema::getViews('test');
 
-        // Should not change - different methods
         Schema::create('new_table', function ($table) {
             $table->id();
         });
 
-        // Should get comments - no parameters
         $types = Schema::getTypes();
         $listing = Schema::getTableListing();
 
@@ -37,21 +33,21 @@ class MixedSchemaUsage
 {
     public function analyze()
     {
-        // Should get comments - no parameters
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $allTables = Schema::getTables();
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $allViews = Schema::getViews();
 
-        // Should not change - has parameters
         $publicTables = Schema::getTables('public');
         $testViews = Schema::getViews('test');
 
-        // Should not change - different methods
         Schema::create('new_table', function ($table) {
             $table->id();
         });
 
-        // Should get comments - no parameters
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $types = Schema::getTypes();
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $listing = Schema::getTableListing();
 
         return compact('allTables', 'allViews', 'publicTables', 'testViews', 'types', 'listing');

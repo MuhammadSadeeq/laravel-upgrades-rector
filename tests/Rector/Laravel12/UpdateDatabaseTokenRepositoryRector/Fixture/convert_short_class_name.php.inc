@@ -2,8 +2,7 @@
 
 function createTokenRepository()
 {
-    // Should work with short class name
-    return new DatabaseTokenRepository(
+    $repo = new DatabaseTokenRepository(
         $connection,
         $hasher,
         'password_reset_tokens',
@@ -18,8 +17,7 @@ function createTokenRepository()
 
 function createTokenRepository()
 {
-    // Should work with short class name
-    return new DatabaseTokenRepository(
+    $repo = new DatabaseTokenRepository(
         $connection,
         $hasher,
         'password_reset_tokens',

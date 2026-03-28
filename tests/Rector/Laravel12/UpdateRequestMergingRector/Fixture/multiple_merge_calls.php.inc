@@ -1,16 +1,15 @@
 <?php
 
+use Illuminate\Http\Request;
+
 class FormController
 {
     public function handleForm(Request $request)
     {
-        // First mergeIfMissing call
         $request->mergeIfMissing(['created_at' => now()]);
 
-        // Process some data
         $data = $request->validated();
 
-        // Second mergeIfMissing call
         $request->mergeIfMissing([
             'updated_at' => now(),
             'user_id' => auth()->id()
@@ -24,17 +23,18 @@ class FormController
 -----
 <?php
 
+use Illuminate\Http\Request;
+
 class FormController
 {
     public function handleForm(Request $request)
     {
-        // First mergeIfMissing call
+        // Laravel 12: mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.
         $request->mergeIfMissing(['created_at' => now()]);
 
-        // Process some data
         $data = $request->validated();
 
-        // Second mergeIfMissing call
+        // Laravel 12: mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.
         $request->mergeIfMissing([
             'updated_at' => now(),
             'user_id' => auth()->id()

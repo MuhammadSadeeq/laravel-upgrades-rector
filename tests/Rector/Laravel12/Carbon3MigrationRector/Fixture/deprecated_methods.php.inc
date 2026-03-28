@@ -6,11 +6,12 @@ function testDeprecatedMethods()
 {
     $date = Carbon::now();
 
-    // formatLocalized should become isoFormat
+    // formatLocalized should become isoFormat with converted format string
     $formatted = $date->formatLocalized('%A');
 
-    // These methods should be removed, returning the object
+    // setUtf8 should be removed
     $date->setUtf8();
+
     $date->setWeekStartsAt(1);
     $date->setWeekEndsAt(0);
 
@@ -27,12 +28,15 @@ function testDeprecatedMethods()
 {
     $date = Carbon::now();
 
-    // formatLocalized should become isoFormat
-    $formatted = $date->isoFormat('%A');
+    // formatLocalized should become isoFormat with converted format string
+    $formatted = $date->isoFormat('dddd');
 
-    // These methods should be removed, returning the object
+    // setUtf8 should be removed
     $date;
+
+    // TODO: Carbon 3 removed setWeekStartsAt(). Configure week start/end via CarbonImmutable::setWeekStartsAt() or locale settings.
     $date;
+    // TODO: Carbon 3 removed setWeekEndsAt(). Configure week start/end via CarbonImmutable::setWeekStartsAt() or locale settings.
     $date;
 
     return $formatted;

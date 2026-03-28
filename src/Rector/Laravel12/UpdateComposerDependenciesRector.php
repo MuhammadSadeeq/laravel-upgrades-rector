@@ -5,99 +5,100 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
 use PhpParser\Node;
-use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\ArrayItem;
+use PhpParser\Node\Scalar\String_;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateComposerDependenciesRector extends AbstractRector
 {
-    private static bool $hasRun = false;
-
     /** @var array<string, string> */
-    private array $dependencyUpdates = [
+    private array $dependencyMap = [
         'laravel/framework' => '^12.0',
         'phpunit/phpunit' => '^11.0',
         'pestphp/pest' => '^3.0',
+        'nunomaduro/collision' => '^8.1',
+        'laravel/breeze' => '^2.0',
+        'laravel/cashier' => '^15.0',
+        'laravel/dusk' => '^8.0',
+        'laravel/jetstream' => '^5.0',
+        'laravel/passport' => '^12.0',
+        'laravel/sanctum' => '^4.0',
+        'laravel/scout' => '^10.0',
+        'laravel/telescope' => '^5.0',
+        'livewire/livewire' => '^3.4',
+        'inertiajs/inertia-laravel' => '^2.0',
     ];
 
     public function getNodeTypes(): array
     {
-        return [Class_::class];
+        return [Array_::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        // Only run once per Rector execution
-        if (self::$hasRun) {
+        if (! $node instanceof Array_) {
             return null;
         }
 
-        // Mark as run
-        self::$hasRun = true;
+        $changed = false;
 
-        // Find composer.json in the project root
-        $composerPath = getcwd() . '/composer.json';
-
-        if (!file_exists($composerPath)) {
-            return null;
-        }
-
-        // Read composer.json
-        $composerContent = file_get_contents($composerPath);
-        if ($composerContent === false) {
-            return null;
-        }
-
-        $composer = json_decode($composerContent, true);
-        if (!is_array($composer)) {
-            return null;
-        }
-
-        $hasChanges = false;
-
-        // Update dependencies in 'require' section
-        if (isset($composer['require']) && is_array($composer['require'])) {
-            foreach ($this->dependencyUpdates as $package => $version) {
-                if (isset($composer['require'][$package])) {
-                    $composer['require'][$package] = $version;
-                    $hasChanges = true;
-                }
+        foreach ($node->items as $item) {
+            if (! $item instanceof ArrayItem) {
+                continue;
             }
-        }
 
-        // Update dependencies in 'require-dev' section
-        if (isset($composer['require-dev']) && is_array($composer['require-dev'])) {
-            foreach ($this->dependencyUpdates as $package => $version) {
-                if (isset($composer['require-dev'][$package])) {
-                    $composer['require-dev'][$package] = $version;
-                    $hasChanges = true;
-                }
+            if (! $item->key instanceof String_) {
+                continue;
             }
+
+            if (! $item->value instanceof String_) {
+                continue;
+            }
+
+            $package = $item->key->value;
+
+            if (! isset($this->dependencyMap[$package])) {
+                continue;
+            }
+
+            $newVersion = $this->dependencyMap[$package];
+
+            if ($item->value->value === $newVersion) {
+                continue;
+            }
+
+            $item->value = new String_($newVersion);
+            $changed = true;
         }
 
-        // Write back to composer.json if changes were made
-        if ($hasChanges) {
-            $newContent = json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
-            file_put_contents($composerPath, $newContent);
-        }
-
-        // Return null as we're not modifying any PHP nodes
-        return null;
+        return $changed ? $node : null;
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Update composer.json dependencies for Laravel 12 compatibility',
+            'Update dependency version strings for Laravel 12 compatibility',
             [
                 new CodeSample(
-                    '"laravel/framework": "^11.31"',
-                    '"laravel/framework": "^12.0"'
-                ),
-                new CodeSample(
-                    '"phpunit/phpunit": "^10.0"',
-                    '"phpunit/phpunit": "^11.0"'
+                    <<<'CODE_SAMPLE'
+<?php
+
+$require = [
+    "laravel/framework" => "^11.31",
+    "phpunit/phpunit" => "^10.5",
+];
+CODE_SAMPLE,
+                    <<<'CODE_SAMPLE'
+<?php
+
+$require = [
+    "laravel/framework" => "^12.0",
+    "phpunit/phpunit" => "^11.0",
+];
+CODE_SAMPLE,
                 ),
             ]
         );

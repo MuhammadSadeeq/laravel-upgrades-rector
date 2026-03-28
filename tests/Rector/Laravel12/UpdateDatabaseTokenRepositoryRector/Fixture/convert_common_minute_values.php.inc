@@ -6,7 +6,6 @@ class AuthServiceProvider
 {
     public function boot()
     {
-        // Should convert common minute values to seconds
         $repo1 = new DatabaseTokenRepository($connection, $hasher, 'password_resets', 'key', 60);
         $repo2 = new DatabaseTokenRepository($connection, $hasher, 'password_resets', 'key', 90);
         $repo3 = new DatabaseTokenRepository($connection, $hasher, 'password_resets', 'key', 120);
@@ -25,7 +24,6 @@ class AuthServiceProvider
 {
     public function boot()
     {
-        // Should convert common minute values to seconds
         $repo1 = new DatabaseTokenRepository($connection, $hasher, 'password_resets', 'key', 60 * 60);
         $repo2 = new DatabaseTokenRepository($connection, $hasher, 'password_resets', 'key', 90 * 60);
         $repo3 = new DatabaseTokenRepository($connection, $hasher, 'password_resets', 'key', 120 * 60);

@@ -7,7 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\ArrayItem;
+use PhpParser\Node\ArrayItem;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Scalar\String_;
@@ -211,7 +211,7 @@ final class UpdateImageValidationSvgRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Update image validation rules to explicitly allow SVG files for Laravel 12 compatibility",
+            "Update image validation rules to explicitly allow SVG files, preserving the old SVG acceptance behavior after Laravel 12 changed the image rule to reject SVGs by default",
             [
                 new CodeSample(
                     "'photo' => 'required|image'",

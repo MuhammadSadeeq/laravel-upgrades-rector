@@ -4,81 +4,84 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StaticCallExtractor;
+use PhpParser\Comment;
 use PhpParser\Node;
-use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\Expression;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateConcurrencyResultMappingRector extends AbstractRector
 {
+    public function __construct(
+        private readonly StaticCallExtractor $staticCallExtractor,
+    ) {}
+
     public function getNodeTypes(): array
     {
-        return [StaticCall::class];
+        return [Expression::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof StaticCall) {
+        if (!$node instanceof Expression) {
             return null;
         }
 
-        // Check if this is Concurrency::run call
+        $staticCall = $this->staticCallExtractor->extract($node);
+
+        if ($staticCall === null) {
+            return null;
+        }
+
+        if (!$staticCall->class instanceof Name) {
+            return null;
+        }
+
         if (
-            !$this->isName($node->class, "Concurrency") ||
-            !$this->isName($node->name, "run")
+            !$this->isName($staticCall->class, 'Concurrency') &&
+            !$this->isName($staticCall->class, 'Illuminate\Support\Facades\Concurrency')
         ) {
             return null;
         }
 
-        // Check if the argument is an array
-        if (
-            !isset($node->args[0]) ||
-            !$node->args[0] instanceof \PhpParser\Node\Arg ||
-            !$node->args[0]->value instanceof Array_
-        ) {
+        if (!$this->isName($staticCall->name, 'run')) {
             return null;
         }
 
-        $array = $node->args[0]->value;
-        $hasAssociativeKeys = false;
-
-        // Check if any items have keys (associative array)
-        foreach ($array->items as $item) {
-            if ($item instanceof ArrayItem && $item->key !== null) {
-                $hasAssociativeKeys = true;
-                break;
+        $existingComments = $node->getComments();
+        foreach ($existingComments as $comment) {
+            if (str_contains($comment->getText(), 'Laravel 12:')) {
+                return null;
             }
         }
 
-        // Only add a comment if using associative arrays (where behavior changed)
-        if ($hasAssociativeKeys) {
-            $node->setAttribute("comments", [
-                new \PhpParser\Comment\Doc(
-                    "/** Laravel 12: Concurrency::run() now preserves associative array keys in results. " .
-                        "Results will be returned with their original keys instead of numeric indices. */",
-                ),
-            ]);
-            return $node;
-        }
+        $newComment = new Comment(
+            '// Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.'
+        );
 
-        return null;
+        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $node;
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Add documentation for Concurrency::run() result index mapping behavior change in Laravel 12",
+            'Add advisory comment for Concurrency::run() result mapping behavior change in Laravel 12',
             [
                 new CodeSample(
-                    '$result = Concurrency::run([
+                    '$results = Concurrency::run([
     \'task-1\' => fn () => 1 + 1,
     \'task-2\' => fn () => 2 + 2,
 ]);',
-                    '/** Laravel 12: Concurrency::run() now preserves associative array keys in results. Results will be returned with their original keys instead of numeric indices. */
-$result = Concurrency::run([
+                    '// Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.
+$results = Concurrency::run([
     \'task-1\' => fn () => 1 + 1,
     \'task-2\' => fn () => 2 + 2,
 ]);',

@@ -6,7 +6,6 @@ class DatabaseInspector
 {
     public function inspectDatabase()
     {
-        // These methods now return multi-schema results in Laravel 12
         $tables = Schema::getTables();
         $views = Schema::getViews();
         $types = Schema::getTypes();
@@ -26,10 +25,13 @@ class DatabaseInspector
 {
     public function inspectDatabase()
     {
-        // These methods now return multi-schema results in Laravel 12
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $tables = Schema::getTables();
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $views = Schema::getViews();
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $types = Schema::getTypes();
+        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $tableListing = Schema::getTableListing();
 
         return compact('tables', 'views', 'types', 'tableListing');

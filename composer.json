@@ -41,6 +41,7 @@
     "autoload-dev": {
         "psr-4": {
             "MuhammadSadeeq\\LaravelUpgradesRector\\Tests\\": "tests/",
+            "Carbon\\": "stubs/Carbon/",
             "Illuminate\\": "stubs/Illuminate/",
             "Doctrine\\": "stubs/Doctrine/",
             "Laravel\\": "stubs/Laravel/",
@@ -61,6 +62,6 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "config": {
-        "allow-plugins": []
+        "allow-plugins": {}
     }
 }
