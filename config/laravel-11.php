@@ -8,10 +8,10 @@ use MuhammadSadeeq\LaravelUpgradesRector\LaravelUpgradeSetList;
 return RectorConfig::configure()
     ->withSets([LaravelUpgradeSetList::LARAVEL_11])
     ->withPaths([
-        __DIR__ . "/../../app",
-        __DIR__ . "/../../config",
-        __DIR__ . "/../../database",
-        __DIR__ . "/../../routes",
-        __DIR__ . "/../../resources",
+        getcwd() . "/app",
+        getcwd() . "/config",
+        getcwd() . "/database",
+        getcwd() . "/routes",
+        getcwd() . "/resources",
     ])
     ->withPhpSets(php82: true);

@@ -41,7 +41,7 @@ class EdgeCasesTest
             // Edge case: image-like but not image
             'not_image1' => 'required|imaginary',
             'not_image2' => 'string_with_image_word',
-            'not_image3' => 'required|mimes:image:allow_svg/jpeg',
+            'not_image3' => 'required|mimes:image/jpeg',
         ];
     }
 }

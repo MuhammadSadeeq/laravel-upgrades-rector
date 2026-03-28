@@ -92,7 +92,7 @@ final class UpdateRateLimitingRector extends AbstractRector
     }
 
     /**
-     * @param array<int, \PhpParser\Node\Arg|\PhpParser\Node\VariadicPlaceholder> $args
+     * @param array<\PhpParser\Node\Arg|\PhpParser\Node\VariadicPlaceholder> $args
      */
     private function convertTimeArgument(Node $node, string $className, array $args): ?Node
     {

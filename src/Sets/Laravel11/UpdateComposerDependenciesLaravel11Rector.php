@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel11;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\ArrayItem;
-use PhpParser\Node\Scalar\String_;
+use PhpParser\Node\Stmt\Class_;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
 {
+    private static bool $hasRun = false;
+
     /** @var array<string, string> */
     private array $dependencyUpdates = [
         'laravel/framework' => '^11.0',
@@ -40,55 +40,83 @@ final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
 
     public function getNodeTypes(): array
     {
-        return [Array_::class];
+        return [Class_::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Array_) {
+        // Only run once per Rector execution
+        if (self::$hasRun) {
             return null;
         }
 
-        $hasUpdates = false;
-        $itemsToRemove = [];
+        // Mark as run
+        self::$hasRun = true;
 
-        foreach ($node->items as $key => $item) {
-            if (!$item instanceof ArrayItem || !$item->key instanceof String_ || !$item->value instanceof String_) {
-                continue;
+        // Find composer.json in the project root
+        $composerPath = getcwd() . '/composer.json';
+
+        if (!file_exists($composerPath)) {
+            return null;
+        }
+
+        // Read composer.json
+        $composerContent = file_get_contents($composerPath);
+        if ($composerContent === false) {
+            return null;
+        }
+
+        $composer = json_decode($composerContent, true);
+        if (!is_array($composer)) {
+            return null;
+        }
+
+        $hasChanges = false;
+
+        // Update dependencies in 'require' section
+        if (isset($composer['require']) && is_array($composer['require'])) {
+            foreach ($this->dependencyUpdates as $package => $version) {
+                if (isset($composer['require'][$package])) {
+                    $composer['require'][$package] = $version;
+                    $hasChanges = true;
+                }
             }
 
-            $packageName = $item->key->value;
-
-            // Check if this package should be removed
-            if (in_array($packageName, $this->packagesToRemove, true)) {
-                $itemsToRemove[] = $key;
-                $hasUpdates = true;
-                continue;
-            }
-
-            // Check if this package should be updated
-            if (isset($this->dependencyUpdates[$packageName])) {
-                $newVersion = $this->dependencyUpdates[$packageName];
-
-                // Only update if the version is different
-                if ($item->value->value !== $newVersion) {
-                    $item->value = new String_($newVersion);
-                    $hasUpdates = true;
+            // Remove packages from 'require'
+            foreach ($this->packagesToRemove as $package) {
+                if (isset($composer['require'][$package])) {
+                    unset($composer['require'][$package]);
+                    $hasChanges = true;
                 }
             }
         }
 
-        // Remove packages that should be removed (in reverse order to preserve indices)
-        foreach (array_reverse($itemsToRemove) as $indexToRemove) {
-            unset($node->items[$indexToRemove]);
+        // Update dependencies in 'require-dev' section
+        if (isset($composer['require-dev']) && is_array($composer['require-dev'])) {
+            foreach ($this->dependencyUpdates as $package => $version) {
+                if (isset($composer['require-dev'][$package])) {
+                    $composer['require-dev'][$package] = $version;
+                    $hasChanges = true;
+                }
+            }
+
+            // Remove packages from 'require-dev'
+            foreach ($this->packagesToRemove as $package) {
+                if (isset($composer['require-dev'][$package])) {
+                    unset($composer['require-dev'][$package]);
+                    $hasChanges = true;
+                }
+            }
         }
 
-        // Re-index array items
-        if (!empty($itemsToRemove)) {
-            $node->items = array_values($node->items);
+        // Write back to composer.json if changes were made
+        if ($hasChanges) {
+            $newContent = json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+            file_put_contents($composerPath, $newContent);
         }
 
-        return $hasUpdates ? $node : null;
+        // Return null as we're not modifying any PHP nodes
+        return null;
     }
 
     public function getRuleDefinition(): RuleDefinition
@@ -97,11 +125,11 @@ final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
             'Update composer.json dependencies for Laravel 11 compatibility',
             [
                 new CodeSample(
-                    '"laravel/framework" => "^10.0"',
-                    '"laravel/framework" => "^11.0"'
+                    '"laravel/framework": "^10.0"',
+                    '"laravel/framework": "^11.0"'
                 ),
                 new CodeSample(
-                    '"doctrine/dbal" => "^3.0"',
+                    '"doctrine/dbal": "^3.0"',
                     '// Package removed - no longer needed in Laravel 11'
                 ),
             ]

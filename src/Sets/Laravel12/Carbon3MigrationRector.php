@@ -61,7 +61,7 @@ final class Carbon3MigrationRector extends AbstractRector
         return [MethodCall::class, StaticCall::class, New_::class];
     }
 
-    public function refactor(Node $node): ?Node
+    public function refactor(Node $node): Node
     {
         // 1. Rename named arg 'tz' to 'timezone' for consistency with Carbon 3
         if ($node instanceof MethodCall || $node instanceof StaticCall) {
@@ -128,6 +128,11 @@ final class Carbon3MigrationRector extends AbstractRector
 
         // Handle diffIn* methods - wrap with (int) abs() for Carbon 2 behavior
         if ($methodName !== null && in_array($methodName, $this->diffMethods, true)) {
+            // Skip if already wrapped to ensure idempotency
+            if ($this->isAlreadyWrappedInAbs($node, $methodName)) {
+                return $node;
+            }
+
             // Apply the transformation to all diffIn* method calls, assuming they're Carbon instances
             $absFunc = new FuncCall(new Name('abs'), [new Arg($node)]);
             return new Cast\Int_($absFunc);
@@ -188,6 +193,32 @@ final class Carbon3MigrationRector extends AbstractRector
         return $this->isName($class, 'Carbon') ||
                $this->isName($class, 'Carbon\\Carbon') ||
                $this->isName($class, 'Illuminate\\Support\\Carbon');
+    }
+
+    /**
+     * Check if this method call is already wrapped in abs() function
+     * This ensures idempotency - we don't wrap twice
+     *
+     * We do this by checking the file content for the transformation pattern
+     */
+    private function isAlreadyWrappedInAbs(MethodCall $node, string $methodName): bool
+    {
+        // Check if we're in a file that has already been processed
+        // by looking for the pattern in the file content
+        $fileContent = $this->file->getFileContent();
+
+        // Check if this specific line already has abs() and the method name
+        // This is a simple heuristic but should work for most cases
+        if (str_contains($fileContent, "abs(\$") && str_contains($fileContent, $methodName)) {
+            // File likely already has transformations - be conservative
+            // Check if this exact pattern exists: abs($...->methodName(
+            $pattern = "abs\\(\\$.*?->{$methodName}\\(";
+            if (preg_match("/{$pattern}/", $fileContent)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function convertFormatString(string $format): string

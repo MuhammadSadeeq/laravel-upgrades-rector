@@ -19,7 +19,7 @@ final class RemoveSpatieOnceRector extends AbstractRector
     }
 
     /**
-     * @return int|Node|null
+     * @return int|null
      */
     public function refactor(Node $node)
     {
