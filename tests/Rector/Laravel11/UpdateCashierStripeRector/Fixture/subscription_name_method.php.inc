@@ -1,15 +1,12 @@
 <?php
 
-class WebhookHandler
-{
-    public function newSubscriptionName($payload)
-    {
-        return $payload['data']['object']['metadata']['subscription_name'] ?? null;
-    }
+use Laravel\Cashier\Cashier;
 
-    public function handleWebhook()
+class Config
+{
+    public function setup()
     {
-        $name = $this->newSubscriptionName($payload);
+        Cashier::useCustomerModel(User::class);
     }
 }
 
@@ -17,16 +14,14 @@ class WebhookHandler
 -----
 <?php
 
-class WebhookHandler
-{
-    public function newSubscriptionName($payload)
-    {
-        return $payload['data']['object']['metadata']['subscription_name'] ?? null;
-    }
+use Laravel\Cashier\Cashier;
 
-    public function handleWebhook()
+class Config
+{
+    public function setup()
     {
-        $name = $this->newSubscriptionType($payload);
+        // Cashier Stripe 15: Review Cashier static configuration for v15 compatibility
+        Cashier::useCustomerModel(User::class);
     }
 }
 

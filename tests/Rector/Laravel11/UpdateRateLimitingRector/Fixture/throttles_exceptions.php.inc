@@ -1,13 +1,11 @@
 <?php
 
-use Illuminate\Queue\Middleware\ThrottlesExceptions;
-
 class JobWithThrottle
 {
     public function middleware()
     {
         return [
-            new ThrottlesExceptions(10, 5),
+            new \Illuminate\Queue\Middleware\ThrottlesExceptions(10, 5),
         ];
     }
 }
@@ -16,14 +14,12 @@ class JobWithThrottle
 -----
 <?php
 
-use Illuminate\Queue\Middleware\ThrottlesExceptions;
-
 class JobWithThrottle
 {
     public function middleware()
     {
         return [
-            new ThrottlesExceptions(10, 5 * 60),
+            new \Illuminate\Queue\Middleware\ThrottlesExceptions(10, 5 * 60),
         ];
     }
 }

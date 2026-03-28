@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use PhpParser\Node;
+use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use Rector\Rector\AbstractRector;
@@ -13,6 +15,15 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateBatchRepositoryInterfaceRector extends AbstractRector
 {
+    private const INTERFACE_NAME = 'Illuminate\Bus\BatchRepository';
+
+    private const METHOD_NAME = 'rollBack';
+
+    public function __construct(
+        private readonly InterfaceImplementationChecker $checker,
+    ) {
+    }
+
     public function getNodeTypes(): array
     {
         return [Class_::class];
@@ -24,64 +35,48 @@ final class UpdateBatchRepositoryInterfaceRector extends AbstractRector
             return null;
         }
 
-        // Check if this class implements BatchRepository interface
-        $implementsBatchRepository = false;
-        if ($node->implements) {
-            foreach ($node->implements as $implement) {
-                if (
-                    $this->isName($implement, "Illuminate\Bus\BatchRepository")
-                ) {
-                    $implementsBatchRepository = true;
-                    break;
-                }
-            }
-        }
-
-        if (!$implementsBatchRepository) {
+        if (!$this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
             return null;
         }
 
-        // Check if the class already has the rollBack method
-        $hasRollBackMethod = false;
-        foreach ($node->stmts as $stmt) {
-            if (
-                $stmt instanceof ClassMethod &&
-                $this->isName($stmt->name, "rollBack")
-            ) {
-                $hasRollBackMethod = true;
-                break;
-            }
+        if ($this->checker->hasMethod($node, self::METHOD_NAME)) {
+            return null;
         }
 
-        // If it doesn't have the method, add documentation
-        if (!$hasRollBackMethod) {
-            $node->setAttribute("comments", [
-                new \PhpParser\Comment\Doc(
-                    "/** Laravel 11: BatchRepository interface requires new rollBack method. " .
-                        "Add: public function rollBack(); */",
-                ),
-            ]);
-            return $node;
-        }
+        $method = new ClassMethod(self::METHOD_NAME, [
+            'flags' => Class_::MODIFIER_PUBLIC,
+            'returnType' => new Identifier('void'),
+            'stmts' => [],
+        ]);
 
-        return null;
+        $node->stmts[] = $method;
+
+        return $node;
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Add documentation for missing rollBack method in BatchRepository implementations for Laravel 11",
+            'Add rollBack() method stub to BatchRepository implementations for Laravel 11',
             [
                 new CodeSample(
-                    'class CustomBatchRepository implements BatchRepository
-{
-    // existing methods...
-}',
-                    '/** Laravel 11: BatchRepository interface requires new rollBack method. Add: public function rollBack(); */
+                    <<<'CODE_SAMPLE'
+use Illuminate\Bus\BatchRepository;
+
 class CustomBatchRepository implements BatchRepository
 {
-    // existing methods...
-}',
+}
+CODE_SAMPLE,
+                    <<<'CODE_SAMPLE'
+use Illuminate\Bus\BatchRepository;
+
+class CustomBatchRepository implements BatchRepository
+{
+    public function rollBack(): void
+    {
+    }
+}
+CODE_SAMPLE,
                 ),
             ],
         );

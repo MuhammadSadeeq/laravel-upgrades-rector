@@ -6,7 +6,6 @@ class CustomCollection implements Enumerable
 {
     public function dump()
     {
-        // Current implementation without arguments
         dd($this->toArray());
     }
 
@@ -26,7 +25,6 @@ class CustomCollection implements Enumerable
 {
     public function dump(...$args)
     {
-        // Current implementation without arguments
         dd($this->toArray());
     }
 

@@ -1,41 +1,31 @@
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-class CreateGeometryTable
-{
-    public function up()
-    {
-        Schema::create('geometry', function (Blueprint $table) {
-            $table->id();
-            $table->multiPoint('points');
-            $table->multiLineString('lines');
-            $table->multiPolygon('polygons');
-            $table->multiPolygonZ('polygons_z');
-            $table->timestamps();
-        });
-    }
-}
+Schema::create('geometry', function (Blueprint $table) {
+    $table->id();
+    $table->multiPoint('points');
+    $table->multiLineString('lines');
+    $table->multiPolygon('polygons');
+    $table->multiPolygonZ('polygons_z');
+    $table->timestamps();
+});
 
 ?>
 -----
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-class CreateGeometryTable
-{
-    public function up()
-    {
-        Schema::create('geometry', function (Blueprint $table) {
-            $table->id();
-            $table->geometry('points', subtype: 'multiPoint');
-            $table->geometry('lines', subtype: 'multiLineString');
-            $table->geometry('polygons', subtype: 'multiPolygon');
-            $table->geometry('polygons_z', subtype: 'multiPolygonZ');
-            $table->timestamps();
-        });
-    }
-}
+Schema::create('geometry', function (Blueprint $table) {
+    $table->id();
+    $table->geometry('points', subtype: 'multiPoint');
+    $table->geometry('lines', subtype: 'multiLineString');
+    $table->geometry('polygons', subtype: 'multiPolygon');
+    $table->geometry('polygons_z', subtype: 'multiPolygonZ');
+    $table->timestamps();
+});
 
 ?>

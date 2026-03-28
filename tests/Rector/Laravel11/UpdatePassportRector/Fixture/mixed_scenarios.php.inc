@@ -1,30 +1,12 @@
 <?php
 
-use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
 
-class AppServiceProvider extends ServiceProvider
+class PassportSetup
 {
     public function boot(): void
     {
         Passport::routes();
-
-        // Other boot code
-    }
-
-    public function register(): void
-    {
-        // Register code
-    }
-}
-
-class OtherClass
-{
-    public function setup()
-    {
-        Passport::tokensExpireIn(now()->addDays(15));
-
-        // Other setup
     }
 }
 
@@ -32,32 +14,14 @@ class OtherClass
 -----
 <?php
 
-use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
 
-class AppServiceProvider extends ServiceProvider
+class PassportSetup
 {
-    /** Laravel 11 Passport 12: Password grant type is disabled by default. Add Passport::enablePasswordGrant() in this method if you need password grants. */
     public function boot(): void
     {
+        // Laravel 11 Passport 12: Password grant disabled by default. Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations
         Passport::routes();
-
-        // Other boot code
-    }
-
-    public function register(): void
-    {
-        // Register code
-    }
-}
-
-class OtherClass
-{
-    public function setup()
-    {
-        Passport::tokensExpireIn(now()->addDays(15));
-
-        // Other setup
     }
 }
 

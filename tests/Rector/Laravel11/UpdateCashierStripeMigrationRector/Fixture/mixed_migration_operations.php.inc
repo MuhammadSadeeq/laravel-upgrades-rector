@@ -10,13 +10,6 @@ class MixedMigrationOperations extends Migration
         Schema::table('subscriptions', function (Blueprint $table) {
             $table->string('new_column');
             $table->renameColumn('name', 'type');
-            $table->dropColumn('old_column');
-        });
-
-        Schema::table('subscription_items', function (Blueprint $table) {
-            $table->dropUnique(['subscription_id', 'stripe_price']);
-            $table->index(['subscription_id', 'stripe_price']);
-            $table->string('metadata')->nullable();
         });
     }
 }
@@ -34,14 +27,8 @@ class MixedMigrationOperations extends Migration
     {
         Schema::table('subscriptions', function (Blueprint $table) {
             $table->string('new_column');
+            // Cashier Stripe 15: Renamed "name" column to "type" in subscriptions table
             $table->renameColumn('name', 'type');
-            $table->dropColumn('old_column');
-        });
-
-        Schema::table('subscription_items', function (Blueprint $table) {
-            $table->dropUnique(['subscription_id', 'stripe_price']);
-            $table->index(['subscription_id', 'stripe_price']);
-            $table->string('metadata')->nullable();
         });
     }
 }

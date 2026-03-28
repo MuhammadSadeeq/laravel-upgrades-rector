@@ -4,91 +4,86 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Stmt\Expression;
+use PHPStan\Type\ObjectType;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateCashierStripeTrialRector extends AbstractRector
 {
+    private const COMMENT_MARKER = 'Cashier Stripe 15:';
+
     /** @var array<int, string> */
-    private array $subscriptionCancelMethods = [
-        "cancel",
-        "cancelNow",
-        "cancelAt",
+    private array $cancelMethods = [
+        'cancel',
+        'cancelNow',
+        'cancelAt',
     ];
 
     public function getNodeTypes(): array
     {
-        return [MethodCall::class];
+        return [Expression::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof MethodCall) {
+        if (! $node instanceof Expression) {
             return null;
         }
 
-        $methodName = $this->getName($node->name);
+        if (! $node->expr instanceof MethodCall) {
+            return null;
+        }
 
-        // Handle subscription cancellation methods
-        if (in_array($methodName, $this->subscriptionCancelMethods, true)) {
-            // Check if this is being called on what appears to be a subscription
-            if ($this->isSubscriptionMethod($node)) {
-                $node->setAttribute("comments", [
-                    new \PhpParser\Comment\Doc(
-                        "/** Cashier Stripe 15: {$methodName}() now always ends subscription trials. " .
-                            "Any lingering trial will be ended when subscription is canceled. */",
-                    ),
-                ]);
-                return $node;
+        $methodName = $this->getName($node->expr->name);
+
+        if ($methodName === null) {
+            return null;
+        }
+
+        if (! in_array($methodName, $this->cancelMethods, true)) {
+            return null;
+        }
+
+        if (! $this->isObjectType($node->expr->var, new ObjectType('Laravel\\Cashier\\Subscription'))) {
+            return null;
+        }
+
+        $existingComments = $node->getComments();
+
+        foreach ($existingComments as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
+                return null;
             }
         }
 
-        return null;
-    }
+        $newComment = new Comment(
+            '// ' . self::COMMENT_MARKER . " {$methodName}() now always ends subscription trials immediately"
+        );
+        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
-    private function isSubscriptionMethod(MethodCall $methodCall): bool
-    {
-        // Try to determine if this method is being called on a subscription object
-        if ($methodCall->var instanceof \PhpParser\Node\Expr\Variable) {
-            $varName = $methodCall->var->name;
-            if (is_string($varName)) {
-                return str_contains($varName, "subscription") ||
-                    str_contains($varName, "sub") ||
-                    $varName === "billable";
-            }
-        }
-
-        // Check for method chains that might indicate subscription context
-        if ($methodCall->var instanceof MethodCall) {
-            $parentMethodName = $this->getName($methodCall->var->name);
-            if (
-                in_array(
-                    $parentMethodName,
-                    ["subscription", "newSubscription", "subscriptions"],
-                    true,
-                )
-            ) {
-                return true;
-            }
-        }
-
-        return false;
+        return $node;
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Add documentation for Cashier Stripe 15.0 trial ending behavior when canceling subscriptions",
+            'Warn about Cashier Stripe 15.0 trial ending behavior when canceling subscriptions',
             [
                 new CodeSample(
                     '$subscription->cancel()',
-                    '/** Cashier Stripe 15: cancel() now always ends subscription trials. Any lingering trial will be ended when subscription is canceled. */
-$subscription->cancel()',
+                    <<<'CODE_SAMPLE'
+// Cashier Stripe 15: cancel() now always ends subscription trials immediately
+$subscription->cancel()
+CODE_SAMPLE
                 ),
-            ],
+            ]
         );
     }
 }

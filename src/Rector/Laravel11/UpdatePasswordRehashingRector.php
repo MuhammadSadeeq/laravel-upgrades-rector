@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
-use PhpParser\Node\Stmt\PropertyProperty;
-use PhpParser\Node\Scalar\String_;
-use PhpParser\Node\VarLikeIdentifier;
+use PhpParser\Node\PropertyItem;
+use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\ClassReflection;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdatePasswordRehashingRector extends AbstractRector
 {
+    private const COMMENT_MARKER = 'Laravel 11: Auto password rehashing is now enabled';
+
     public function getNodeTypes(): array
     {
         return [Class_::class];
@@ -23,81 +28,107 @@ final class UpdatePasswordRehashingRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Class_) {
+        if (! $node instanceof Class_) {
             return null;
         }
 
-        // Check if this class uses the Authenticatable trait or extends User model
-        $usesAuthenticatable = false;
-        $isUserModel = false;
+        $scope = $node->getAttribute(AttributeKey::SCOPE);
 
-        // Check if class name suggests it's a User model
-        if ($node->name && in_array($node->name->name, ['User'], true)) {
-            $isUserModel = true;
+        if (! $scope instanceof Scope) {
+            return null;
         }
 
-        // Check for Authenticatable trait usage
-        foreach ($node->stmts as $stmt) {
-            if ($stmt instanceof \PhpParser\Node\Stmt\TraitUse) {
-                foreach ($stmt->traits as $trait) {
-                    if ($this->isName($trait, 'Illuminate\Auth\Authenticatable')) {
-                        $usesAuthenticatable = true;
-                        break;
-                    }
+        $classReflection = $scope->getClassReflection();
+
+        if (! $classReflection instanceof ClassReflection) {
+            return null;
+        }
+
+        if (! $classReflection->is('Illuminate\\Contracts\\Auth\\Authenticatable')) {
+            return null;
+        }
+
+        if (! $this->hasCustomPasswordField($node)) {
+            return null;
+        }
+
+        $existingComments = $node->getComments();
+
+        foreach ($existingComments as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
+                return null;
+            }
+        }
+
+        $newComment = new Comment(
+            '// ' . self::COMMENT_MARKER
+            . '. If using a custom password field, set protected $authPasswordName. '
+            . 'To disable: rehash_on_login => false in config/hashing.php'
+        );
+        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $node;
+    }
+
+    private function hasCustomPasswordField(Class_ $class): bool
+    {
+        foreach ($class->stmts as $stmt) {
+            if (! $stmt instanceof Property) {
+                continue;
+            }
+
+            foreach ($stmt->props as $prop) {
+                if (! $prop instanceof PropertyItem) {
+                    continue;
+                }
+
+                $name = $prop->name->name;
+
+                // Check for the specific Laravel property that indicates custom password field
+                if ($name === 'authPasswordName') {
+                    return true;
                 }
             }
         }
 
-        if (!$usesAuthenticatable && !$isUserModel) {
-            return null;
-        }
-
-        // Check if the class has a custom password field and add documentation
-        $hasCustomPasswordField = false;
-        foreach ($node->stmts as $stmt) {
-            if ($stmt instanceof Property) {
-                foreach ($stmt->props as $prop) {
-                    if ($prop instanceof PropertyProperty) {
-                        // Look for properties that might be password fields (not named 'password')
-                        $propertyName = $prop->name->name;
-                        if (str_contains($propertyName, 'password') && $propertyName !== 'password') {
-                            $hasCustomPasswordField = true;
-                        }
-                    }
-                }
+        // Also check for getAuthPasswordName method that returns something other than 'password'
+        foreach ($class->stmts as $stmt) {
+            if (! $stmt instanceof ClassMethod) {
+                continue;
             }
+
+            if ($stmt->name->name !== 'getAuthPasswordName') {
+                continue;
+            }
+
+            // If they have a custom getAuthPasswordName, they have a custom password field
+            return true;
         }
 
-        // Add documentation comment about password rehashing
-        if ($hasCustomPasswordField || $isUserModel) {
-            $node->setAttribute('comments', [
-                new \PhpParser\Comment\Doc(
-                    '/** Laravel 11: Auto password rehashing enabled. ' .
-                    'If using custom password field name, add protected $authPasswordName = \'custom_field_name\'; ' .
-                    'To disable: set rehash_on_login => false in config/hashing.php */'
-                )
-            ]);
-            return $node;
-        }
-
-        return null;
+        return false;
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Add documentation for password rehashing changes in Laravel 11',
+            'Warn about password rehashing changes for Authenticatable classes with custom password fields in Laravel 11',
             [
                 new CodeSample(
-                    'class User extends Authenticatable
-{
-    protected $custom_password_field;
-}',
-                    '/** Laravel 11: Auto password rehashing enabled. If using custom password field name, add protected $authPasswordName = \'custom_field_name\'; To disable: set rehash_on_login => false in config/hashing.php */
+                    <<<'CODE_SAMPLE'
 class User extends Authenticatable
 {
     protected $custom_password_field;
-}'
+}
+CODE_SAMPLE
+                    ,
+                    <<<'CODE_SAMPLE'
+// Laravel 11: Auto password rehashing is now enabled. If using a custom password field, set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php
+class User extends Authenticatable
+{
+    protected $custom_password_field;
+}
+CODE_SAMPLE
                 ),
             ]
         );

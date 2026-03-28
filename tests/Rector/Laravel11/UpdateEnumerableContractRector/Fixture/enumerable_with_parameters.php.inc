@@ -6,12 +6,7 @@ class ParameterizedCollection implements Enumerable
 {
     public function dump($format = 'array')
     {
-        // Has regular parameters but not variadic - should be updated
-        if ($format === 'json') {
-            dd(json_encode($this->toArray()));
-        } else {
-            dd($this->toArray());
-        }
+        dd($this->toArray());
     }
 
     public function toArray()
@@ -26,18 +21,13 @@ class ParameterizedCollection implements Enumerable
 
 use Illuminate\Support\Enumerable;
 
+// Laravel 11: Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.
 class ParameterizedCollection implements Enumerable
 {
-    public function dump(...$args)
+    public function dump($format = 'array')
     {
-        // Has regular parameters but not variadic - should be updated
-        if ($format === 'json') {
-            dd(json_encode($this->toArray()));
-        } else {
-            dd($this->toArray());
-        }
+        dd($this->toArray());
     }
-
     public function toArray()
     {
         return ['key' => 'value'];

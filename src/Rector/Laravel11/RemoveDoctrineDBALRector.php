@@ -4,111 +4,170 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
-use PhpParser\Node\Stmt\Use_;
+use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\Expression;
+use PhpParser\Node\Stmt\Use_;
+use PhpParser\NodeVisitor;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class RemoveDoctrineDBALRector extends AbstractRector
 {
+    /** @var array<string, string> */
+    private array $renamedMethods = [
+        'getAllTables' => 'getTables',
+        'getAllViews' => 'getViews',
+        'getAllTypes' => 'getTypes',
+    ];
+
     /** @var array<int, string> */
     private array $removedMethods = [
-        "useNativeSchemaOperationsIfPossible",
-        "usingNativeSchemaOperations",
-        "isDoctrineAvailable",
-        "getDoctrineConnection",
-        "getDoctrineSchemaManager",
-        "getDoctrineColumn",
-        "registerDoctrineType",
-        "getDoctrineTableDiff",
+        'getDoctrineConnection',
+        'getDoctrineSchemaManager',
+        'getDoctrineColumn',
+        'registerDoctrineType',
+        'isDoctrineAvailable',
     ];
 
     /** @var array<int, string> */
-    private array $removedClasses = [
-        "Illuminate\Database\DBAL\TimestampType",
-        "Illuminate\Database\Schema\Grammars\ChangeColumn",
-        "Illuminate\Database\Schema\Grammars\RenameColumn",
-    ];
-
-    /** @var array<string, string> */
-    private array $replacementMethods = [
-        "getAllTables" => "getTables",
-        "getAllViews" => "getViews",
-        "getAllTypes" => "getTypes",
+    private array $schemaFacades = [
+        'Illuminate\\Support\\Facades\\Schema',
+        'Illuminate\\Support\\Facades\\DB',
     ];
 
     public function getNodeTypes(): array
     {
-        return [MethodCall::class, StaticCall::class, Use_::class];
+        return [Use_::class, Expression::class, StaticCall::class];
     }
 
-    public function refactor(Node $node): ?Node
+    /**
+     * @return int|Node|null
+     */
+    public function refactor(Node $node)
     {
-        // Handle use statements for removed classes
         if ($node instanceof Use_) {
-            foreach ($node->uses as $use) {
-                $className = $this->getName($use->name);
-                if (in_array($className, $this->removedClasses, true)) {
-                    // Add comment about removal
-                    $node->setAttribute("comments", [
-                        new \PhpParser\Comment\Doc(
-                            "/** Laravel 11: {$className} has been removed. Doctrine DBAL is no longer required. */",
-                        ),
-                    ]);
-                    return null; // Remove the use statement
-                }
-            }
-            return null;
+            return $this->refactorUseStatement($node);
         }
 
-        // Handle method calls
-        if ($node instanceof MethodCall || $node instanceof StaticCall) {
-            $methodName = $this->getName($node->name);
+        if ($node instanceof Expression) {
+            return $this->refactorExpression($node);
+        }
 
-            // Handle removed methods
-            if (in_array($methodName, $this->removedMethods, true)) {
-                $node->setAttribute("comments", [
-                    new \PhpParser\Comment\Doc(
-                        "/** Laravel 11: {$methodName}() method has been removed. Doctrine DBAL is no longer required. */",
-                    ),
-                ]);
-                return $node;
+        if ($node instanceof StaticCall) {
+            return $this->refactorStaticCall($node);
+        }
+
+        return null;
+    }
+
+    private function refactorUseStatement(Use_ $node): ?int
+    {
+        foreach ($node->uses as $use) {
+            $className = $this->getName($use->name);
+
+            if ($className === null) {
+                continue;
             }
 
-            // Handle replaced deprecated methods
-            if (isset($this->replacementMethods[$methodName])) {
-                $newMethodName = $this->replacementMethods[$methodName];
-                $node->name = new \PhpParser\Node\Identifier($newMethodName);
-                return $node;
-            }
-
-            // Handle getColumnType method
-            if ($methodName === "getColumnType") {
-                $node->setAttribute("comments", [
-                    new \PhpParser\Comment\Doc(
-                        "/** Laravel 11: getColumnType() now returns actual type, not Doctrine DBAL equivalent. */",
-                    ),
-                ]);
-                return $node;
+            if (str_starts_with($className, 'Doctrine\DBAL\\')) {
+                return NodeVisitor::REMOVE_NODE;
             }
         }
 
         return null;
     }
 
+    private function refactorExpression(Expression $node): ?Node
+    {
+        $expr = $node->expr;
+
+        if (!$expr instanceof MethodCall) {
+            return null;
+        }
+
+        $methodName = $this->getName($expr->name);
+
+        if ($methodName === null) {
+            return null;
+        }
+
+        if (!in_array($methodName, $this->removedMethods, true)) {
+            return null;
+        }
+
+        $existingComments = $node->getComments();
+
+        foreach ($existingComments as $comment) {
+            if (str_contains($comment->getText(), 'Laravel 11:')) {
+                return null;
+            }
+        }
+
+        $newComment = new Comment(
+            "// Laravel 11: {$methodName}() has been removed. Doctrine DBAL is no longer required."
+        );
+
+        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $node;
+    }
+
+    private function refactorStaticCall(StaticCall $node): ?Node
+    {
+        if (! $node->class instanceof Name) {
+            return null;
+        }
+
+        $methodName = $this->getName($node->name);
+
+        if ($methodName === null) {
+            return null;
+        }
+
+        if (! isset($this->renamedMethods[$methodName])) {
+            return null;
+        }
+
+        if (! $this->isSchemaFacade($node->class)) {
+            return null;
+        }
+
+        $node->name = new Identifier($this->renamedMethods[$methodName]);
+
+        return $node;
+    }
+
+    private function isSchemaFacade(Name $className): bool
+    {
+        foreach ($this->schemaFacades as $fqcn) {
+            if ($this->isName($className, $fqcn)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Remove Doctrine DBAL related code and update deprecated schema methods for Laravel 11",
+            'Remove Doctrine DBAL related code and update deprecated schema methods for Laravel 11',
             [
-                new CodeSample("Schema::getAllTables()", "Schema::getTables()"),
+                new CodeSample(
+                    'Schema::getAllTables()',
+                    'Schema::getTables()',
+                ),
                 new CodeSample(
                     '$connection->getDoctrineConnection()',
-                    '/** Laravel 11: getDoctrineConnection() method has been removed. Doctrine DBAL is no longer required. */
+                    '// Laravel 11: getDoctrineConnection() has been removed. Doctrine DBAL is no longer required.
 $connection->getDoctrineConnection()',
                 ),
             ],

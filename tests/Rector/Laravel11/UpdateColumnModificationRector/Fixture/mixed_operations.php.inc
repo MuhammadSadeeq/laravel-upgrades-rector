@@ -1,57 +1,34 @@
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
 
-class MixedTableOperations extends Migration
-{
-    public function up()
-    {
-        Schema::table('products', function (Blueprint $table) {
-            // New columns - should not be changed
-            $table->string('sku')->unique();
-            $table->decimal('weight', 5, 2)->nullable();
-
-            // Modified columns - should get comments
-            $table->string('title', 200)->nullable()->change();
-            $table->text('description')->change();
-
-            // Dropped columns - should not be changed
-            $table->dropColumn(['old_field']);
-
-            // Another modified column
-            $table->integer('stock')->unsigned()->default(0)->change();
-        });
-    }
-}
+Schema::table('products', function (Blueprint $table) {
+    $table->string('sku')->unique();
+    $table->decimal('weight', 5, 2)->nullable();
+    $table->string('title', 200)->nullable()->change();
+    $table->text('description')->change();
+    $table->dropColumn(['old_field']);
+    $table->integer('stock')->unsigned()->default(0)->change();
+});
 
 ?>
 -----
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
 
-class MixedTableOperations extends Migration
-{
-    public function up()
-    {
-        Schema::table('products', function (Blueprint $table) {
-            // New columns - should not be changed
-            $table->string('sku')->unique();
-            $table->decimal('weight', 5, 2)->nullable();
-
-            // Modified columns - should get comments
-            $table->string('title', 200)->nullable()->change();
-            $table->text('description')->change();
-
-            // Dropped columns - should not be changed
-            $table->dropColumn(['old_field']);
-
-            // Another modified column
-            $table->integer('stock')->unsigned()->default(0)->change();
-        });
-    }
-}
+Schema::table('products', function (Blueprint $table) {
+    $table->string('sku')->unique();
+    $table->decimal('weight', 5, 2)->nullable();
+    // Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.
+    $table->string('title', 200)->nullable()->change();
+    // Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.
+    $table->text('description')->change();
+    $table->dropColumn(['old_field']);
+    // Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.
+    $table->integer('stock')->unsigned()->default(0)->change();
+});
 
 ?>

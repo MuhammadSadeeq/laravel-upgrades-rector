@@ -4,107 +4,152 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use PhpParser\Comment;
 use PhpParser\Node;
-use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Scalar\String_;
+use PhpParser\Node\Stmt\Expression;
+use PHPStan\Type\ObjectType;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateCashierStripeMigrationRector extends AbstractRector
 {
+    private const COMMENT_MARKER = 'Cashier Stripe 15:';
+
     public function getNodeTypes(): array
     {
-        return [MethodCall::class];
+        return [Expression::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof MethodCall) {
+        if (! $node instanceof Expression) {
             return null;
         }
 
-        $methodName = $this->getName($node->name);
-
-        // Handle renameColumn for subscriptions table 'name' to 'type'
-        if ($methodName === "renameColumn") {
-            if (count($node->args) >= 2) {
-                $fromArg = $node->args[0];
-                $toArg = $node->args[1];
-
-                if (
-                    $fromArg instanceof Arg &&
-                    $toArg instanceof Arg &&
-                    $fromArg->value instanceof String_ &&
-                    $toArg->value instanceof String_ &&
-                    $fromArg->value->value === "name" &&
-                    $toArg->value->value === "type"
-                ) {
-                    // Add comment about Cashier Stripe migration
-                    $node->setAttribute("comments", [
-                        new \PhpParser\Comment\Doc(
-                            '/** Cashier Stripe 15: Renamed "name" column to "type" in subscriptions table ' .
-                                "to better indicate subscription type rather than customer-facing name. */",
-                        ),
-                    ]);
-                    return $node;
-                }
-            }
+        if (! $node->expr instanceof MethodCall) {
+            return null;
         }
 
-        // Handle dropUnique and index for subscription_items table
-        if ($methodName === "dropUnique") {
-            if (count($node->args) >= 1) {
-                $arg = $node->args[0];
-                if ($arg instanceof Arg && $arg->value instanceof \PhpParser\Node\Expr\Array_) {
-                    $array = $arg->value;
-                    $hasSubscriptionId = false;
-                    $hasStripePrice = false;
+        if (! $this->isBlueprintContext($node->expr)) {
+            return null;
+        }
 
-                    foreach ($array->items as $item) {
-                        if ($item !== null && $item->value instanceof String_) {
-                            if ($item->value->value === "subscription_id") {
-                                $hasSubscriptionId = true;
-                            }
-                            if ($item->value->value === "stripe_price") {
-                                $hasStripePrice = true;
-                            }
-                        }
-                    }
+        $methodName = $this->getName($node->expr->name);
 
-                    if ($hasSubscriptionId && $hasStripePrice) {
-                        $node->setAttribute("comments", [
-                            new \PhpParser\Comment\Doc(
-                                "/** Cashier Stripe 15: Converting unique constraint to regular index " .
-                                    'on subscription_items table. Follow with ->index([\'subscription_id\', \'stripe_price\']) */',
-                            ),
-                        ]);
-                        return $node;
-                    }
-                }
-            }
+        if ($methodName === 'renameColumn') {
+            return $this->handleRenameColumn($node, $node->expr);
+        }
+
+        if ($methodName === 'dropUnique') {
+            return $this->handleDropUnique($node, $node->expr);
         }
 
         return null;
     }
 
+    private function isBlueprintContext(MethodCall $node): bool
+    {
+        return $this->isObjectType($node->var, new ObjectType('Illuminate\\Database\\Schema\\Blueprint'));
+    }
+
+    private function handleRenameColumn(Expression $stmt, MethodCall $node): ?Node
+    {
+        if (count($node->args) < 2) {
+            return null;
+        }
+
+        $fromArg = $node->args[0];
+        $toArg = $node->args[1];
+
+        if (! $fromArg instanceof Arg || ! $toArg instanceof Arg) {
+            return null;
+        }
+
+        if (! $fromArg->value instanceof String_ || ! $toArg->value instanceof String_) {
+            return null;
+        }
+
+        if ($fromArg->value->value !== 'name' || $toArg->value->value !== 'type') {
+            return null;
+        }
+
+        $existingComments = $stmt->getComments();
+
+        foreach ($existingComments as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
+                return null;
+            }
+        }
+
+        $newComment = new Comment(
+            '// ' . self::COMMENT_MARKER . ' Renamed "name" column to "type" in subscriptions table'
+        );
+        $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $stmt->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $stmt;
+    }
+
+    private function handleDropUnique(Expression $stmt, MethodCall $node): ?Node
+    {
+        if (count($node->args) < 1) {
+            return null;
+        }
+
+        $arg = $node->args[0];
+
+        if (! $arg instanceof Arg || ! $arg->value instanceof Array_) {
+            return null;
+        }
+
+        $values = [];
+
+        foreach ($arg->value->items as $item) {
+            if ($item !== null && $item->value instanceof String_) {
+                $values[] = $item->value->value;
+            }
+        }
+
+        if (! in_array('subscription_id', $values, true) || ! in_array('stripe_price', $values, true)) {
+            return null;
+        }
+
+        $existingComments = $stmt->getComments();
+
+        foreach ($existingComments as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
+                return null;
+            }
+        }
+
+        $newComment = new Comment(
+            '// ' . self::COMMENT_MARKER . ' Unique constraint replaced with regular index on subscription_items'
+        );
+        $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $stmt->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $stmt;
+    }
+
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Add documentation for Cashier Stripe 15.0 database migration changes",
+            'Add documentation for Cashier Stripe 15.0 database migration changes',
             [
                 new CodeSample(
-                    '$table->renameColumn(\'name\', \'type\')',
-                    '/** Cashier Stripe 15: Renamed "name" column to "type" in subscriptions table to better indicate subscription type rather than customer-facing name. */
-$table->renameColumn(\'name\', \'type\')',
+                    "\$table->renameColumn('name', 'type')",
+                    <<<'CODE_SAMPLE'
+// Cashier Stripe 15: Renamed "name" column to "type" in subscriptions table
+$table->renameColumn('name', 'type')
+CODE_SAMPLE
                 ),
-                new CodeSample(
-                    '$table->dropUnique([\'subscription_id\', \'stripe_price\'])',
-                    '/** Cashier Stripe 15: Converting unique constraint to regular index on subscription_items table. Follow with ->index([\'subscription_id\', \'stripe_price\']) */
-$table->dropUnique([\'subscription_id\', \'stripe_price\'])',
-                ),
-            ],
+            ]
         );
     }
 }

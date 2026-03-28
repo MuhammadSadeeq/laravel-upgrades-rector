@@ -1,35 +1,25 @@
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-class CreateCollectionsTable
-{
-    public function up()
-    {
-        Schema::create('collections', function (Blueprint $table) {
-            $table->id();
-            $table->geometryCollection('data');
-            $table->timestamps();
-        });
-    }
-}
+Schema::create('collections', function (Blueprint $table) {
+    $table->id();
+    $table->geometryCollection('data');
+    $table->timestamps();
+});
 
 ?>
 -----
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-class CreateCollectionsTable
-{
-    public function up()
-    {
-        Schema::create('collections', function (Blueprint $table) {
-            $table->id();
-            $table->geometry('data', subtype: 'geometryCollection');
-            $table->timestamps();
-        });
-    }
-}
+Schema::create('collections', function (Blueprint $table) {
+    $table->id();
+    $table->geometry('data', subtype: 'geometryCollection');
+    $table->timestamps();
+});
 
 ?>

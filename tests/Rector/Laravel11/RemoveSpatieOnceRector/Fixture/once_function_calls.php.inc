@@ -1,26 +1,12 @@
 <?php
 
-class OnceExample
+use Illuminate\Support\Facades\Cache;
+
+class NoSpatieImports
 {
     public function example()
     {
-        $result = Once();
-        $value = OnceCache();
-        $data = onceFunction();
-    }
-}
-
-?>
------
-<?php
-
-class OnceExample
-{
-    public function example()
-    {
-        $result = Once();
-        $value = OnceCache();
-        $data = onceFunction();
+        $result = once(fn() => expensive());
     }
 }
 

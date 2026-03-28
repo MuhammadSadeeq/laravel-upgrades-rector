@@ -6,7 +6,6 @@ class StaticExample
 {
     public function example()
     {
-        DB::getDoctrineConnection();
         DB::getAllTables();
         DB::getAllViews();
 
@@ -25,7 +24,6 @@ class StaticExample
 {
     public function example()
     {
-        DB::getDoctrineConnection();
         DB::getTables();
         DB::getViews();
 

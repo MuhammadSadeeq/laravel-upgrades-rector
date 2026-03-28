@@ -1,16 +1,13 @@
 <?php
 
-class MixedExample
+use Spatie\Once\Cache;
+use App\Services\MyService;
+
+class MixedImports
 {
     public function example()
     {
-        // These should be flagged
-        $spatieResult = spatieCache();
-        $onceResult = OnceHelper();
-
-        // These should not be flagged
-        $regularResult = helper();
-        $cacheResult = cache();
+        $result = once(fn() => expensive());
     }
 }
 
@@ -18,17 +15,13 @@ class MixedExample
 -----
 <?php
 
-class MixedExample
+use App\Services\MyService;
+
+class MixedImports
 {
     public function example()
     {
-        // These should be flagged
-        $spatieResult = spatieCache();
-        $onceResult = OnceHelper();
-
-        // These should not be flagged
-        $regularResult = helper();
-        $cacheResult = cache();
+        $result = once(fn() => expensive());
     }
 }
 

@@ -1,12 +1,10 @@
 <?php
 
-use Illuminate\Cache\RateLimiting\GlobalLimit;
-
 class RateLimitConfig
 {
     public function configure()
     {
-        return new GlobalLimit(100, 2);
+        return new \Illuminate\Cache\RateLimiting\GlobalLimit(100, 2);
     }
 }
 
@@ -14,13 +12,11 @@ class RateLimitConfig
 -----
 <?php
 
-use Illuminate\Cache\RateLimiting\GlobalLimit;
-
 class RateLimitConfig
 {
     public function configure()
     {
-        return new GlobalLimit(100, 2 * 60);
+        return new \Illuminate\Cache\RateLimiting\GlobalLimit(100, 2 * 60);
     }
 }
 

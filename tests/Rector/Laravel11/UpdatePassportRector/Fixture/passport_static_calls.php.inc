@@ -22,8 +22,11 @@ class PassportConfiguration
 {
     public function configure()
     {
+        // Laravel 11 Passport 12: Password grant disabled by default. Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations
         Passport::routes();
+        // Laravel 11 Passport 12: Password grant disabled by default. Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations
         Passport::tokensExpireIn(now()->addDays(15));
+        // Laravel 11 Passport 12: Password grant disabled by default. Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations
         Passport::refreshTokensExpireIn(now()->addDays(30));
     }
 }

@@ -18,3 +18,26 @@ class TelescopeServiceProvider
 }
 
 ?>
+-----
+<?php
+
+use Laravel\Telescope\Telescope;
+use Laravel\Telescope\IncomingEntry;
+
+class TelescopeServiceProvider
+{
+    public function boot()
+    {
+        // Laravel 11 Telescope 5: Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=telescope-migrations
+        Telescope::filter(function (IncomingEntry $entry) {
+            return $entry->isReportableException();
+        });
+
+        // Laravel 11 Telescope 5: Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=telescope-migrations
+        Telescope::tag(function (IncomingEntry $entry) {
+            return ['user:1'];
+        });
+    }
+}
+
+?>

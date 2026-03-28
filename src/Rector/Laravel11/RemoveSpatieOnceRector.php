@@ -19,45 +19,61 @@ final class RemoveSpatieOnceRector extends AbstractRector
     }
 
     /**
-     * @return int|null
+     * @return int|Node|null
      */
     public function refactor(Node $node)
     {
-        if (!$node instanceof Use_) {
+        if (! $node instanceof Use_) {
             return null;
         }
 
-        // Check for Spatie\Once namespace imports
+        $spatieUseItems = [];
+        $otherUseItems = [];
+
         foreach ($node->uses as $use) {
             $name = $use->name->toString();
 
-            // If importing from Spatie\Once namespace, remove the entire use statement
-            // Laravel 11 has native once() function with identical signature
             if (str_starts_with($name, 'Spatie\\Once\\') || $name === 'Spatie\\Once') {
-                // Remove this use statement
-                return NodeVisitor::REMOVE_NODE;
+                $spatieUseItems[] = $use;
+            } else {
+                $otherUseItems[] = $use;
             }
         }
 
-        return null;
+        if ($spatieUseItems === []) {
+            return null;
+        }
+
+        if ($otherUseItems === []) {
+            return NodeVisitor::REMOVE_NODE;
+        }
+
+        $node->uses = $otherUseItems;
+
+        return $node;
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Remove Spatie\\Once use statements for Laravel 11 (Laravel now provides native once() function)",
+            'Remove Spatie\Once use statements (Laravel 11 provides native once() function)',
             [
                 new CodeSample(
-                    'use Spatie\Once\Cache;
+                    <<<'CODE_SAMPLE'
+use Spatie\Once\Cache;
 
 $result = once(function () {
     return expensive_operation();
-});',
-                    '$result = once(function () {
+});
+CODE_SAMPLE
+                    ,
+                    <<<'CODE_SAMPLE'
+$result = once(function () {
     return expensive_operation();
-});',
+});
+CODE_SAMPLE
                 ),
-            ],
+            ]
         );
     }
 }

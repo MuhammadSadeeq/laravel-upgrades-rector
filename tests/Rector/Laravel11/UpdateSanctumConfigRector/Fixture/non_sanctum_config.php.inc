@@ -6,11 +6,8 @@ return [
         'passwords' => 'users',
     ],
 
-    'guards' => [
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'users',
-        ],
+    'middleware' => [
+        'authenticate_session' => 'SomeOtherClass',
     ],
 ];
 

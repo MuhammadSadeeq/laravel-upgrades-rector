@@ -4,6 +4,9 @@ parameters:
         - src
         - tests
 
+    excludePaths:
+        - stubs
+
     # Rector bundles its own PhpParser version which may differ from
     # the one PHPStan sees (especially with composer's --prefer-lowest in CI).
     # This causes false positives about PhpParser\Node types.

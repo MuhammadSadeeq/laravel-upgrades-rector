@@ -40,7 +40,11 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "MuhammadSadeeq\\LaravelUpgradesRector\\Tests\\": "tests/"
+            "MuhammadSadeeq\\LaravelUpgradesRector\\Tests\\": "tests/",
+            "Illuminate\\": "stubs/Illuminate/",
+            "Doctrine\\": "stubs/Doctrine/",
+            "Laravel\\": "stubs/Laravel/",
+            "Spatie\\": "stubs/Spatie/"
         }
     },
     "extra": {

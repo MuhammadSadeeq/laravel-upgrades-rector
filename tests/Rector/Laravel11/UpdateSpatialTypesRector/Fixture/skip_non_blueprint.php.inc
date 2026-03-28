@@ -1,0 +1,5 @@
+<?php
+
+$someObject->point('coordinates');
+
+?>

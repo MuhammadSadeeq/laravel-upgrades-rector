@@ -1,27 +1,21 @@
 <?php
 
 use Illuminate\Support\Enumerable;
-use SomeOther\Interface as SomeInterface;
+use Countable;
 
-class MultipleInterfacesCollection implements SomeInterface, Enumerable
+class MultiCollection implements Countable, Enumerable
 {
     public function dump()
     {
-        // This should be updated since it implements Enumerable
         var_dump($this->items);
     }
 
-    public function someInterfaceMethod()
+    public function count(): int
     {
-        return 'implementation';
+        return 0;
     }
 
-    public function toArray()
-    {
-        return $this->items;
-    }
-
-    private $items = ['a', 'b', 'c'];
+    private $items = [];
 }
 
 ?>
@@ -29,27 +23,21 @@ class MultipleInterfacesCollection implements SomeInterface, Enumerable
 <?php
 
 use Illuminate\Support\Enumerable;
-use SomeOther\Interface as SomeInterface;
+use Countable;
 
-class MultipleInterfacesCollection implements SomeInterface, Enumerable
+class MultiCollection implements Countable, Enumerable
 {
     public function dump(...$args)
     {
-        // This should be updated since it implements Enumerable
         var_dump($this->items);
     }
 
-    public function someInterfaceMethod()
+    public function count(): int
     {
-        return 'implementation';
+        return 0;
     }
 
-    public function toArray()
-    {
-        return $this->items;
-    }
-
-    private $items = ['a', 'b', 'c'];
+    private $items = [];
 }
 
 ?>
