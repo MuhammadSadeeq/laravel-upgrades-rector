@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ✅ 103 tests for Laravel 11 rules (100% passing)
 - ✅ 59 tests for Laravel 12 rules (100% passing)
 - ✅ Full fixture-based testing using Rector's AbstractRectorTestCase
-- ✅ PHPUnit 10 with modern attributes
+- ✅ PHPUnit 11 with modern attributes
 
 #### Documentation
 - ✅ Comprehensive README with examples and workflow

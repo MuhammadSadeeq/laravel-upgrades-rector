@@ -7,7 +7,6 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12\UpdateData
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel12\UpdateDatabaseTokenRepositoryRector;
 
 final class UpdateDatabaseTokenRepositoryRectorTest extends AbstractRectorTestCase
 {

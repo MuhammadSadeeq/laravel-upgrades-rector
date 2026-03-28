@@ -46,8 +46,8 @@ vendor/bin/phpunit --coverage-html coverage/
 
 ### Adding a New Rule
 
-1. **Create the Rector rule** in `src/Sets/Laravel11/` or `src/Sets/Laravel12/`
-2. **Add to the set configuration** in `src/Sets/laravel-11.php` or `laravel-12.php`
+1. **Create the Rector rule** in `src/Rector/Laravel11/` or `src/Rector/Laravel12/`
+2. **Add to the set configuration** in `src/Set/laravel-11.php` or `src/Set/laravel-12.php`
 3. **Create test fixtures** in `tests/Rector/Laravel11/YourRule/Fixture/`
 4. **Create test configuration** in `tests/Rector/Laravel11/YourRule/config/`
 5. **Create test class** in `tests/Rector/Laravel11/YourRule/YourRuleTest.php`
@@ -67,7 +67,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12\MyNewRecto
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel12\MyNewRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\MyNewRector;
 
 final class MyNewRectorTest extends AbstractRectorTestCase
 {

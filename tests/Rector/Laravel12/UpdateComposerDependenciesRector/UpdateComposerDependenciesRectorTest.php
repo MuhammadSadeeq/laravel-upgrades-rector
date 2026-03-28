@@ -7,7 +7,6 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12\UpdateComp
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel12\UpdateComposerDependenciesRector;
 
 final class UpdateComposerDependenciesRectorTest extends AbstractRectorTestCase
 {

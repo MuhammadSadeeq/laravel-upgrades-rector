@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use MuhammadSadeeq\LaravelUpgradesRector\LaravelUpgradeSetList;
+use MuhammadSadeeq\LaravelUpgradesRector\Set\LaravelUpgradeSetList;
 
 return RectorConfig::configure()
     ->withSets([

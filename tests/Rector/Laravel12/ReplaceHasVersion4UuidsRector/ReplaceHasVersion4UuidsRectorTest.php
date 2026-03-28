@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12;
+namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12\ReplaceHasVersion4UuidsRector;
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel12\ReplaceHasVersion4UuidsRector;
 
 final class ReplaceHasVersion4UuidsRectorTest extends AbstractRectorTestCase
 {

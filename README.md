@@ -87,7 +87,7 @@ Create a `rector.php` in your project root:
 <?php
 
 use Rector\Config\RectorConfig;
-use MuhammadSadeeq\LaravelUpgradesRector\LaravelUpgradeSetList;
+use MuhammadSadeeq\LaravelUpgradesRector\Set\LaravelUpgradeSetList;
 
 return RectorConfig::configure()
     ->withSets([

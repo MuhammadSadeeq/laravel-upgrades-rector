@@ -7,7 +7,6 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12\UpdateCont
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel12\UpdateContainerDependencyResolutionRector;
 
 final class UpdateContainerDependencyResolutionRectorTest extends AbstractRectorTestCase
 {

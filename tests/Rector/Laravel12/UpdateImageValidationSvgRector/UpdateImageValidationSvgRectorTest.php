@@ -7,7 +7,6 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12\UpdateImag
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use MuhammadSadeeq\LaravelUpgradesRector\Sets\Laravel12\UpdateImageValidationSvgRector;
 
 final class UpdateImageValidationSvgRectorTest extends AbstractRectorTestCase
 {

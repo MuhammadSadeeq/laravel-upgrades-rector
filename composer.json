@@ -1,62 +1,62 @@
 {
-  "name": "muhammadsadeeq/laravel-upgrades-rector",
-  "description": "Automated Laravel version upgrade rules for Rector. Supports Laravel 10→11 and 11→12 with comprehensive breaking change coverage.",
-  "type": "rector-extension",
-  "keywords": [
-    "laravel",
-    "rector",
-    "upgrade",
-    "migration",
-    "automation",
-    "refactoring",
-    "php"
-  ],
-  "license": "MIT",
-  "homepage": "https://github.com/muhammadsadeeq/laravel-upgrades-rector",
-  "support": {
-    "issues": "https://github.com/muhammadsadeeq/laravel-upgrades-rector/issues",
-    "source": "https://github.com/muhammadsadeeq/laravel-upgrades-rector",
-    "docs": "https://github.com/muhammadsadeeq/laravel-upgrades-rector/blob/main/README.md"
-  },
-  "authors": [
-    {
-      "name": "Muhammad Sadeeq",
-      "email": "afridi.sadeeq.m@gmail.com",
-      "role": "Developer"
+    "name": "muhammadsadeeq/laravel-upgrades-rector",
+    "description": "Automated Laravel version upgrade rules for Rector. Supports Laravel 10→11 and 11→12 with comprehensive breaking change coverage.",
+    "type": "rector-extension",
+    "keywords": [
+        "laravel",
+        "rector",
+        "upgrade",
+        "migration",
+        "automation",
+        "refactoring",
+        "php"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/muhammadsadeeq/laravel-upgrades-rector",
+    "support": {
+        "issues": "https://github.com/muhammadsadeeq/laravel-upgrades-rector/issues",
+        "source": "https://github.com/muhammadsadeeq/laravel-upgrades-rector",
+        "docs": "https://github.com/muhammadsadeeq/laravel-upgrades-rector/blob/main/README.md"
+    },
+    "authors": [
+        {
+            "name": "Muhammad Sadeeq",
+            "email": "afridi.sadeeq.m@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "rector/rector": "^1.0 || ^2.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.10 || ^2.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "MuhammadSadeeq\\LaravelUpgradesRector\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MuhammadSadeeq\\LaravelUpgradesRector\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "rector": {
+            "includes": [
+                "config/config.php"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse --level max"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": []
     }
-  ],
-  "require": {
-    "php": "^8.3",
-    "rector/rector": "^1.0 || ^2.0"
-  },
-  "require-dev": {
-    "phpstan/phpstan": "^1.10 || ^2.0",
-    "phpunit/phpunit": "^11.0"
-  },
-  "autoload": {
-    "psr-4": {
-      "MuhammadSadeeq\\LaravelUpgradesRector\\": "src/"
-    }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "MuhammadSadeeq\\LaravelUpgradesRector\\Tests\\": "tests/"
-    }
-  },
-  "extra": {
-    "rector": {
-      "includes": [
-        "config/config.php"
-      ]
-    }
-  },
-  "scripts": {
-    "test": "phpunit",
-    "analyse": "phpstan analyse src tests --level max"
-  },
-  "minimum-stability": "stable",
-  "prefer-stable": true,
-  "config": {
-    "allow-plugins": {}
-  }
 }
