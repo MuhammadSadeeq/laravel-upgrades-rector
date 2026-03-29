@@ -17,6 +17,9 @@
         <testsuite name="Laravel 12 Upgrade Rules">
             <directory>tests/Rector/Laravel12</directory>
         </testsuite>
+        <testsuite name="Laravel 13 Upgrade Rules">
+            <directory>tests/Rector/Laravel13</directory>
+        </testsuite>
     </testsuites>
 
     <source>

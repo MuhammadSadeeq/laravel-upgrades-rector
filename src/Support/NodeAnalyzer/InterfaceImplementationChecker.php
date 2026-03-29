@@ -12,29 +12,31 @@ use Rector\NodeTypeResolver\Node\AttributeKey;
 
 final class InterfaceImplementationChecker
 {
-    /**
-     * Check if a class implements the given interface, including through parent classes.
-     */
     public function implementsInterface(Class_ $node, string $interfaceFqcn): bool
     {
         $scope = $node->getAttribute(AttributeKey::SCOPE);
 
-        if (! $scope instanceof Scope) {
-            return false;
+        if ($scope instanceof Scope) {
+            $classReflection = $scope->getClassReflection();
+
+            if ($classReflection instanceof ClassReflection) {
+                return $classReflection->is($interfaceFqcn);
+            }
         }
 
-        $classReflection = $scope->getClassReflection();
+        $shortName = substr($interfaceFqcn, (int) strrpos($interfaceFqcn, '\\') + 1);
 
-        if (! $classReflection instanceof ClassReflection) {
-            return false;
+        foreach ($node->implements as $implement) {
+            $implementName = $implement->toString();
+
+            if ($implementName === $interfaceFqcn || $implementName === $shortName) {
+                return true;
+            }
         }
 
-        return $classReflection->is($interfaceFqcn);
+        return false;
     }
 
-    /**
-     * Check if a class already has a specific method.
-     */
     public function hasMethod(Class_ $node, string $methodName): bool
     {
         foreach ($node->stmts as $stmt) {
