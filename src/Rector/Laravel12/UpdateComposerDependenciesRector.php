@@ -66,7 +66,7 @@ final class UpdateComposerDependenciesRector extends AbstractRector
 
             $newVersion = $this->dependencyMap[$package];
 
-            if ($item->value->value === $newVersion) {
+            if (! $this->shouldUpdateVersion($item->value->value, $newVersion)) {
                 continue;
             }
 
@@ -75,6 +75,27 @@ final class UpdateComposerDependenciesRector extends AbstractRector
         }
 
         return $changed ? $node : null;
+    }
+
+    private function shouldUpdateVersion(string $currentConstraint, string $targetConstraint): bool
+    {
+        $current = $this->extractVersion($currentConstraint);
+        $target = $this->extractVersion($targetConstraint);
+
+        if ($current === null || $target === null) {
+            return false;
+        }
+
+        return version_compare($current, $target, '<');
+    }
+
+    private function extractVersion(string $constraint): ?string
+    {
+        if (preg_match('/(\d+(?:\.\d+)*)/', $constraint, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     public function getRuleDefinition(): RuleDefinition

@@ -53,7 +53,7 @@ final class UpdateComposerDependenciesLaravel13Rector extends AbstractRector
 
             $targetVersion = self::DEPENDENCY_UPDATES[$packageName];
 
-            if ($item->value->value === $targetVersion) {
+            if (! $this->shouldUpdateVersion($item->value->value, $targetVersion)) {
                 continue;
             }
 
@@ -66,6 +66,27 @@ final class UpdateComposerDependenciesLaravel13Rector extends AbstractRector
         }
 
         return $node;
+    }
+
+    private function shouldUpdateVersion(string $currentConstraint, string $targetConstraint): bool
+    {
+        $current = $this->extractVersion($currentConstraint);
+        $target = $this->extractVersion($targetConstraint);
+
+        if ($current === null || $target === null) {
+            return false;
+        }
+
+        return version_compare($current, $target, '<');
+    }
+
+    private function extractVersion(string $constraint): ?string
+    {
+        if (preg_match('/(\d+(?:\.\d+)*)/', $constraint, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     public function getRuleDefinition(): RuleDefinition

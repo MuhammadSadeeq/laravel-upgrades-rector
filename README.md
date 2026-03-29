@@ -11,27 +11,10 @@
 </p>
 
 <p align="center">
-  <strong>Automate your Laravel upgrades</strong> with confidence using Rector. This package provides comprehensive automation rules for Laravel framework upgrades, handling breaking changes, dependency updates, and configuration migrations.
+  <strong>Automate your Laravel upgrades</strong> with 44 Rector rules covering Laravel 10 through 13.
 </p>
 
 ---
-
-## Why Use This?
-
-Upgrading Laravel manually is time-consuming and error-prone. This package:
-
-- ✅ **Automates 95% of breaking changes** - Code transformations, dependency updates, config changes
-- 🎯 **Based on official guides** - All rules match Laravel's official upgrade documentation
-- 📝 **Adds helpful comments** - Flags items that need manual review
-- 🧪 **Thoroughly tested** - 162+ tests covering all transformations
-- 🔧 **Zero config needed** - Works immediately after installation
-
-## Supported Versions
-
-| From | To | Rules | Status |
-|------|-------|-------|--------|
-| Laravel 11 | Laravel 12 | 11 rules | ✅ Production Ready |
-| Laravel 10 | Laravel 11 | 21 rules | ✅ Production Ready |
 
 ## Installation
 
@@ -39,49 +22,29 @@ Upgrading Laravel manually is time-consuming and error-prone. This package:
 composer require --dev muhammadsadeeq/laravel-upgrades-rector
 ```
 
-## Quick Start
-
-### Upgrade Laravel 11 → 12
+## Usage
 
 ```bash
-# Preview changes (recommended)
-vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-12.php
+# Preview changes
+vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
 
 # Apply changes
-vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-12.php
+vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
 ```
 
-### Upgrade Laravel 10 → 11
+Replace `laravel-13.php` with `laravel-12.php` or `laravel-11.php` for older upgrades.
 
-```bash
-# Preview changes (recommended)
-vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php
+## Supported Versions
 
-# Apply changes
-vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php
-```
+| Upgrade Path | Rules |
+|--------------|-------|
+| Laravel 12 &rarr; 13 | 11 rules |
+| Laravel 11 &rarr; 12 | 12 rules |
+| Laravel 10 &rarr; 11 | 21 rules |
 
-## What Gets Automated
-
-### Laravel 11 → 12 (11 Rules)
-- Composer dependencies (Laravel 12, PHPUnit 11, Pest 3)
-- Carbon 3 migration (comprehensive breaking changes)
-- UUID v7 migration with backward compatibility
-- Image validation (SVG handling)
-- Storage configuration updates
-- Database schema multi-schema support
-
-### Laravel 10 → 11 (21 Rules)
-- Dependency updates (composer.json)
-- Database schema changes (floating-point, spatial types)
-- Authentication updates (password rehashing, contracts)
-- Rate limiting (minutes → seconds conversion)
-- Doctrine DBAL removal
-- Package updates (Cashier, Passport, Sanctum, Telescope)
+Cumulative sets are available to upgrade across multiple versions at once.
 
 ## Custom Configuration
-
-Create a `rector.php` in your project root:
 
 ```php
 <?php
@@ -91,83 +54,25 @@ use MuhammadSadeeq\LaravelUpgradesRector\Set\LaravelUpgradeSetList;
 
 return RectorConfig::configure()
     ->withSets([
-        LaravelUpgradeSetList::LARAVEL_12, // or LARAVEL_11
+        LaravelUpgradeSetList::LARAVEL_13,
+        // LARAVEL_11, LARAVEL_12, LARAVEL_13 for single-version upgrades
+        // UP_TO_LARAVEL_12, UP_TO_LARAVEL_13 for cumulative upgrades
     ])
     ->withPaths([
         __DIR__ . '/app',
         __DIR__ . '/config',
         __DIR__ . '/database',
-    ])
-    ->withSkip([
-        __DIR__ . '/app/Legacy', // Skip specific directories
     ]);
-```
-
-Then run:
-```bash
-vendor/bin/rector process
-```
-
-## Example Transformations
-
-### Laravel 11 → 12
-
-```php
-// Before
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-
-$table->point('coordinates');
-$table->geometry('shapes');
-
-'photo' => 'required|image',
-
-// After
-use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
-
-$table->geometry('coordinates', subtype: 'point');
-$table->geometry('shapes');
-
-'photo' => 'required|image:allow_svg',
-```
-
-### Laravel 10 → 11
-
-```php
-// Before
-Schema::create('products', function (Blueprint $table) {
-    $table->double('price', 8, 2);
-    $table->unsignedDouble('weight');
-});
-
-new GlobalLimit($attempts, 2); // minutes
-
-// After
-Schema::create('products', function (Blueprint $table) {
-    $table->double('price');
-    $table->double('weight')->unsigned();
-});
-
-new GlobalLimit($attempts, 2 * 60); // seconds
 ```
 
 ## Documentation
 
-**📖 [Full Documentation](https://www.sadeeq.dev/docs/laravel-upgrades-rector)**
-
-Visit the full documentation for:
-- Detailed upgrade guides
-- Complete rule reference
-- Troubleshooting tips
-- Advanced customization
-- API documentation
+**[Full Documentation](https://www.sadeeq.dev/docs/laravel-upgrades-rector)** — Detailed rule reference, example transformations, architecture overview, and troubleshooting.
 
 ## Testing
 
 ```bash
-# Run all tests
 composer test
-
-# Run static analysis
 composer analyse
 ```
 
@@ -185,13 +90,3 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 ## License
 
 The MIT License (MIT). Please see [LICENSE.md](LICENSE.md) for more information.
-
-## Support
-
-- 📖 [Full Documentation](https://www.sadeeq.dev/docs/laravel-upgrades-rector)
-- 🐛 [Issue Tracker](https://github.com/muhammadsadeeq/laravel-upgrades-rector/issues)
-- 💬 [Discussions](https://github.com/muhammadsadeeq/laravel-upgrades-rector/discussions)
-
----
-
-**Made with ❤️ for the Laravel community**
