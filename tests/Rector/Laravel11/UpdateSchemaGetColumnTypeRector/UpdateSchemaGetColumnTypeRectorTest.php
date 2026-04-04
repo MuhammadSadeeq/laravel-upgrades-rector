@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel11\UpdateComposerDependenciesLaravel11Rector;
+namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel11\UpdateSchemaGetColumnTypeRector;
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
 
-final class UpdateComposerDependenciesLaravel11RectorTest extends AbstractRectorTestCase
+final class UpdateSchemaGetColumnTypeRectorTest extends AbstractRectorTestCase
 {
     #[DataProvider('provideData')]
     public function test(string $filePath): void

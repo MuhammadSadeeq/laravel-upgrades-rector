@@ -9,6 +9,7 @@ return RectorConfig::configure()
     ->withSets([LaravelUpgradeSetList::LARAVEL_11])
     ->withPaths([
         getcwd() . "/app",
+        getcwd() . "/bootstrap",
         getcwd() . "/config",
         getcwd() . "/database",
         getcwd() . "/routes",

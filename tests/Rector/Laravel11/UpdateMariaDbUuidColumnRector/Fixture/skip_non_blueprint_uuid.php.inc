@@ -1,0 +1,5 @@
+<?php
+
+$schemaHelper->uuid('uuid');
+
+?>

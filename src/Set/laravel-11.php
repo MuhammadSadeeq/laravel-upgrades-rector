@@ -24,6 +24,16 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateTelescopeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateDatabaseConnectionInterfaceRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateMailerContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateBatchRepositoryInterfaceRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCachePrefixConfigRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEmailVerificationSetupRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateMariaDbUuidColumnRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateQueueAfterCommitRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSchemaGetColumnTypeRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdatePublishedServiceProviderRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSparkStripeRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSqliteVersionRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\Carbon3MigrationRector;
 
 return RectorConfig::configure()->withRules([
     // High Impact Changes
@@ -31,8 +41,10 @@ return RectorConfig::configure()->withRules([
     UpdateFloatingPointTypesRector::class,
     UpdateColumnModificationRector::class,
     UpdateSanctumConfigRector::class,
+    UpdateSqliteVersionRector::class,
 
     // Medium Impact Changes
+    Carbon3MigrationRector::class,
     UpdatePasswordRehashingRector::class,
     UpdateRateLimitingRector::class,
     RemoveSpatieOnceRector::class,
@@ -47,11 +59,19 @@ return RectorConfig::configure()->withRules([
     UpdateDatabaseConnectionInterfaceRector::class,
     UpdateMailerContractRector::class,
     UpdateBatchRepositoryInterfaceRector::class,
+    UpdateAuthenticationExceptionRedirectToRector::class,
+    UpdateEmailVerificationSetupRector::class,
+    UpdateCachePrefixConfigRector::class,
+    UpdateSchemaGetColumnTypeRector::class,
+    UpdateMariaDbUuidColumnRector::class,
+    UpdateQueueAfterCommitRector::class,
+    UpdatePublishedServiceProviderRector::class,
 
     // Package Updates (if installed)
     UpdateCashierStripeRector::class,
     UpdateCashierStripeMigrationRector::class,
     UpdateCashierStripeTrialRector::class,
     UpdatePassportRector::class,
+    UpdateSparkStripeRector::class,
     UpdateTelescopeRector::class,
 ]);

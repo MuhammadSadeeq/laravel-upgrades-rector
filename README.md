@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>Automate your Laravel upgrades</strong> with 44 Rector rules covering Laravel 10 through 13.
+  <strong>Automate your Laravel upgrades</strong> with 53 Rector rules covering Laravel 10 through 13.
 </p>
 
 ---
@@ -40,7 +40,7 @@ Replace `laravel-13.php` with `laravel-12.php` or `laravel-11.php` for older upg
 |--------------|-------|
 | Laravel 12 &rarr; 13 | 11 rules |
 | Laravel 11 &rarr; 12 | 12 rules |
-| Laravel 10 &rarr; 11 | 21 rules |
+| Laravel 10 &rarr; 11 | 31 rules |
 
 Cumulative sets are available to upgrade across multiple versions at once.
 
@@ -60,6 +60,7 @@ return RectorConfig::configure()
     ])
     ->withPaths([
         __DIR__ . '/app',
+        __DIR__ . '/bootstrap',
         __DIR__ . '/config',
         __DIR__ . '/database',
     ]);

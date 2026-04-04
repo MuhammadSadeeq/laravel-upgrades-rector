@@ -4,96 +4,43 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\Composer\Laravel11ComposerJsonUpdater;
 use PhpParser\Node;
-use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\ArrayItem;
-use PhpParser\Node\Scalar\String_;
+use Rector\PhpParser\Node\FileNode;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
 {
-    /** @var array<string, string> */
-    private array $dependencyUpdates = [
-        'laravel/framework' => '^11.0',
-        'nunomaduro/collision' => '^8.1',
-        'laravel/breeze' => '^2.0',
-        'laravel/cashier' => '^15.0',
-        'laravel/dusk' => '^8.0',
-        'laravel/jetstream' => '^5.0',
-        'laravel/octane' => '^2.3',
-        'laravel/passport' => '^12.0',
-        'laravel/sanctum' => '^4.0',
-        'laravel/scout' => '^10.0',
-        'laravel/spark-stripe' => '^5.0',
-        'laravel/telescope' => '^5.0',
-        'livewire/livewire' => '^3.4',
-        'inertiajs/inertia-laravel' => '^1.0',
-    ];
+    private bool $hasUpdatedComposerJson = false;
+
+    public function __construct(
+        private readonly Laravel11ComposerJsonUpdater $laravel11ComposerJsonUpdater,
+    ) {
+    }
 
     public function getNodeTypes(): array
     {
-        return [Array_::class];
+        return [FileNode::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (! $node instanceof Array_) {
+        if (! $node instanceof FileNode) {
             return null;
         }
 
-        $changed = false;
-
-        foreach ($node->items as $item) {
-            if (! $item instanceof ArrayItem) {
-                continue;
-            }
-
-            if (! $item->key instanceof String_ || ! $item->value instanceof String_) {
-                continue;
-            }
-
-            $packageName = $item->key->value;
-
-            if (! isset($this->dependencyUpdates[$packageName])) {
-                continue;
-            }
-
-            $targetVersion = $this->dependencyUpdates[$packageName];
-
-            if (! $this->shouldUpdateVersion($item->value->value, $targetVersion)) {
-                continue;
-            }
-
-            $item->value = new String_($targetVersion);
-            $changed = true;
-        }
-
-        if (! $changed) {
+        if ($this->hasUpdatedComposerJson) {
             return null;
         }
 
-        return $node;
-    }
-
-    private function shouldUpdateVersion(string $currentConstraint, string $targetConstraint): bool
-    {
-        $current = $this->extractVersion($currentConstraint);
-        $target = $this->extractVersion($targetConstraint);
-
-        if ($current === null || $target === null) {
-            return false;
+        if (str_contains($this->file->getFilePath(), DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR)) {
+            return null;
         }
 
-        return version_compare($current, $target, '<');
-    }
-
-    private function extractVersion(string $constraint): ?string
-    {
-        if (preg_match('/(\d+(?:\.\d+)*)/', $constraint, $matches)) {
-            return $matches[1];
-        }
+        $this->hasUpdatedComposerJson = true;
+        $this->laravel11ComposerJsonUpdater->update(getcwd() . '/composer.json');
 
         return null;
     }
@@ -101,11 +48,27 @@ final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Update dependency version strings for Laravel 11 compatibility',
+            'Update composer.json dependencies for Laravel 11 compatibility',
             [
                 new CodeSample(
-                    '"laravel/framework" => "^10.0"',
-                    '"laravel/framework" => "^11.0"',
+                    <<<'CODE_SAMPLE'
+{
+    "require": {
+        "php": "^8.1",
+        "laravel/framework": "^10.0",
+        "doctrine/dbal": "^3.0"
+    }
+}
+CODE_SAMPLE
+                    ,
+                    <<<'CODE_SAMPLE'
+{
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0"
+    }
+}
+CODE_SAMPLE
                 ),
             ]
         );

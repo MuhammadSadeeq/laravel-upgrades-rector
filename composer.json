@@ -1,6 +1,6 @@
 {
     "name": "muhammadsadeeq/laravel-upgrades-rector",
-    "description": "Automated Laravel version upgrade rules for Rector. Supports Laravel 10 through 13 with 44 rules covering breaking changes, dependency updates, and contract migrations.",
+    "description": "Automated Laravel version upgrade rules for Rector. Supports Laravel 10 through 13 with 53 rules covering breaking changes, dependency updates, and contract migrations.",
     "type": "rector-extension",
     "keywords": [
         "laravel",

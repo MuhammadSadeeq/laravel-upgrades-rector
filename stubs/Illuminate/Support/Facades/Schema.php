@@ -29,6 +29,8 @@ class Schema
     /** @return array<int, mixed> */
     public static function getIndexes(string $table): array { return []; }
 
+    public static function getColumnType(string $table, string $column): string { return 'string'; }
+
     /** @return array<int, mixed> */
     public static function getAllTables(): array { return []; }
 

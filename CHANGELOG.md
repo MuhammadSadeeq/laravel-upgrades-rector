@@ -25,12 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Laravel 11 &rarr; 12 Upgrade (12 Rules)
 - Composer dependency updates (Laravel 12, PHPUnit 11, Pest 3)
-- Carbon 3 migration with comprehensive breaking change handling:
-  - Method renames (`formatLocalized` &rarr; `isoFormat` with format string conversion)
-  - `diffIn*` methods now return floats/negatives
-  - `setUtf8()` removal
-  - Named argument updates (`tz` &rarr; `timezone`)
-  - `isSame*()` &rarr; `isCurrent*()` conversions
+- Carbon 3 migration handling for the Laravel 11 -> 12 upgrade path
 - UUID trait migration (UUIDv7 by default, backward compatibility support)
 - Image validation SVG handling
 - Storage configuration updates (local disk path changes)
@@ -40,9 +35,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Request merging nested array support documentation
 - Concurrency result mapping behavior notes
 
-#### Laravel 10 &rarr; 11 Upgrade (21 Rules)
-- Composer dependency updates (framework, packages, tools)
+#### Laravel 10 &rarr; 11 Upgrade (31 Rules)
+- Composer dependency updates now target the real `composer.json` file:
+  - Laravel and ecosystem package versions updated in `require` / `require-dev`
+  - PHP requirement updated to `^8.2`
+  - `doctrine/dbal` and `spatie/once` removed when present
+- Carbon 3 migration with comprehensive breaking change handling:
+  - Method renames (`formatLocalized` &rarr; `isoFormat` with format string conversion)
+  - `diffIn*` methods now return floats/negatives
+  - `setUtf8()` removal
+  - Named argument updates (`tz` &rarr; `timezone`)
+  - `isSame*()` &rarr; `isCurrent*()` conversions
 - Database schema changes (floating-point types, spatial types, column modifications)
+- Additional upgrade advisories for documented Laravel 11 behavior changes:
+  - SQLite minimum version
+  - `AuthenticationException::redirectTo($request)`
+  - Email verification auto-registration in `EventServiceProvider`
+  - Cache prefix suffix behavior
+  - `Schema::getColumnType()` behavior
+  - MariaDB `uuid()` column behavior
+  - `sync` queue `after_commit`
+  - Publishing providers to `bootstrap/providers.php`
 - Authentication updates (password rehashing, contract methods)
 - Rate limiting conversion (minutes to seconds)
 - Doctrine DBAL removal automation
@@ -50,12 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cashier Stripe 15.0 (payment methods, trial behavior, migrations)
   - Passport 12.0 (migration publishing, password grant)
   - Sanctum 4.0 (middleware configuration, migrations)
+  - Spark Stripe 5.0 (migration publishing)
   - Telescope 5.0 (migration publishing)
 - Spatie Once package removal (Laravel has native `once()` now)
 - Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
 
 #### Testing & Quality
-- 225+ tests across all 3 upgrade paths (111 L11, 75 L12, 39 L13)
+- 244 tests across all 3 upgrade paths and support utilities
 - Full fixture-based testing using Rector's AbstractRectorTestCase
 - PHPStan at max level with zero errors
 

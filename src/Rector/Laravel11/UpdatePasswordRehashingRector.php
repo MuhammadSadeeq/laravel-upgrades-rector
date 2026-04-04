@@ -6,10 +6,10 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use PhpParser\Comment;
 use PhpParser\Node;
+use PhpParser\Node\PropertyItem;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
-use PhpParser\Node\PropertyItem;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
@@ -19,7 +19,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdatePasswordRehashingRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 11: Auto password rehashing is now enabled';
+    private const COMMENT_MARKER = 'Laravel 11: Auto password rehashing may require authPasswordName';
 
     public function getNodeTypes(): array
     {
@@ -48,30 +48,29 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             return null;
         }
 
-        if (! $this->hasCustomPasswordField($node)) {
+        if ($this->hasPasswordNameConfiguration($node)) {
             return null;
         }
 
-        $existingComments = $node->getComments();
+        if (! $this->hasCustomPasswordAccessor($node)) {
+            return null;
+        }
 
-        foreach ($existingComments as $comment) {
+        foreach ($node->getComments() as $comment) {
             if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
                 return null;
             }
         }
 
-        $newComment = new Comment(
-            '// ' . self::COMMENT_MARKER
-            . '. If using a custom password field, set protected $authPasswordName. '
-            . 'To disable: rehash_on_login => false in config/hashing.php'
-        );
-        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
+        $node->setAttribute('comments', array_merge([
+            new Comment('// ' . self::COMMENT_MARKER . '. This model overrides getAuthPassword(); if the password column is not "password", set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php'),
+        ], $node->getComments()));
         $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }
 
-    private function hasCustomPasswordField(Class_ $class): bool
+    private function hasPasswordNameConfiguration(Class_ $class): bool
     {
         foreach ($class->stmts as $stmt) {
             if (! $stmt instanceof Property) {
@@ -83,27 +82,35 @@ final class UpdatePasswordRehashingRector extends AbstractRector
                     continue;
                 }
 
-                $name = $prop->name->name;
-
-                // Check for the specific Laravel property that indicates custom password field
-                if ($name === 'authPasswordName') {
+                if ($prop->name->name === 'authPasswordName') {
                     return true;
                 }
             }
         }
 
-        // Also check for getAuthPasswordName method that returns something other than 'password'
         foreach ($class->stmts as $stmt) {
             if (! $stmt instanceof ClassMethod) {
                 continue;
             }
 
-            if ($stmt->name->name !== 'getAuthPasswordName') {
+            if ($stmt->name->name === 'getAuthPasswordName') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasCustomPasswordAccessor(Class_ $class): bool
+    {
+        foreach ($class->stmts as $stmt) {
+            if (! $stmt instanceof ClassMethod) {
                 continue;
             }
 
-            // If they have a custom getAuthPasswordName, they have a custom password field
-            return true;
+            if ($stmt->name->name === 'getAuthPassword') {
+                return true;
+            }
         }
 
         return false;
@@ -112,21 +119,27 @@ final class UpdatePasswordRehashingRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Warn about password rehashing changes for Authenticatable classes with custom password fields in Laravel 11',
+            'Warn about password rehashing changes for Authenticatable classes that override getAuthPassword in Laravel 11',
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
 class User extends Authenticatable
 {
-    protected $custom_password_field;
+    public function getAuthPassword(): string
+    {
+        return $this->custom_password_field;
+    }
 }
 CODE_SAMPLE
                     ,
                     <<<'CODE_SAMPLE'
-// Laravel 11: Auto password rehashing is now enabled. If using a custom password field, set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php
+// Laravel 11: Auto password rehashing may require authPasswordName. This model overrides getAuthPassword(); if the password column is not "password", set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php
 class User extends Authenticatable
 {
-    protected $custom_password_field;
+    public function getAuthPassword(): string
+    {
+        return $this->custom_password_field;
+    }
 }
 CODE_SAMPLE
                 ),

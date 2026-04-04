@@ -58,6 +58,8 @@ class Blueprint
 
     public function geometry(string $column, ?string $subtype = null): ColumnDefinition { return new ColumnDefinition(); }
 
+    public function uuid(string $column): ColumnDefinition { return new ColumnDefinition(); }
+
     public function timestamps(): void {}
 
     public function rememberToken(): void {}

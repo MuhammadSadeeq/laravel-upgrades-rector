@@ -21,4 +21,6 @@ class Builder
 
     /** @return array<int, mixed> */
     public function getTypes(): array { return []; }
+
+    public function getColumnType(string $table, string $column): string { return 'string'; }
 }
