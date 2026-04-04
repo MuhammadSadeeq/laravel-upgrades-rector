@@ -15,6 +15,8 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateStorageConfigRector extends AbstractRector
 {
+    private const COMMENT_MARKER = 'Laravel 12: If no "local" disk is explicitly defined';
+
     public function getNodeTypes(): array
     {
         return [Array_::class];
@@ -26,77 +28,94 @@ final class UpdateStorageConfigRector extends AbstractRector
             return null;
         }
 
-        // Look for filesystem disk configuration
-        $isLocalDisk = false;
-        $hasRoot = false;
-        $rootItem = null;
+        $disksItem = $this->findDisksItem($node);
 
-        foreach ($node->items as $item) {
-            if (!$item instanceof ArrayItem || !$item->key instanceof String_) {
+        if (! $disksItem instanceof ArrayItem) {
+            return null;
+        }
+
+        if (! $disksItem->value instanceof Array_) {
+            return null;
+        }
+
+        if ($this->hasExplicitLocalDisk($disksItem->value) || $this->hasUpgradeComment($disksItem)) {
+            return null;
+        }
+
+        $disksItem->setAttribute('comments', array_merge([
+            new Doc('/** ' . self::COMMENT_MARKER . ', Laravel now defaults it to storage/app/private. Define disks.local.root explicitly to preserve storage/app. */'),
+        ], $disksItem->getComments()));
+
+        return $node;
+    }
+
+    private function findDisksItem(Array_ $array): ?ArrayItem
+    {
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem || ! $item->key instanceof String_) {
                 continue;
             }
 
-            // Check if this is a local disk configuration
-            if (
-                $item->key->value === 'driver' &&
-                $item->value instanceof String_
-            ) {
-                if ($item->value->value === 'local') {
-                    $isLocalDisk = true;
-                }
+            if ($item->key->value === 'disks') {
+                return $item;
             }
-
-            // Check for root configuration
-            if (
-                $item->key->value === 'root' &&
-                $item->value instanceof String_
-            ) {
-                $hasRoot = true;
-                $rootItem = $item;
-            }
-        }
-
-        // If this is a local disk with root configuration
-        if ($isLocalDisk && $hasRoot && $rootItem !== null && $rootItem->value instanceof String_) {
-            $currentRoot = $rootItem->value->value;
-
-            // Idempotency: skip if root already ends with /private
-            if (str_ends_with($currentRoot, '/private')) {
-                return null;
-            }
-
-            // If root is set to storage/app, update to storage/app/private for Laravel 12
-            if ($currentRoot === 'storage/app') {
-                $rootItem->value = new String_('storage/app/private');
-            } elseif (str_ends_with($currentRoot, '/storage/app')) {
-                $rootItem->value = new String_(
-                    substr($currentRoot, 0, -strlen('/storage/app')) . '/storage/app/private',
-                );
-            } else {
-                return null;
-            }
-
-            // Add comment about the change
-            $rootItem->setAttribute('comments', [
-                new Doc(
-                    '/** Laravel 12: Local filesystem disk now defaults to storage/app/private */',
-                ),
-            ]);
-
-            return $node;
         }
 
         return null;
     }
 
+    private function hasExplicitLocalDisk(Array_ $disksArray): bool
+    {
+        foreach ($disksArray->items as $item) {
+            if (! $item instanceof ArrayItem || ! $item->key instanceof String_) {
+                continue;
+            }
+
+            if ($item->key->value === 'local') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasUpgradeComment(ArrayItem $disksItem): bool
+    {
+        foreach ($disksItem->getComments() as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Update local filesystem disk root path to storage/app/private for Laravel 12 compatibility",
+            'Add an advisory comment when the filesystems configuration relies on Laravel 12 local-disk defaults',
             [
                 new CodeSample(
-                    "'root' => 'storage/app'",
-                    "'root' => 'storage/app/private'",
+                    <<<'CODE_SAMPLE'
+return [
+    'disks' => [
+        's3' => [
+            'driver' => 's3',
+        ],
+    ],
+];
+CODE_SAMPLE
+                    ,
+                    <<<'CODE_SAMPLE'
+return [
+    /** Laravel 12: If no "local" disk is explicitly defined, Laravel now defaults it to storage/app/private. Define disks.local.root explicitly to preserve storage/app. */
+    'disks' => [
+        's3' => [
+            'driver' => 's3',
+        ],
+    ],
+];
+CODE_SAMPLE
                 ),
             ],
         );

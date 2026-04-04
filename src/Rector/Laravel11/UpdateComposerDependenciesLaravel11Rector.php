@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\Composer\ComposerJsonPathResolver;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\Composer\Laravel11ComposerJsonUpdater;
 use PhpParser\Node;
 use Rector\PhpParser\Node\FileNode;
@@ -13,9 +14,11 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
 {
-    private bool $hasUpdatedComposerJson = false;
+    /** @var array<string, true> */
+    private array $updatedComposerJsonPaths = [];
 
     public function __construct(
+        private readonly ComposerJsonPathResolver $composerJsonPathResolver,
         private readonly Laravel11ComposerJsonUpdater $laravel11ComposerJsonUpdater,
     ) {
     }
@@ -31,16 +34,18 @@ final class UpdateComposerDependenciesLaravel11Rector extends AbstractRector
             return null;
         }
 
-        if ($this->hasUpdatedComposerJson) {
-            return null;
-        }
-
         if (str_contains($this->file->getFilePath(), DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR)) {
             return null;
         }
 
-        $this->hasUpdatedComposerJson = true;
-        $this->laravel11ComposerJsonUpdater->update(getcwd() . '/composer.json');
+        $composerJsonPath = $this->composerJsonPathResolver->resolveFromFilePath($this->file->getFilePath());
+
+        if ($composerJsonPath === null || isset($this->updatedComposerJsonPaths[$composerJsonPath])) {
+            return null;
+        }
+
+        $this->updatedComposerJsonPaths[$composerJsonPath] = true;
+        $this->laravel11ComposerJsonUpdater->update($composerJsonPath);
 
         return null;
     }

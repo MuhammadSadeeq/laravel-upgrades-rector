@@ -7,8 +7,12 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StaticCallExtractor;
 use PhpParser\Comment;
 use PhpParser\Node;
+use PhpParser\Node\Arg;
+use PhpParser\Node\ArrayItem;
+use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
+use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
@@ -53,6 +57,14 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
             return null;
         }
 
+        if (! isset($staticCall->args[0]) || ! $staticCall->args[0] instanceof Arg || ! $staticCall->args[0]->value instanceof Array_) {
+            return null;
+        }
+
+        if (! $this->hasAssociativeStringKeys($staticCall->args[0]->value)) {
+            return null;
+        }
+
         $existingComments = $node->getComments();
         foreach ($existingComments as $comment) {
             if (str_contains($comment->getText(), 'Laravel 12:')) {
@@ -68,6 +80,21 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
         $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
+    }
+
+    private function hasAssociativeStringKeys(Array_ $array): bool
+    {
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem) {
+                continue;
+            }
+
+            if ($item->key instanceof String_) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getRuleDefinition(): RuleDefinition

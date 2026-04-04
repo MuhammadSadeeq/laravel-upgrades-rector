@@ -73,14 +73,21 @@ final class UpdateSchemaMethodsRector extends AbstractRector
             }
         }
 
-        $newComment = new Comment(
-            '// Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.'
-        );
+        $newComment = new Comment('// ' . $this->resolveCommentText($methodName));
 
         $node->setAttribute('comments', array_merge([$newComment], $existingComments));
         $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
+    }
+
+    private function resolveCommentText(string $methodName): string
+    {
+        if ($methodName === 'getTableListing') {
+            return 'Laravel 12: getTableListing() now returns schema-qualified table names from all schemas by default. Pass schema and schemaQualified arguments to preserve previous behavior.';
+        }
+
+        return 'Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.';
     }
 
     public function getRuleDefinition(): RuleDefinition

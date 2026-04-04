@@ -44,7 +44,7 @@ final class UpdateBlueprintConstructorRector extends AbstractRector
             return null;
         }
 
-        if (count($newExpr->args) < 3) {
+        if (count($newExpr->args) >= 4) {
             return null;
         }
 

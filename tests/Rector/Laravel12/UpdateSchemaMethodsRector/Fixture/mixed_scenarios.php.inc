@@ -47,7 +47,7 @@ class MixedSchemaUsage
 
         // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $types = Schema::getTypes();
-        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
+        // Laravel 12: getTableListing() now returns schema-qualified table names from all schemas by default. Pass schema and schemaQualified arguments to preserve previous behavior.
         $listing = Schema::getTableListing();
 
         return compact('allTables', 'allViews', 'publicTables', 'testViews', 'types', 'listing');

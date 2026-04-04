@@ -4,222 +4,260 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
+use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
-use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\ArrayItem;
+use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Return_;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateImageValidationSvgRector extends AbstractRector
 {
+    private const COMMENT_MARKER = 'Laravel 12: the image validation rule no longer allows SVG files by default';
+
     public function getNodeTypes(): array
     {
-        return [ClassMethod::class, MethodCall::class, StaticCall::class];
+        return [ClassMethod::class, Expression::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        // Check if this is a validation context
         if ($node instanceof ClassMethod) {
             return $this->refactorClassMethod($node);
         }
 
-        if ($node instanceof MethodCall) {
-            return $this->refactorMethodCall($node);
-        }
-
-        if ($node instanceof StaticCall) {
-            return $this->refactorStaticCall($node);
+        if ($node instanceof Expression) {
+            return $this->refactorExpression($node);
         }
 
         return null;
     }
 
-    private function refactorClassMethod(ClassMethod $node): ?Node
+    private function refactorClassMethod(ClassMethod $classMethod): ?ClassMethod
     {
-        // Only process rules() methods
-        if (!$this->isName($node->name, 'rules')) {
+        if (! $this->isName($classMethod->name, 'rules')) {
             return null;
         }
 
-        // Find the return statement and process its array
-        $hasChanges = false;
-        if ($node->stmts !== null) {
-            $this->traverseNodesWithCallable($node->stmts, function (Node $subNode) use (&$hasChanges) {
-                if ($subNode instanceof Return_ && $subNode->expr instanceof Array_) {
-                    if ($this->processValidationArray($subNode->expr)) {
-                        $hasChanges = true;
+        if ($this->hasUpgradeComment($classMethod)) {
+            return null;
+        }
+
+        if (! $this->containsSvgSensitiveRulesMethod($classMethod)) {
+            return null;
+        }
+
+        $classMethod->setAttribute('comments', array_merge([
+            new Comment('// ' . self::COMMENT_MARKER . '. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.'),
+        ], $classMethod->getComments()));
+        $classMethod->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $classMethod;
+    }
+
+    private function refactorExpression(Expression $expression): ?Expression
+    {
+        if ($this->hasUpgradeComment($expression)) {
+            return null;
+        }
+
+        if (! $this->containsSvgSensitiveValidationCall($expression)) {
+            return null;
+        }
+
+        $expression->setAttribute('comments', array_merge([
+            new Comment('// ' . self::COMMENT_MARKER . '. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.'),
+        ], $expression->getComments()));
+        $expression->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $expression;
+    }
+
+    private function containsSvgSensitiveRulesMethod(ClassMethod $classMethod): bool
+    {
+        if ($classMethod->stmts === null) {
+            return false;
+        }
+
+        foreach ($classMethod->stmts as $stmt) {
+            if ($stmt instanceof Return_ && $stmt->expr instanceof Array_ && $this->containsSvgSensitiveValidationArray($stmt->expr)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function containsSvgSensitiveValidationCall(Expression $expression): bool
+    {
+        $expr = $expression->expr;
+
+        if ($expr instanceof Assign) {
+            $expr = $expr->expr;
+        }
+
+        if ($expr instanceof MethodCall) {
+            $methodName = $this->getName($expr->name);
+
+            if (in_array($methodName, ['validate', 'validateWithBag'], true)) {
+                foreach ($expr->args as $arg) {
+                    if ($arg instanceof Arg && $arg->value instanceof Array_ && $this->containsSvgSensitiveValidationArray($arg->value)) {
+                        return true;
                     }
                 }
-                return null;
-            });
-        }
-
-        return $hasChanges ? $node : null;
-    }
-
-    private function refactorMethodCall(MethodCall $node): ?Node
-    {
-        $methodName = $this->getName($node->name);
-
-        // Check if this is a validation method call
-        if (!in_array($methodName, ['validate', 'validateWithBag'], true)) {
-            return null;
-        }
-
-        // Process the validation rules argument
-        $hasChanges = false;
-        foreach ($node->args as $arg) {
-            if ($arg instanceof Arg && $arg->value instanceof Array_) {
-                if ($this->processValidationArray($arg->value)) {
-                    $hasChanges = true;
-                }
             }
         }
 
-        return $hasChanges ? $node : null;
+        if (! $expr instanceof StaticCall) {
+            return false;
+        }
+
+        if (! $this->isValidatorMakeCall($expr)) {
+            return false;
+        }
+
+        if (! isset($expr->args[1]) || ! $expr->args[1] instanceof Arg || ! $expr->args[1]->value instanceof Array_) {
+            return false;
+        }
+
+        return $this->containsSvgSensitiveValidationArray($expr->args[1]->value);
     }
 
-    private function refactorStaticCall(StaticCall $node): ?Node
+    private function containsSvgSensitiveValidationArray(Array_ $validationArray): bool
     {
-        // Check if this is Validator::make() - handle different class reference styles
-        $className = $this->getName($node->class);
-        $isValidator = $className === 'Validator' ||
-                      $className === 'Illuminate\Support\Facades\Validator' ||
-                      str_ends_with((string) $className, '\Validator');
-
-        if (!$isValidator) {
-            return null;
-        }
-
-        $methodName = $this->getName($node->name);
-        if ($methodName !== 'make') {
-            return null;
-        }
-
-        // The rules are typically in the second argument
-        $hasChanges = false;
-        if (isset($node->args[1]) && $node->args[1] instanceof Arg && $node->args[1]->value instanceof Array_) {
-            if ($this->processValidationArray($node->args[1]->value)) {
-                $hasChanges = true;
-            }
-        }
-
-        return $hasChanges ? $node : null;
-    }
-
-    private function processValidationArray(Array_ $array): bool
-    {
-        $hasChanges = false;
-
-        foreach ($array->items as $item) {
-            if (!$item instanceof ArrayItem) {
+        foreach ($validationArray->items as $item) {
+            if (! $item instanceof ArrayItem) {
                 continue;
             }
 
-            // Process string validation rules
-            if ($item->value instanceof String_) {
-                $newString = $this->processValidationString($item->value);
-                if ($newString !== null) {
-                    $item->value = $newString;
-                    $hasChanges = true;
-                }
+            if ($item->value instanceof String_ && $this->containsStandaloneImageRule($item->value->value)) {
+                return true;
             }
 
-            // Process array validation rules
-            if ($item->value instanceof Array_) {
-                if ($this->processValidationRulesArray($item->value)) {
-                    $hasChanges = true;
-                }
+            if ($item->value instanceof StaticCall && $this->isUnconfiguredFileImageCall($item->value)) {
+                return true;
+            }
+
+            if ($item->value instanceof Array_ && $this->containsSvgSensitiveRulesList($item->value)) {
+                return true;
             }
         }
 
-        return $hasChanges;
+        return false;
     }
 
-    private function processValidationRulesArray(Array_ $array): bool
+    private function containsSvgSensitiveRulesList(Array_ $rulesList): bool
     {
-        $hasChanges = false;
-
-        foreach ($array->items as $item) {
-            if (!$item instanceof ArrayItem || !$item->value instanceof String_) {
+        foreach ($rulesList->items as $item) {
+            if (! $item instanceof ArrayItem) {
                 continue;
             }
 
-            $newString = $this->processValidationString($item->value);
-            if ($newString !== null) {
-                $item->value = $newString;
-                $hasChanges = true;
+            if ($item->value instanceof String_ && $this->containsStandaloneImageRule($item->value->value)) {
+                return true;
+            }
+
+            if ($item->value instanceof StaticCall && $this->isUnconfiguredFileImageCall($item->value)) {
+                return true;
             }
         }
 
-        return $hasChanges;
+        return false;
     }
 
-    private function processValidationString(String_ $node): ?String_
+    private function containsStandaloneImageRule(string $value): bool
     {
-        $value = $node->value;
-
-        // Only process if it contains the standalone 'image' validation rule
-        // Must be:
-        // 1. Exactly 'image' (whole string)
-        // 2. 'image' at start followed by pipe: 'image|...'
-        // 3. 'image' in middle with pipes: '...|image|...'
-        // 4. 'image' at end with pipe: '...|image'
-
-        // Exclude 'image' that is:
-        // 1. Part of another word: 'imaginary', 'multi_image'
-        // 2. Inside MIME types: 'mimes:image/jpeg'
-        // 3. Already configured: 'image:allow_svg', 'image:deny_svg'
-
-        // Check if 'image' already has configuration
         if (preg_match('/\bimage:[a-z_]+/', $value)) {
-            return null;
+            return false;
         }
 
-        // Check if 'image' appears in MIME type context (after 'mimes:' or 'mimetypes:')
         if (preg_match('/(?:mimes|mimetypes):[^|]*\bimage\b/', $value)) {
-            return null;
+            return false;
         }
 
-        // Match standalone 'image' validation rule
-        // (?<!\w) = not preceded by word character
-        // (?!:) = not followed by colon (already configured)
-        // (?!\w) = not followed by word character (not part of another word)
-        if (preg_match('/(?<!\w)image(?!:)(?!\w)/', $value)) {
-            $newValue = preg_replace(
-                '/(?<!\w)image(?!:)(?!\w)/',
-                'image:allow_svg',
-                $value
-            );
+        return preg_match('/(?<!\w)image(?!:)(?!\w)/', $value) === 1;
+    }
 
-            if ($newValue !== null && $newValue !== $value) {
-                return new String_($newValue);
+    private function isValidatorMakeCall(StaticCall $staticCall): bool
+    {
+        $className = $this->getName($staticCall->class);
+        $isValidator = $className === 'Validator' ||
+            $className === 'Illuminate\\Support\\Facades\\Validator' ||
+            str_ends_with((string) $className, '\\Validator');
+
+        return $isValidator && $this->isName($staticCall->name, 'make');
+    }
+
+    private function isUnconfiguredFileImageCall(StaticCall $staticCall): bool
+    {
+        if (! $this->isName($staticCall->name, 'image')) {
+            return false;
+        }
+
+        if (! $staticCall->class instanceof Name) {
+            return false;
+        }
+
+        if (! $this->isName($staticCall->class, 'File') && ! $this->isName($staticCall->class, 'Illuminate\\Validation\\Rules\\File')) {
+            return false;
+        }
+
+        foreach ($staticCall->args as $arg) {
+            if (! $arg instanceof Arg || ! $arg->name instanceof Identifier) {
+                continue;
+            }
+
+            if ($this->isName($arg->name, 'allowSvg') && $this->isTrueLiteral($arg->value)) {
+                return false;
             }
         }
 
-        return null;
+        return true;
+    }
+
+    private function isTrueLiteral(Node $node): bool
+    {
+        return $node instanceof ConstFetch && strtolower($this->getName($node->name) ?? '') === 'true';
+    }
+
+    private function hasUpgradeComment(Node $node): bool
+    {
+        foreach ($node->getComments() as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Update image validation rules to explicitly allow SVG files, preserving the old SVG acceptance behavior after Laravel 12 changed the image rule to reject SVGs by default",
+            'Add advisory comments when image validation rules may have relied on Laravel 11 SVG behavior',
             [
                 new CodeSample(
-                    "'photo' => 'required|image'",
-                    "'photo' => 'required|image:allow_svg'",
-                ),
-                new CodeSample(
-                    "'photo' => ['required', 'image']",
-                    "'photo' => ['required', 'image:allow_svg']",
+                    <<<'CODE_SAMPLE'
+'photo' => 'required|image'
+CODE_SAMPLE
+                    ,
+                    <<<'CODE_SAMPLE'
+// Laravel 12: the image validation rule no longer allows SVG files by default. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.
+'photo' => 'required|image'
+CODE_SAMPLE
                 ),
             ],
         );

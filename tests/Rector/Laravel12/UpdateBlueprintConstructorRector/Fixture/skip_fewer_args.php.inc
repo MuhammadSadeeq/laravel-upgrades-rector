@@ -9,3 +9,17 @@ function fewerArgs()
 }
 
 ?>
+-----
+<?php
+
+use Illuminate\Database\Schema\Blueprint;
+
+function fewerArgs()
+{
+    // Laravel 12: Blueprint constructor now requires $connection as the first parameter.
+    $bp1 = new Blueprint($table);
+    // Laravel 12: Blueprint constructor now requires $connection as the first parameter.
+    $bp2 = new Blueprint($table, $callback);
+}
+
+?>

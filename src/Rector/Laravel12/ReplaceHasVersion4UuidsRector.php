@@ -4,62 +4,117 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
+use PhpParser\Comment;
 use PhpParser\Node;
-use PhpParser\Node\Identifier;
-use PhpParser\Node\Name;
+use PhpParser\NodeVisitor;
+use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\Node\UseItem;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class ReplaceHasVersion4UuidsRector extends AbstractRector
 {
+    private const COMMENT_MARKER = 'Laravel 12: HasUuids now generates UUIDv7';
+
     public function getNodeTypes(): array
     {
-        return [Use_::class];
+        return [Use_::class, TraitUse::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Use_) {
+        if ($node instanceof Use_) {
+            return $this->refactorUseStatement($node);
+        }
+
+        if (! $node instanceof TraitUse) {
             return null;
         }
 
-        foreach ($node->uses as $use) {
-            if (!$use instanceof UseItem) {
-                continue;
-            }
-
-            $name = $use->name->toString();
-
-            // Already using HasVersion4Uuids -- skip (idempotent)
-            if ($name === 'Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids') {
-                return null;
-            }
-
-            if ($name === 'Illuminate\Database\Eloquent\Concerns\HasUuids') {
-                // To maintain UUIDv4 behavior, use HasVersion4Uuids with alias
-                $use->name = new Name(
-                    'Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids',
-                );
-                $use->alias = new Identifier('HasUuids');
-
-                return $node;
+        foreach ($node->traits as $trait) {
+            if ($this->isName($trait, 'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids')
+                && ! $this->fileHasImport('Illuminate\\Database\\Eloquent\\Concerns\\HasUuids')) {
+                return $this->addComment($node);
             }
         }
 
         return null;
     }
 
+    private function refactorUseStatement(Use_ $node): ?Node
+    {
+        foreach ($node->uses as $use) {
+            if (! $use instanceof UseItem) {
+                continue;
+            }
+
+            if ($use->name->toString() === 'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids') {
+                return $this->addComment($node);
+            }
+        }
+
+        return null;
+    }
+
+    private function addComment(Node $node): ?Node
+    {
+        foreach ($node->getComments() as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
+                return null;
+            }
+        }
+
+        $node->setAttribute('comments', array_merge([
+            new Comment('// ' . self::COMMENT_MARKER . '. Switch to HasVersion4Uuids if you need the previous ordered UUIDv4 behavior.'),
+        ], $node->getComments()));
+        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+        return $node;
+    }
+
+    private function fileHasImport(string $fullyQualifiedName): bool
+    {
+        $hasImport = false;
+
+        $this->traverseNodesWithCallable($this->file->getNewStmts(), function (Node $node) use ($fullyQualifiedName, &$hasImport): ?int {
+            if (! $node instanceof Use_) {
+                return null;
+            }
+
+            foreach ($node->uses as $use) {
+                if (! $use instanceof UseItem) {
+                    continue;
+                }
+
+                if ($use->name->toString() === $fullyQualifiedName) {
+                    $hasImport = true;
+                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                }
+            }
+
+            return null;
+        });
+
+        return $hasImport;
+    }
+
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            "Replace HasUuids import with HasVersion4Uuids (aliased as HasUuids) to preserve UUIDv4 behavior after Laravel 12 switched HasUuids to UUIDv7",
+            'Add an advisory comment when HasUuids may need to be replaced with HasVersion4Uuids to preserve UUIDv4 behavior',
             [
                 new CodeSample(
-                    "use Illuminate\Database\Eloquent\Concerns\HasUuids;",
-                    "use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;",
+                    <<<'CODE_SAMPLE'
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+CODE_SAMPLE
+                    ,
+                    <<<'CODE_SAMPLE'
+// Laravel 12: HasUuids now generates UUIDv7. Switch to HasVersion4Uuids if you need the previous ordered UUIDv4 behavior.
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+CODE_SAMPLE
                 ),
             ],
         );

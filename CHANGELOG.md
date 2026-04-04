@@ -23,17 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination view name updates: `pagination::default` &rarr; `pagination::bootstrap-3`
 - HTTP Client `throw()`/`throwIf()` signature change advisory comments
 
-#### Laravel 11 &rarr; 12 Upgrade (12 Rules)
-- Composer dependency updates (Laravel 12, PHPUnit 11, Pest 3)
+#### Laravel 11 &rarr; 12 Upgrade (14 Rules)
+- Composer dependency updates now target the real `composer.json` file (Laravel 12, PHPUnit 11, Pest 3)
 - Carbon 3 migration handling for the Laravel 11 -> 12 upgrade path
-- UUID trait migration (UUIDv7 by default, backward compatibility support)
-- Image validation SVG handling
-- Storage configuration updates (local disk path changes)
+- UUID trait migration advisories (UUIDv7 by default, backward compatibility support)
+- Image validation SVG advisory comments for string rules and `File::image()`
+- Storage configuration advisory comments for implicit `local` disk behavior
 - Database schema multi-schema behavior documentation
+- Database constructor and grammar API change advisories
 - Container dependency resolution behavior changes
 - Blueprint and DatabaseTokenRepository constructor updates
 - Request merging nested array support documentation
 - Concurrency result mapping behavior notes
+- Route precedence duplicate-name advisories
 
 #### Laravel 10 &rarr; 11 Upgrade (31 Rules)
 - Composer dependency updates now target the real `composer.json` file:
@@ -69,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
 
 #### Testing & Quality
-- 244 tests across all 3 upgrade paths and support utilities
+- 240 tests across all 3 upgrade paths and support utilities
+- 336 assertions across Rector fixtures and support utility tests
 - Full fixture-based testing using Rector's AbstractRectorTestCase
 - PHPStan at max level with zero errors
 

@@ -9,9 +9,11 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateBlueprintConstru
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateComposerDependenciesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateConcurrencyResultMappingRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateContainerDependencyResolutionRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateDatabaseSignatureChangesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateDatabaseTokenRepositoryRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateImageValidationSvgRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateRequestMergingRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateRoutePrecedenceRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateSchemaMethodsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateStorageConfigRector;
 use Rector\Config\RectorConfig;
@@ -24,9 +26,11 @@ return RectorConfig::configure()->withRules([
     UpdateComposerDependenciesRector::class,
     UpdateConcurrencyResultMappingRector::class,
     UpdateContainerDependencyResolutionRector::class,
+    UpdateDatabaseSignatureChangesRector::class,
     UpdateDatabaseTokenRepositoryRector::class,
     UpdateImageValidationSvgRector::class,
     UpdateRequestMergingRector::class,
+    UpdateRoutePrecedenceRector::class,
     UpdateSchemaMethodsRector::class,
     UpdateStorageConfigRector::class,
 ]);

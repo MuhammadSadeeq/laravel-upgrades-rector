@@ -5,9 +5,9 @@ use Laravel\SerializableClosure\SerializableClosure;
 function testSimpleArrayValues()
 {
     Concurrency::run([
-        fn() => Http::get('https://api.example1.com'),
-        fn() => Http::get('https://api.example2.com'),
-        fn() => Http::get('https://api.example3.com'),
+        'first' => fn() => Http::get('https://api.example1.com'),
+        'second' => fn() => Http::get('https://api.example2.com'),
+        'third' => fn() => Http::get('https://api.example3.com'),
     ]);
 
     return true;
@@ -23,9 +23,9 @@ function testSimpleArrayValues()
 {
     // Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.
     Concurrency::run([
-        fn() => Http::get('https://api.example1.com'),
-        fn() => Http::get('https://api.example2.com'),
-        fn() => Http::get('https://api.example3.com'),
+        'first' => fn() => Http::get('https://api.example1.com'),
+        'second' => fn() => Http::get('https://api.example2.com'),
+        'third' => fn() => Http::get('https://api.example3.com'),
     ]);
 
     return true;
