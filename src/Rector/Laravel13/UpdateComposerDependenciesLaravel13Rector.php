@@ -4,87 +4,48 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\Composer\ComposerJsonPathResolver;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\Composer\Laravel13ComposerJsonUpdater;
 use PhpParser\Node;
-use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\ArrayItem;
-use PhpParser\Node\Scalar\String_;
+use Rector\PhpParser\Node\FileNode;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateComposerDependenciesLaravel13Rector extends AbstractRector
 {
-    /** @var array<string, string> */
-    private const DEPENDENCY_UPDATES = [
-        'laravel/framework' => '^13.0',
-        'laravel/boost' => '^2.0',
-        'laravel/tinker' => '^3.0',
-        'phpunit/phpunit' => '^12.0',
-        'pestphp/pest' => '^4.0',
-    ];
+    /** @var array<string, true> */
+    private array $updatedComposerJsonPaths = [];
+
+    public function __construct(
+        private readonly ComposerJsonPathResolver $composerJsonPathResolver,
+        private readonly Laravel13ComposerJsonUpdater $laravel13ComposerJsonUpdater,
+    ) {
+    }
 
     public function getNodeTypes(): array
     {
-        return [Array_::class];
+        return [FileNode::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (! $node instanceof Array_) {
+        if (! $node instanceof FileNode) {
             return null;
         }
 
-        $changed = false;
-
-        foreach ($node->items as $item) {
-            if (! $item instanceof ArrayItem) {
-                continue;
-            }
-
-            if (! $item->key instanceof String_ || ! $item->value instanceof String_) {
-                continue;
-            }
-
-            $packageName = $item->key->value;
-
-            if (! isset(self::DEPENDENCY_UPDATES[$packageName])) {
-                continue;
-            }
-
-            $targetVersion = self::DEPENDENCY_UPDATES[$packageName];
-
-            if (! $this->shouldUpdateVersion($item->value->value, $targetVersion)) {
-                continue;
-            }
-
-            $item->value = new String_($targetVersion);
-            $changed = true;
-        }
-
-        if (! $changed) {
+        if (str_contains($this->file->getFilePath(), DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR)) {
             return null;
         }
 
-        return $node;
-    }
+        $composerJsonPath = $this->composerJsonPathResolver->resolveFromFilePath($this->file->getFilePath());
 
-    private function shouldUpdateVersion(string $currentConstraint, string $targetConstraint): bool
-    {
-        $current = $this->extractVersion($currentConstraint);
-        $target = $this->extractVersion($targetConstraint);
-
-        if ($current === null || $target === null) {
-            return false;
+        if ($composerJsonPath === null || isset($this->updatedComposerJsonPaths[$composerJsonPath])) {
+            return null;
         }
 
-        return version_compare($current, $target, '<');
-    }
-
-    private function extractVersion(string $constraint): ?string
-    {
-        if (preg_match('/(\d+(?:\.\d+)*)/', $constraint, $matches)) {
-            return $matches[1];
-        }
+        $this->updatedComposerJsonPaths[$composerJsonPath] = true;
+        $this->laravel13ComposerJsonUpdater->update($composerJsonPath);
 
         return null;
     }

@@ -8,6 +8,8 @@ interface MustVerifyEmail
 
     public function markEmailAsVerified(): bool;
 
+    public function markEmailAsUnverified(): bool;
+
     public function sendEmailVerificationNotification(): void;
 
     public function getEmailForVerification(): string;

@@ -9,19 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-#### Laravel 12 &rarr; 13 Upgrade (11 Rules)
-- Composer dependency updates (framework ^13.0, boost ^2.0, tinker ^3.0, phpunit ^12.0, pest ^4.0)
+#### Laravel 12 &rarr; 13 Upgrade (20 Rules)
+- Composer dependency updates now target the real `composer.json` file (framework ^13.0, boost ^2.0, tinker ^3.0, phpunit ^12.0, pest ^4.0)
 - CSRF middleware rename: `VerifyCsrfToken`/`ValidateCsrfToken` &rarr; `PreventRequestForgery`
 - Method rename: `validateCsrfTokens()` &rarr; `preventRequestForgery()`
+- Cache configuration upgrade coverage:
+  - Cache `serializable_classes` config defaults
+  - Cache/store prefix and session cookie default advisories
+  - Cache Repository contract: `touch($key, $seconds): bool`
 - Contract method additions:
   - Cache Store: `touch($key, $seconds): bool`
   - Bus Dispatcher: `dispatchAfterResponse($command, $handler = null): mixed`
-  - ResponseFactory: `eventStream(callable $callback, ?string $endStream = null, array $headers = [])`
+  - ResponseFactory: `eventStream(callable $callback, ?string $endStream = null, array $headers = []): mixed`
   - MustVerifyEmail: `markEmailAsUnverified(): bool`
   - Queue: `pendingSize()`, `delayedSize()`, `reservedSize()`, `creationTimeOfOldestPendingJob()`
+- Advisory coverage for documented Laravel 13 behavior changes:
+  - `Container::call()` nullable class defaults
+  - MySQL/MariaDB `upsert` empty `uniqueBy`
+  - MySQL `DELETE ... JOIN` with `ORDER BY` / `LIMIT`
+  - Model booting nested instantiation
+  - Polymorphic pivot table naming
+  - Queued notifications with missing models
+  - Domain route registration precedence
+  - Default password reset subject
+  - `withScheduling()` registration timing
+  - Manager `extend()` callback binding
+  - `Str` factories reset between tests
+  - `Js::from()` Unicode escaping behavior
 - Event property renames: `JobAttempted::$exceptionOccurred` &rarr; `$exception`, `QueueBusy::$connection` &rarr; `$connectionName`
 - Pagination view name updates: `pagination::default` &rarr; `pagination::bootstrap-3`
-- HTTP Client `throw()`/`throwIf()` signature change advisory comments
+- HTTP Client `throw()`/`throwIf()` signature change advisory comments with narrower `Illuminate\Http\Client\Response` matching
 
 #### Laravel 11 &rarr; 12 Upgrade (14 Rules)
 - Composer dependency updates now target the real `composer.json` file (Laravel 12, PHPUnit 11, Pest 3)
@@ -71,15 +88,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
 
 #### Testing & Quality
-- 240 tests across all 3 upgrade paths and support utilities
-- 336 assertions across Rector fixtures and support utility tests
+- 271 tests across all 3 upgrade paths and support utilities
+- 399 assertions across Rector fixtures and support utility tests
 - Full fixture-based testing using Rector's AbstractRectorTestCase
 - PHPStan at max level with zero errors
 
 #### Architecture
 - Shared utilities in `src/Support/NodeAnalyzer/` (InterfaceImplementationChecker, StaticCallExtractor)
 - Set-based rule registration with cumulative upgrade paths
-- 50+ type stubs for reliable PHPStan resolution
+- 60+ type stubs for reliable PHPStan resolution
 - Pre-configured convenience configs per version
 
 ### Technical Details

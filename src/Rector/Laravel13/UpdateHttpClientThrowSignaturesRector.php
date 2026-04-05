@@ -7,9 +7,11 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
-use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Use_;
+use PhpParser\Node\UseItem;
+use PhpParser\NodeVisitor;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -74,8 +76,37 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
 
         $parentName = $node->extends->toString();
 
-        return $parentName === self::TARGET_PARENT_CLASS
-            || $parentName === 'Response';
+        if ($parentName === self::TARGET_PARENT_CLASS) {
+            return true;
+        }
+
+        return $parentName === 'Response' && $this->fileHasImport(self::TARGET_PARENT_CLASS);
+    }
+
+    private function fileHasImport(string $fullyQualifiedName): bool
+    {
+        $hasImport = false;
+
+        $this->traverseNodesWithCallable($this->file->getNewStmts(), function (Node $node) use ($fullyQualifiedName, &$hasImport): ?int {
+            if (! $node instanceof Use_) {
+                return null;
+            }
+
+            foreach ($node->uses as $use) {
+                if (! $use instanceof UseItem) {
+                    continue;
+                }
+
+                if ($use->name->toString() === $fullyQualifiedName) {
+                    $hasImport = true;
+                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                }
+            }
+
+            return null;
+        });
+
+        return $hasImport;
     }
 
     private function hasAdvisoryComment(ClassMethod $node): bool

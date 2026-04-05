@@ -60,6 +60,7 @@ final class UpdateResponseFactoryContractRector extends AbstractRector
                 ),
                 new Param(new Variable('headers'), new Array_([]), new Identifier('array')),
             ],
+            'returnType' => new Identifier('mixed'),
             'stmts' => [],
         ]);
 

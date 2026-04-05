@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>Automate your Laravel upgrades</strong> with 55 Rector rules covering Laravel 10 through 13.
+  <strong>Automate your Laravel upgrades</strong> with 64 Rector rules covering Laravel 10 through 13.
 </p>
 
 ---
@@ -33,13 +33,13 @@ vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector
 ```
 
 Replace `laravel-13.php` with `laravel-12.php` or `laravel-11.php` for older upgrades.
-The Laravel 11 and Laravel 12 sets can also rewrite the nearest project `composer.json` when a supported dependency update applies.
+The Laravel 11, Laravel 12, and Laravel 13 sets can also rewrite the nearest project `composer.json` when a supported dependency update applies.
 
 ## Supported Versions
 
 | Upgrade Path | Rules |
 |--------------|-------|
-| Laravel 12 &rarr; 13 | 11 rules |
+| Laravel 12 &rarr; 13 | 20 rules |
 | Laravel 11 &rarr; 12 | 14 rules |
 | Laravel 10 &rarr; 11 | 31 rules |
 
@@ -78,7 +78,7 @@ composer test
 composer analyse
 ```
 
-Current verification: 242 tests, 338 assertions, and PHPStan at max level with zero errors.
+Current verification: 271 tests, 399 assertions, and PHPStan at max level with zero errors.
 
 ## Contributing
 
