@@ -9,6 +9,7 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\Expression;
+use PHPStan\Type\ObjectType;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -68,7 +69,15 @@ final class UpdateColumnModificationRector extends AbstractRector
             $var = $var->var;
         }
 
-        return $var instanceof Variable && $this->isName($var, 'table');
+        if (! $var instanceof Variable) {
+            return false;
+        }
+
+        if ($this->isObjectType($var, new ObjectType('Illuminate\\Database\\Schema\\Blueprint'))) {
+            return true;
+        }
+
+        return $this->isName($var, 'table');
     }
 
     public function getRuleDefinition(): RuleDefinition
