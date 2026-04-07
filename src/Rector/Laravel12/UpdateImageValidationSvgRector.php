@@ -180,15 +180,19 @@ final class UpdateImageValidationSvgRector extends AbstractRector
 
     private function containsStandaloneImageRule(string $value): bool
     {
-        if (preg_match('/\bimage:[a-z_]+/', $value)) {
-            return false;
+        foreach (explode('|', $value) as $segment) {
+            $segment = strtolower(trim($segment));
+
+            if ($segment === '') {
+                continue;
+            }
+
+            if ($segment === 'image') {
+                return true;
+            }
         }
 
-        if (preg_match('/(?:mimes|mimetypes):[^|]*\bimage\b/', $value)) {
-            return false;
-        }
-
-        return preg_match('/(?<!\w)image(?!:)(?!\w)/', $value) === 1;
+        return false;
     }
 
     private function isValidatorMakeCall(StaticCall $staticCall): bool
