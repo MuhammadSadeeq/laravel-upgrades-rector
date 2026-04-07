@@ -78,7 +78,7 @@ composer test
 composer analyse
 ```
 
-Current verification: 271 tests, 399 assertions, and PHPStan at max level with zero errors.
+Current verification: 279 tests, 407 assertions, and PHPStan at max level with zero errors.
 
 ## Contributing
 

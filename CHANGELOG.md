@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Mixed `use` statements in `RemoveDoctrineDBALRector` now remove only Doctrine DBAL imports instead of dropping unrelated imports in the same declaration
+- `Carbon3MigrationRector` now preserves explicitly signed `diffIn*()` behavior when the old `absolute: false` / second `false` argument was used
+- `UpdateCashierStripeRector` now only adds the `'card'` argument on Billable-backed receivers instead of matching arbitrary methods with the same name
+- `UpdateImageValidationSvgRector` now matches actual `image` rule segments and avoids false positives in rule parameters such as `required_without:image`
+- `UpdateColumnModificationRector` now recognizes typed `Blueprint` variables instead of relying only on the `$table` variable name
+- Shared contract-method detection now respects inherited concrete implementations and avoids redundant stubs in subclasses
+- `UpdatePaginationViewNamesRector` now scopes replacements to pagination API calls instead of rewriting matching strings globally
+
 ### Added
 
 #### Laravel 12 &rarr; 13 Upgrade (20 Rules)
@@ -88,8 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
 
 #### Testing & Quality
-- 271 tests across all 3 upgrade paths and support utilities
-- 399 assertions across Rector fixtures and support utility tests
+- 279 tests across all 3 upgrade paths and support utilities
+- 407 assertions across Rector fixtures and support utility tests
 - Full fixture-based testing using Rector's AbstractRectorTestCase
 - PHPStan at max level with zero errors
 
