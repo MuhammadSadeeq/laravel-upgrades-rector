@@ -7,6 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\Cast\Int_ as CastInt;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
@@ -257,13 +258,78 @@ final class Carbon3MigrationRector extends AbstractRector
 
     private function refactorDiffMethod(MethodCall $node): ?Node
     {
-        if ($this->isAlreadyWrappedInAbsCast($node)) {
+        $absoluteBehavior = $this->resolveDiffAbsoluteBehavior($node);
+
+        if ($absoluteBehavior === null) {
             return null;
         }
 
-        $absFunc = new FuncCall(new Name('abs'), [new Arg($node)]);
+        if ($absoluteBehavior && $this->isAlreadyWrappedInAbsCast($node)) {
+            return null;
+        }
+
+        $transformedCall = clone $node;
+        $absoluteArgIndex = $this->findDiffAbsoluteArgIndex($transformedCall);
+
+        if ($absoluteArgIndex !== null) {
+            unset($transformedCall->args[$absoluteArgIndex]);
+            $transformedCall->args = array_values($transformedCall->args);
+        }
+
+        if (! $absoluteBehavior) {
+            return new CastInt($transformedCall);
+        }
+
+        $absFunc = new FuncCall(new Name('abs'), [new Arg($transformedCall)]);
 
         return new CastInt($absFunc);
+    }
+
+    private function resolveDiffAbsoluteBehavior(MethodCall $node): ?bool
+    {
+        $absoluteArgIndex = $this->findDiffAbsoluteArgIndex($node);
+
+        if ($absoluteArgIndex === null) {
+            return true;
+        }
+
+        $absoluteArg = $node->args[$absoluteArgIndex] ?? null;
+
+        if (! $absoluteArg instanceof Arg) {
+            return null;
+        }
+
+        return $this->resolveBooleanLiteral($absoluteArg->value);
+    }
+
+    private function findDiffAbsoluteArgIndex(MethodCall $node): ?int
+    {
+        foreach ($node->args as $index => $arg) {
+            if (! $arg instanceof Arg) {
+                continue;
+            }
+
+            if ($arg->name !== null && $this->isName($arg->name, 'absolute')) {
+                return $index;
+            }
+        }
+
+        return isset($node->args[1]) ? 1 : null;
+    }
+
+    private function resolveBooleanLiteral(Node $node): ?bool
+    {
+        if (! $node instanceof ConstFetch) {
+            return null;
+        }
+
+        $name = strtolower($node->name->toString());
+
+        return match ($name) {
+            'true' => true,
+            'false' => false,
+            default => null,
+        };
     }
 
     private function isAlreadyWrappedInAbsCast(MethodCall $node): bool
