@@ -69,17 +69,30 @@ final class RemoveDoctrineDBALRector extends AbstractRector
 
     private function refactorUseStatement(Use_ $node): ?int
     {
+        $nonDoctrineUses = [];
+
         foreach ($node->uses as $use) {
             $className = $this->getName($use->name);
 
             if ($className === null) {
+                $nonDoctrineUses[] = $use;
                 continue;
             }
 
-            if (str_starts_with($className, 'Doctrine\DBAL\\')) {
-                return NodeVisitor::REMOVE_NODE;
+            if (! str_starts_with($className, 'Doctrine\DBAL\\')) {
+                $nonDoctrineUses[] = $use;
             }
         }
+
+        if (count($nonDoctrineUses) === count($node->uses)) {
+            return null;
+        }
+
+        if ($nonDoctrineUses === []) {
+            return NodeVisitor::REMOVE_NODE;
+        }
+
+        $node->uses = $nonDoctrineUses;
 
         return null;
     }
