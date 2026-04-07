@@ -9,6 +9,8 @@ use PhpParser\Node\Stmt\ClassMethod;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
+use ReflectionClass;
+use ReflectionMethod;
 
 final class InterfaceImplementationChecker
 {
@@ -45,6 +47,77 @@ final class InterfaceImplementationChecker
             }
         }
 
+        $scope = $node->getAttribute(AttributeKey::SCOPE);
+
+        if ($scope instanceof Scope) {
+            $classReflection = $scope->getClassReflection();
+
+            if ($classReflection instanceof ClassReflection) {
+                $nativeReflection = $classReflection->getNativeReflection();
+
+                if ($nativeReflection->hasMethod($methodName)) {
+                    $reflectionMethod = $nativeReflection->getMethod($methodName);
+
+                    if (! $reflectionMethod->getDeclaringClass()->isInterface()) {
+                        return true;
+                    }
+                }
+
+                $parentClassReflection = $classReflection->getParentClass();
+
+                while ($parentClassReflection instanceof ClassReflection) {
+                    if ($parentClassReflection->hasNativeMethod($methodName)
+                        && ! $parentClassReflection->getNativeMethod($methodName)->isAbstract()) {
+                        return true;
+                    }
+
+                    $parentClassReflection = $parentClassReflection->getParentClass();
+                }
+            }
+        }
+
+        if ($this->hasConcreteMethodOnResolvedParentChain($node, $methodName)) {
+            return true;
+        }
+
         return false;
+    }
+
+    private function hasConcreteMethodOnResolvedParentChain(Class_ $node, string $methodName): bool
+    {
+        if (! $node->extends instanceof \PhpParser\Node\Name) {
+            return false;
+        }
+
+        $resolvedName = $node->extends->getAttribute('resolvedName');
+
+        $parentClassName = $resolvedName instanceof \PhpParser\Node\Name
+            ? $resolvedName->toString()
+            : $node->extends->toString();
+
+        if (! class_exists($parentClassName)) {
+            return false;
+        }
+
+        $reflectionClass = new ReflectionClass($parentClassName);
+
+        while ($reflectionClass !== false) {
+            if ($reflectionClass->hasMethod($methodName)) {
+                $reflectionMethod = $reflectionClass->getMethod($methodName);
+
+                if ($this->isConcreteClassMethod($reflectionMethod)) {
+                    return true;
+                }
+            }
+
+            $reflectionClass = $reflectionClass->getParentClass();
+        }
+
+        return false;
+    }
+
+    private function isConcreteClassMethod(ReflectionMethod $reflectionMethod): bool
+    {
+        return ! $reflectionMethod->isAbstract() && ! $reflectionMethod->getDeclaringClass()->isInterface();
     }
 }
