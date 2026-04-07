@@ -1,7 +1,11 @@
 <?php
 
+use Laravel\Cashier\Billable;
+
 class BillableUser
 {
+    use Billable;
+
     public function example()
     {
         $user = new BillableUser();
