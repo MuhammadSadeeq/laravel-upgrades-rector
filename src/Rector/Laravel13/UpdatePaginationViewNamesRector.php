@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
 use PhpParser\Node;
+use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Scalar\String_;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -18,22 +21,42 @@ final class UpdatePaginationViewNamesRector extends AbstractRector
         'pagination::simple-default' => 'pagination::simple-bootstrap-3',
     ];
 
+    /** @var array<int, string> */
+    private const PAGINATION_METHODS = [
+        'defaultSimpleView',
+        'defaultView',
+        'links',
+        'render',
+    ];
+
     public function getNodeTypes(): array
     {
-        return [String_::class];
+        return [MethodCall::class, StaticCall::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof String_) {
+        if (! $node instanceof MethodCall && ! $node instanceof StaticCall) {
             return null;
         }
 
-        if (!isset(self::VIEW_MAP[$node->value])) {
+        $methodName = $this->getName($node->name);
+
+        if ($methodName === null || ! in_array($methodName, self::PAGINATION_METHODS, true)) {
             return null;
         }
 
-        $node->value = self::VIEW_MAP[$node->value];
+        $firstArg = $node->args[0] ?? null;
+
+        if (! $firstArg instanceof Arg || ! $firstArg->value instanceof String_) {
+            return null;
+        }
+
+        if (! isset(self::VIEW_MAP[$firstArg->value->value])) {
+            return null;
+        }
+
+        $firstArg->value->value = self::VIEW_MAP[$firstArg->value->value];
 
         return $node;
     }
