@@ -11,6 +11,7 @@ return RectorConfig::configure()
     ])
     ->withPaths([
         getcwd() . '/app',
+        getcwd() . '/bootstrap',
         getcwd() . '/config',
         getcwd() . '/database',
         getcwd() . '/routes',
