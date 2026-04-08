@@ -12,8 +12,7 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\Node\UseItem;
-use PhpParser\NodeVisitor;
+use PhpParser\NodeTraverser;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -106,7 +105,7 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
 
             if (in_array($newClassName, ['self', 'static'], true) || ($className !== null && $newClassName === $className)) {
                 $hasNestedInstantiation = true;
-                return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
             }
 
             return null;
@@ -195,13 +194,9 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
             }
 
             foreach ($node->uses as $use) {
-                if (! $use instanceof UseItem) {
-                    continue;
-                }
-
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
-                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                    return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }
 

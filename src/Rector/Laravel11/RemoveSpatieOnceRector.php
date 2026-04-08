@@ -6,7 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\NodeVisitor;
+use PhpParser\NodeTraverser;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -45,7 +45,7 @@ final class RemoveSpatieOnceRector extends AbstractRector
         }
 
         if ($otherUseItems === []) {
-            return NodeVisitor::REMOVE_NODE;
+            return NodeTraverser::REMOVE_NODE;
         }
 
         $node->uses = $otherUseItems;

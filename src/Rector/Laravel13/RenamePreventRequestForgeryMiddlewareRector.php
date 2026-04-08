@@ -10,7 +10,6 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\Node\UseItem;
 use PHPStan\Type\ObjectType;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -56,10 +55,6 @@ final class RenamePreventRequestForgeryMiddlewareRector extends AbstractRector
     private function refactorUse(Use_ $node): ?Node
     {
         foreach ($node->uses as $use) {
-            if (! $use instanceof UseItem) {
-                continue;
-            }
-
             $name = $use->name->toString();
 
             if ($this->isAppMiddleware($name)) {

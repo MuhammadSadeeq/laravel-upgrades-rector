@@ -9,7 +9,7 @@ use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\BinaryOp\Mul;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Name;
-use PhpParser\Node\Scalar\Int_;
+use PhpParser\Node\Scalar\LNumber;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -52,15 +52,15 @@ final class UpdateDatabaseTokenRepositoryRector extends AbstractRector
             return null;
         }
 
-        if (!$expiresArg->value instanceof Int_) {
+        if (!$expiresArg->value instanceof LNumber) {
             return null;
         }
 
         $minutes = $expiresArg->value->value;
 
         $expiresArg->value = new Mul(
-            new Int_($minutes),
-            new Int_(60),
+            new LNumber($minutes),
+            new LNumber(60),
         );
 
         return $node;

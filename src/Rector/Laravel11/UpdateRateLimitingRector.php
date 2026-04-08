@@ -12,7 +12,7 @@ use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
-use PhpParser\Node\Scalar\Int_;
+use PhpParser\Node\Scalar\LNumber;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -78,11 +78,11 @@ final class UpdateRateLimitingRector extends AbstractRector
             return null;
         }
 
-        if (! $arg->value instanceof Int_) {
+        if (! $arg->value instanceof LNumber) {
             return null;
         }
 
-        $arg->value = new Mul($arg->value, new Int_(60));
+        $arg->value = new Mul($arg->value, new LNumber(60));
 
         return $node;
     }
@@ -111,11 +111,11 @@ final class UpdateRateLimitingRector extends AbstractRector
 
         $mul = $arg->value;
 
-        if ($mul->right instanceof Int_ && $mul->right->value === 60) {
+        if ($mul->right instanceof LNumber && $mul->right->value === 60) {
             return true;
         }
 
-        if ($mul->left instanceof Int_ && $mul->left->value === 60) {
+        if ($mul->left instanceof LNumber && $mul->left->value === 60) {
             return true;
         }
 

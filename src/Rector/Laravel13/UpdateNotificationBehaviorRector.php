@@ -9,8 +9,7 @@ use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\Node\UseItem;
-use PhpParser\NodeVisitor;
+use PhpParser\NodeTraverser;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -127,13 +126,9 @@ final class UpdateNotificationBehaviorRector extends AbstractRector
             }
 
             foreach ($node->uses as $use) {
-                if (! $use instanceof UseItem) {
-                    continue;
-                }
-
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
-                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                    return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }
 

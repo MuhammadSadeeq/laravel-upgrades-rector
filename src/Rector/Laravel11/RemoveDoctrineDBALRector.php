@@ -12,7 +12,7 @@ use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\NodeVisitor;
+use PhpParser\NodeTraverser;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -89,7 +89,7 @@ final class RemoveDoctrineDBALRector extends AbstractRector
         }
 
         if ($nonDoctrineUses === []) {
-            return NodeVisitor::REMOVE_NODE;
+            return NodeTraverser::REMOVE_NODE;
         }
 
         $node->uses = $nonDoctrineUses;

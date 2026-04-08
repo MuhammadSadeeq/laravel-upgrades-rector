@@ -18,7 +18,6 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
-use PhpParser\Node\Stmt\Return_;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -56,7 +55,7 @@ final class UpdateImageValidationSvgRector extends AbstractRector
             return null;
         }
 
-        if (! $this->containsSvgSensitiveRulesMethod($classMethod)) {
+        if (! $this->containsSvgSensitiveNode($classMethod)) {
             return null;
         }
 
@@ -86,21 +85,6 @@ final class UpdateImageValidationSvgRector extends AbstractRector
         return $expression;
     }
 
-    private function containsSvgSensitiveRulesMethod(ClassMethod $classMethod): bool
-    {
-        if ($classMethod->stmts === null) {
-            return false;
-        }
-
-        foreach ($classMethod->stmts as $stmt) {
-            if ($stmt instanceof Return_ && $stmt->expr instanceof Array_ && $this->containsSvgSensitiveValidationArray($stmt->expr)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private function containsSvgSensitiveValidationCall(Expression $expression): bool
     {
         $expr = $expression->expr;
@@ -114,7 +98,7 @@ final class UpdateImageValidationSvgRector extends AbstractRector
 
             if (in_array($methodName, ['validate', 'validateWithBag'], true)) {
                 foreach ($expr->args as $arg) {
-                    if ($arg instanceof Arg && $arg->value instanceof Array_ && $this->containsSvgSensitiveValidationArray($arg->value)) {
+                    if ($arg instanceof Arg && $this->containsSvgSensitiveNode($arg->value)) {
                         return true;
                     }
                 }
@@ -129,53 +113,34 @@ final class UpdateImageValidationSvgRector extends AbstractRector
             return false;
         }
 
-        if (! isset($expr->args[1]) || ! $expr->args[1] instanceof Arg || ! $expr->args[1]->value instanceof Array_) {
+        if (! isset($expr->args[1]) || ! $expr->args[1] instanceof Arg) {
             return false;
         }
 
-        return $this->containsSvgSensitiveValidationArray($expr->args[1]->value);
+        return $this->containsSvgSensitiveNode($expr->args[1]->value);
     }
 
-    private function containsSvgSensitiveValidationArray(Array_ $validationArray): bool
+    private function containsSvgSensitiveNode(Node $node): bool
     {
-        foreach ($validationArray->items as $item) {
-            if (! $item instanceof ArrayItem) {
-                continue;
+        $containsSensitiveNode = false;
+
+        $this->traverseNodesWithCallable($node, function (Node $subNode) use (&$containsSensitiveNode): ?int {
+            if ($subNode instanceof String_ && $this->containsStandaloneImageRule($subNode->value)) {
+                $containsSensitiveNode = true;
+
+                return 1;
             }
 
-            if ($item->value instanceof String_ && $this->containsStandaloneImageRule($item->value->value)) {
-                return true;
+            if ($subNode instanceof StaticCall && $this->isUnconfiguredFileImageCall($subNode)) {
+                $containsSensitiveNode = true;
+
+                return 1;
             }
 
-            if ($item->value instanceof StaticCall && $this->isUnconfiguredFileImageCall($item->value)) {
-                return true;
-            }
+            return null;
+        });
 
-            if ($item->value instanceof Array_ && $this->containsSvgSensitiveRulesList($item->value)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function containsSvgSensitiveRulesList(Array_ $rulesList): bool
-    {
-        foreach ($rulesList->items as $item) {
-            if (! $item instanceof ArrayItem) {
-                continue;
-            }
-
-            if ($item->value instanceof String_ && $this->containsStandaloneImageRule($item->value->value)) {
-                return true;
-            }
-
-            if ($item->value instanceof StaticCall && $this->isUnconfiguredFileImageCall($item->value)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $containsSensitiveNode;
     }
 
     private function containsStandaloneImageRule(string $value): bool

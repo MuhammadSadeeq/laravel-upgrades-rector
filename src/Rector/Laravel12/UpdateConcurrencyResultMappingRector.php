@@ -65,19 +65,20 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
             return null;
         }
 
-        $existingComments = $node->getComments();
-        foreach ($existingComments as $comment) {
-            if (str_contains($comment->getText(), 'Laravel 12:')) {
-                return null;
-            }
+        $firstAssociativeItem = $this->findFirstAssociativeStringKeyItem($staticCall->args[0]->value);
+
+        if (! $firstAssociativeItem instanceof ArrayItem) {
+            return null;
         }
 
-        $newComment = new Comment(
-            '// Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.'
-        );
+        if ($this->hasUpgradeComment($node) || $this->hasUpgradeComment($firstAssociativeItem)) {
+            return null;
+        }
 
-        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+        $newComment = new Comment('// Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.');
+
+        $firstAssociativeItem->setAttribute('comments', array_merge([$newComment], $firstAssociativeItem->getComments()));
+        $firstAssociativeItem->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }
@@ -97,6 +98,30 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
         return false;
     }
 
+    private function findFirstAssociativeStringKeyItem(Array_ $array): ?ArrayItem
+    {
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem || ! $item->key instanceof String_) {
+                continue;
+            }
+
+            return $item;
+        }
+
+        return null;
+    }
+
+    private function hasUpgradeComment(Node $node): bool
+    {
+        foreach ($node->getComments() as $comment) {
+            if (str_contains($comment->getText(), 'Laravel 12:')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
@@ -107,8 +132,8 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
     \'task-1\' => fn () => 1 + 1,
     \'task-2\' => fn () => 2 + 2,
 ]);',
-                    '// Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.
-$results = Concurrency::run([
+                    '$results = Concurrency::run([
+    // Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.
     \'task-1\' => fn () => 1 + 1,
     \'task-2\' => fn () => 2 + 2,
 ]);',

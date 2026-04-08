@@ -18,7 +18,7 @@ final class UpdateContainerDependencyResolutionRectorTest extends AbstractRector
 
     public static function provideData(): Iterator
     {
-        return self::yieldFilesFromDirectory(__DIR__ . '/Fixture');
+        return self::yieldFilesFromDirectory(__DIR__ . '/Fixture', '*.inc');
     }
 
     public function provideConfigFilePath(): string

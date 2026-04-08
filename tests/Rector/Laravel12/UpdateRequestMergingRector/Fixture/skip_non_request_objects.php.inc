@@ -2,13 +2,13 @@
 
 namespace App\Services;
 
-class DataProcessor
+class NonRequestProcessor
 {
     public function mergeIfMissing(array $data): void {}
 
     public function process()
     {
-        $processor = new DataProcessor();
+        $processor = new NonRequestProcessor();
         $processor->mergeIfMissing(['other' => 'data']);
     }
 }

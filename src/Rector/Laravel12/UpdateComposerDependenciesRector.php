@@ -7,7 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\Composer\ComposerJsonPathResolver;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\Composer\Laravel12ComposerJsonUpdater;
 use PhpParser\Node;
-use Rector\PhpParser\Node\FileNode;
+use PhpParser\Node\Stmt;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -25,12 +25,12 @@ final class UpdateComposerDependenciesRector extends AbstractRector
 
     public function getNodeTypes(): array
     {
-        return [FileNode::class];
+        return [Stmt::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (! $node instanceof FileNode) {
+        if (! $node instanceof Stmt) {
             return null;
         }
 

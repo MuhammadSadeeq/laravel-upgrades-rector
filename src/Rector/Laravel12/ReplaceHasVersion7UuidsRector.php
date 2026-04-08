@@ -9,8 +9,7 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\Node\UseItem;
-use PhpParser\NodeVisitor;
+use PhpParser\NodeTraverser;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -38,10 +37,6 @@ final class ReplaceHasVersion7UuidsRector extends AbstractRector
     private function refactorUseStatement(Use_ $node): ?Node
     {
         foreach ($node->uses as $use) {
-            if (!$use instanceof UseItem) {
-                continue;
-            }
-
             $name = $use->name->toString();
 
             if ($name === 'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids') {
@@ -96,13 +91,9 @@ final class ReplaceHasVersion7UuidsRector extends AbstractRector
             }
 
             foreach ($node->uses as $use) {
-                if (! $use instanceof UseItem) {
-                    continue;
-                }
-
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
-                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                    return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }
 

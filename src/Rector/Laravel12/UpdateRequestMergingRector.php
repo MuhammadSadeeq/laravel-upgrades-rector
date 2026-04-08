@@ -7,8 +7,11 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\Expression;
-use PHPStan\Type\ObjectType;
+use PhpParser\Node\Stmt\Use_;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -35,7 +38,7 @@ final class UpdateRequestMergingRector extends AbstractRector
             return null;
         }
 
-        if (!$this->isObjectType($node->expr->var, new ObjectType('Illuminate\\Http\\Request'))) {
+        if (! $this->isRequestLikeCall($node->expr)) {
             return null;
         }
 
@@ -54,6 +57,63 @@ final class UpdateRequestMergingRector extends AbstractRector
         $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
+    }
+
+    private function isRequestLikeCall(MethodCall $methodCall): bool
+    {
+        if ($methodCall->var instanceof Variable && $this->isName($methodCall->var, 'request')) {
+            return true;
+        }
+
+        if (! $methodCall->var instanceof Variable || ! $this->isName($methodCall->var, 'this')) {
+            return false;
+        }
+
+        return $this->fileContainsFormRequestSubclass();
+    }
+
+    private function fileHasImport(string $fullyQualifiedName): bool
+    {
+        foreach ($this->file->getNewStmts() as $stmt) {
+            if (! $stmt instanceof Use_) {
+                continue;
+            }
+
+            foreach ($stmt->uses as $use) {
+                if ($use->name->toString() === $fullyQualifiedName) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function fileContainsFormRequestSubclass(): bool
+    {
+        $hasFormRequestSubclass = false;
+
+        $this->traverseNodesWithCallable($this->file->getNewStmts(), function (Node $node) use (&$hasFormRequestSubclass): ?int {
+            if (! $node instanceof Class_ || ! $node->extends instanceof Name) {
+                return null;
+            }
+
+            if ($this->isName($node->extends, 'Illuminate\\Foundation\\Http\\FormRequest')) {
+                $hasFormRequestSubclass = true;
+
+                return 1;
+            }
+
+            if ($this->isName($node->extends, 'FormRequest') && $this->fileHasImport('Illuminate\\Foundation\\Http\\FormRequest')) {
+                $hasFormRequestSubclass = true;
+
+                return 1;
+            }
+
+            return null;
+        });
+
+        return $hasFormRequestSubclass;
     }
 
     public function getRuleDefinition(): RuleDefinition

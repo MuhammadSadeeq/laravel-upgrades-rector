@@ -12,7 +12,7 @@ use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\NullableType;
 use PhpParser\Node\Param;
-use PhpParser\Node\Scalar\Int_;
+use PhpParser\Node\Scalar\LNumber;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Return_;
@@ -65,7 +65,7 @@ final class UpdateQueueContractMethodsRector extends AbstractRector
 
             $defaultReturn = $config['defaultReturn'] === 'null'
                 ? new ConstFetch(new Name('null'))
-                : new Int_(0);
+                : new LNumber(0);
 
             $method = new ClassMethod($methodName, [
                 'flags' => Class_::MODIFIER_PUBLIC,

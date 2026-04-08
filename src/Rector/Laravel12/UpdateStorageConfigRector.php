@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\ArrayItem;
 use PhpParser\Comment\Doc;
+use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Scalar\String_;
+use PhpParser\Node\Stmt\Return_;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -19,69 +21,87 @@ final class UpdateStorageConfigRector extends AbstractRector
 
     public function getNodeTypes(): array
     {
-        return [Array_::class];
+        return [Return_::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Array_) {
+        if (! $node instanceof Return_ || ! $node->expr instanceof Array_) {
             return null;
         }
 
-        $disksItem = $this->findDisksItem($node);
+        if (! $this->containsDisksConfiguration($node->expr)) {
+            return null;
+        }
+
+        $disksItem = $this->findDisksItem($node->expr);
 
         if (! $disksItem instanceof ArrayItem) {
             return null;
         }
 
-        if (! $disksItem->value instanceof Array_) {
+        if ($this->hasExplicitLocalDisk($node->expr) || $this->hasUpgradeComment($disksItem)) {
             return null;
         }
 
-        if ($this->hasExplicitLocalDisk($disksItem->value) || $this->hasUpgradeComment($disksItem)) {
-            return null;
-        }
-
-        $disksItem->setAttribute('comments', array_merge([
-            new Doc('/** ' . self::COMMENT_MARKER . ', Laravel now defaults it to storage/app/private. Define disks.local.root explicitly to preserve storage/app. */'),
-        ], $disksItem->getComments()));
+        $comment = new Doc('/** ' . self::COMMENT_MARKER . ', Laravel now defaults it to storage/app/private. Define disks.local.root explicitly to preserve storage/app. */');
+        $disksItem->setAttribute('comments', array_merge([$comment], $disksItem->getComments()));
+        $disksItem->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
+    }
+
+    private function containsDisksConfiguration(Array_ $array): bool
+    {
+        return $this->findDisksItem($array) instanceof ArrayItem;
     }
 
     private function findDisksItem(Array_ $array): ?ArrayItem
     {
         foreach ($array->items as $item) {
-            if (! $item instanceof ArrayItem || ! $item->key instanceof String_) {
+            if (! $item instanceof ArrayItem || $this->getArrayKeyName($item) !== 'disks' || ! $item->value instanceof Array_) {
                 continue;
             }
 
-            if ($item->key->value === 'disks') {
-                return $item;
-            }
+            return $item;
         }
 
         return null;
     }
 
-    private function hasExplicitLocalDisk(Array_ $disksArray): bool
+    private function hasExplicitLocalDisk(Array_ $array): bool
     {
-        foreach ($disksArray->items as $item) {
-            if (! $item instanceof ArrayItem || ! $item->key instanceof String_) {
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem) {
                 continue;
             }
 
-            if ($item->key->value === 'local') {
-                return true;
+            if ($this->getArrayKeyName($item) !== 'disks' || ! $item->value instanceof Array_) {
+                continue;
+            }
+
+            foreach ($item->value->items as $diskItem) {
+                if ($diskItem instanceof ArrayItem && $this->getArrayKeyName($diskItem) === 'local') {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    private function hasUpgradeComment(ArrayItem $disksItem): bool
+    private function getArrayKeyName(ArrayItem $item): ?string
     {
-        foreach ($disksItem->getComments() as $comment) {
+        if (! $item->key instanceof String_) {
+            return null;
+        }
+
+        return $item->key->value;
+    }
+
+    private function hasUpgradeComment(ArrayItem $item): bool
+    {
+        foreach ($item->getComments() as $comment) {
             if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
                 return true;
             }

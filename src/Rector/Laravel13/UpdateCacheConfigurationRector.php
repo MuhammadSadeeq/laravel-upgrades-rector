@@ -28,96 +28,163 @@ final class UpdateCacheConfigurationRector extends AbstractRector
             return null;
         }
 
-        $commentsToAdd = [];
+        $commentsByItem = [];
         $filePath = $this->file->getFilePath();
 
         if ($this->matchesConfigFile($filePath, 'cache')) {
-            if (! $this->hasStringKey($node->expr, 'serializable_classes')) {
-                $commentsToAdd[] = 'Laravel 13: cache.serializable_classes now defaults to false. Add an explicit allow-list if your application caches PHP objects.';
-            }
+            $firstItem = $this->findFirstArrayItem($node->expr);
 
-            if (! $this->hasStringKey($node->expr, 'prefix')) {
-                $commentsToAdd[] = 'Laravel 13: default cache prefixes now use hyphenated suffixes. Set CACHE_PREFIX explicitly if you need the previous generated value.';
+            if ($firstItem instanceof ArrayItem) {
+                $commentsByItem[spl_object_id($firstItem)] = [
+                    'item' => $firstItem,
+                    'comments' => [
+                        'Laravel 13: cache.serializable_classes now defaults to false. Add an explicit allow-list if your application caches PHP objects.',
+                        'Laravel 13: default cache prefixes now use hyphenated suffixes. Set CACHE_PREFIX explicitly if you need the previous generated value.',
+                    ],
+                ];
             }
         }
 
-        if ($this->matchesConfigFile($filePath, 'database')) {
-            if ($this->hasStringKey($node->expr, 'redis') && ! $this->hasNestedRedisPrefix($node->expr)) {
-                $commentsToAdd[] = 'Laravel 13: default Redis prefixes now use hyphenated suffixes. Set REDIS_PREFIX explicitly if you need the previous generated value.';
-            }
+        $redisItem = $this->findArrayItem($node->expr, 'redis');
+        if ($redisItem instanceof ArrayItem && $this->hasRedisConfigurationWithoutExplicitPrefix($node->expr)) {
+            $commentsByItem[spl_object_id($redisItem)] = [
+                'item' => $redisItem,
+                'comments' => [
+                    'Laravel 13: default Redis prefixes now use hyphenated suffixes. Set REDIS_PREFIX explicitly if you need the previous generated value.',
+                ],
+            ];
         }
 
         if ($this->matchesConfigFile($filePath, 'session') && ! $this->hasStringKey($node->expr, 'cookie')) {
-            $commentsToAdd[] = 'Laravel 13: default session cookie names now use Str::snake(APP_NAME). Set SESSION_COOKIE explicitly if you need the previous generated value.';
+            $firstItem = $this->findFirstArrayItem($node->expr);
+
+            if ($firstItem instanceof ArrayItem) {
+                $existingEntry = $commentsByItem[spl_object_id($firstItem)] ?? ['item' => $firstItem, 'comments' => []];
+                $existingEntry['comments'][] = 'Laravel 13: default session cookie names now use Str::snake(APP_NAME). Set SESSION_COOKIE explicitly if you need the previous generated value.';
+                $commentsByItem[spl_object_id($firstItem)] = $existingEntry;
+            }
         }
 
-        if ($commentsToAdd === []) {
+        if ($commentsByItem === []) {
             return null;
         }
 
-        $newComments = [];
+        $hasChanges = false;
 
-        foreach ($commentsToAdd as $commentText) {
-            if ($this->hasComment($node, $commentText)) {
+        foreach ($commentsByItem as $entry) {
+            /** @var ArrayItem $item */
+            $item = $entry['item'];
+            $newComments = [];
+
+            foreach ($entry['comments'] as $commentText) {
+                if ($this->hasComment($item, $commentText)) {
+                    continue;
+                }
+
+                $newComments[] = new Comment('// ' . $commentText);
+            }
+
+            if ($newComments === []) {
                 continue;
             }
 
-            $newComments[] = new Comment('// ' . $commentText);
+            $item->setAttribute('comments', array_merge($newComments, $item->getComments()));
+            $item->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+            $hasChanges = true;
         }
 
-        if ($newComments === []) {
+        if (! $hasChanges) {
             return null;
         }
-
-        $node->setAttribute('comments', array_merge($newComments, $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
-    }
-
-    private function hasStringKey(Array_ $array, string $key): bool
-    {
-        foreach ($array->items as $item) {
-            if (! $item instanceof ArrayItem || ! $item->key instanceof String_) {
-                continue;
-            }
-
-            if ($item->key->value === $key) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private function hasNestedRedisPrefix(Array_ $array): bool
     {
         foreach ($array->items as $item) {
-            if (! $item instanceof ArrayItem || ! $item->key instanceof String_ || $item->key->value !== 'redis' || ! $item->value instanceof Array_) {
+            if (! $item instanceof ArrayItem || $this->getArrayKeyName($item) !== 'redis' || ! $item->value instanceof Array_) {
                 continue;
             }
 
             foreach ($item->value->items as $redisItem) {
-                if (! $redisItem instanceof ArrayItem || ! $redisItem->key instanceof String_ || $redisItem->key->value !== 'options' || ! $redisItem->value instanceof Array_) {
+                if (! $redisItem instanceof ArrayItem || $this->getArrayKeyName($redisItem) !== 'options' || ! $redisItem->value instanceof Array_) {
                     continue;
                 }
 
-                return $this->hasStringKey($redisItem->value, 'prefix');
+                foreach ($redisItem->value->items as $optionItem) {
+                    if ($optionItem instanceof ArrayItem && $this->getArrayKeyName($optionItem) === 'prefix') {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
 
         return false;
     }
 
-    private function hasComment(Return_ $return, string $commentText): bool
+    private function hasRedisConfigurationWithoutExplicitPrefix(Array_ $array): bool
     {
-        foreach ($return->getComments() as $comment) {
+        return $this->hasStringKey($array, 'redis') && ! $this->hasNestedRedisPrefix($array);
+    }
+
+    private function hasStringKey(Array_ $array, string $key): bool
+    {
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem || $this->getArrayKeyName($item) !== $key) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function getArrayKeyName(ArrayItem $item): ?string
+    {
+        if (! $item->key instanceof String_) {
+            return null;
+        }
+
+        return $item->key->value;
+    }
+
+    private function hasComment(ArrayItem $item, string $commentText): bool
+    {
+        foreach ($item->getComments() as $comment) {
             if (str_contains($comment->getText(), $commentText)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function findArrayItem(Array_ $array, string $key): ?ArrayItem
+    {
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem || $this->getArrayKeyName($item) !== $key) {
+                continue;
+            }
+
+            return $item;
+        }
+
+        return null;
+    }
+
+    private function findFirstArrayItem(Array_ $array): ?ArrayItem
+    {
+        foreach ($array->items as $item) {
+            if ($item instanceof ArrayItem) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     private function matchesConfigFile(string $filePath, string $configName): bool
@@ -130,9 +197,11 @@ final class UpdateCacheConfigurationRector extends AbstractRector
             return false;
         }
 
-        $fixtureBaseName = basename($filePath, '.inc');
+        $fixtureBaseName = basename($filePath);
 
-        return $fixtureBaseName === $configName . '.php' || str_starts_with($fixtureBaseName, $configName . '_');
+        return $fixtureBaseName === $configName . '.php.inc'
+            || $fixtureBaseName === $configName . '.php'
+            || str_starts_with($fixtureBaseName, $configName . '_');
     }
 
     public function getRuleDefinition(): RuleDefinition
@@ -147,9 +216,9 @@ return [
 ];
 CODE_SAMPLE,
                     <<<'CODE_SAMPLE'
-// Laravel 13: cache.serializable_classes now defaults to false. Add an explicit allow-list if your application caches PHP objects.
-// Laravel 13: default cache prefixes now use hyphenated suffixes. Set CACHE_PREFIX explicitly if you need the previous generated value.
 return [
+    // Laravel 13: cache.serializable_classes now defaults to false. Add an explicit allow-list if your application caches PHP objects.
+    // Laravel 13: default cache prefixes now use hyphenated suffixes. Set CACHE_PREFIX explicitly if you need the previous generated value.
     'default' => env('CACHE_STORE', 'database'),
 ];
 CODE_SAMPLE,

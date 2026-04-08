@@ -6,10 +6,9 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
 use PhpParser\Comment;
 use PhpParser\Node;
-use PhpParser\NodeVisitor;
 use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\Node\Stmt\Use_;
-use PhpParser\Node\UseItem;
+use PhpParser\NodeTraverser;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -47,10 +46,6 @@ final class ReplaceHasVersion4UuidsRector extends AbstractRector
     private function refactorUseStatement(Use_ $node): ?Node
     {
         foreach ($node->uses as $use) {
-            if (! $use instanceof UseItem) {
-                continue;
-            }
-
             if ($use->name->toString() === 'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids') {
                 return $this->addComment($node);
             }
@@ -85,13 +80,9 @@ final class ReplaceHasVersion4UuidsRector extends AbstractRector
             }
 
             foreach ($node->uses as $use) {
-                if (! $use instanceof UseItem) {
-                    continue;
-                }
-
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
-                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                    return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }
 
