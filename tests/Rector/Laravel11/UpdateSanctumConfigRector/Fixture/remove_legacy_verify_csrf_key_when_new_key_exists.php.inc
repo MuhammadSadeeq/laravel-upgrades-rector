@@ -5,8 +5,8 @@ return [
 
     'middleware' => [
         'authenticate_session' => \Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
-        'encrypt_cookies' => 'App\Http\Middleware\EncryptCookies',
         'verify_csrf_token' => 'App\Http\Middleware\VerifyCsrfToken',
+        'validate_csrf_token' => \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
     ],
 
     'expiration' => null,
@@ -21,7 +21,6 @@ return [
 
     'middleware' => [
         'authenticate_session' => \Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
-        'encrypt_cookies' => \Illuminate\Cookie\Middleware\EncryptCookies::class,
         'validate_csrf_token' => \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
     ],
 

@@ -16,6 +16,10 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateSanctumConfigRector extends AbstractRector
 {
+    private const LEGACY_VERIFY_CSRF_TOKEN_KEY = 'verify_csrf_token';
+
+    private const CURRENT_VERIFY_CSRF_TOKEN_KEY = 'validate_csrf_token';
+
     /** @var array<string, array{fqcn: string, old_defaults: array<int, string>}> */
     private array $middlewareMap = [
         'authenticate_session' => [
@@ -32,7 +36,7 @@ final class UpdateSanctumConfigRector extends AbstractRector
                 'Illuminate\\Cookie\\Middleware\\EncryptCookies',
             ],
         ],
-        'validate_csrf_token' => [
+        self::CURRENT_VERIFY_CSRF_TOKEN_KEY => [
             'fqcn' => 'Illuminate\\Foundation\\Http\\Middleware\\ValidateCsrfToken',
             'old_defaults' => [
                 'App\\Http\\Middleware\\VerifyCsrfToken',
@@ -62,30 +66,51 @@ final class UpdateSanctumConfigRector extends AbstractRector
             return null;
         }
 
+        $existingMiddlewareKeys = $this->collectMiddlewareKeys($middlewareArray);
         $changed = false;
+        $updatedItems = [];
 
         foreach ($middlewareArray->items as $item) {
             if (! $item instanceof ArrayItem) {
+                $updatedItems[] = $item;
                 continue;
             }
 
             if (! $item->key instanceof String_) {
+                $updatedItems[] = $item;
                 continue;
             }
 
             $key = $item->key->value;
 
+            if (
+                $key === self::LEGACY_VERIFY_CSRF_TOKEN_KEY
+                && isset($existingMiddlewareKeys[self::CURRENT_VERIFY_CSRF_TOKEN_KEY])
+            ) {
+                $changed = true;
+                continue;
+            }
+
+            if ($key === self::LEGACY_VERIFY_CSRF_TOKEN_KEY) {
+                $item->key = new String_(self::CURRENT_VERIFY_CSRF_TOKEN_KEY);
+                $key = self::CURRENT_VERIFY_CSRF_TOKEN_KEY;
+                $changed = true;
+            }
+
             if (! isset($this->middlewareMap[$key])) {
+                $updatedItems[] = $item;
                 continue;
             }
 
             // Skip if already a class reference
             if ($item->value instanceof ClassConstFetch) {
+                $updatedItems[] = $item;
                 continue;
             }
 
             // Only replace known old default string values
             if (! $item->value instanceof String_) {
+                $updatedItems[] = $item;
                 continue;
             }
 
@@ -94,18 +119,40 @@ final class UpdateSanctumConfigRector extends AbstractRector
 
             // Only replace if it matches a known old default value
             if (! in_array($currentValue, $mapping['old_defaults'], true)) {
+                $updatedItems[] = $item;
                 continue;
             }
 
             $item->value = new ClassConstFetch(new FullyQualified($mapping['fqcn']), 'class');
             $changed = true;
+            $updatedItems[] = $item;
         }
 
         if (! $changed) {
             return null;
         }
 
+        $middlewareArray->items = $updatedItems;
+
         return $node;
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function collectMiddlewareKeys(Array_ $array): array
+    {
+        $keys = [];
+
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem || ! $item->key instanceof String_) {
+                continue;
+            }
+
+            $keys[$item->key->value] = true;
+        }
+
+        return $keys;
     }
 
     private function isSanctumMiddlewareArray(Array_ $array): bool

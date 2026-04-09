@@ -6,7 +6,7 @@ return [
     'middleware' => [
         'authenticate_session' => 'App\Http\Middleware\AuthenticateSession',
         'encrypt_cookies' => 'App\Http\Middleware\EncryptCookies',
-        'validate_csrf_token' => 'App\Http\Middleware\VerifyCsrfToken',
+        'verify_csrf_token' => 'App\Http\Middleware\VerifyCsrfToken',
     ],
 
     'expiration' => null,
