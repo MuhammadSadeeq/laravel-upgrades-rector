@@ -35,6 +35,30 @@ vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector
 Replace `laravel-13.php` with `laravel-12.php` or `laravel-11.php` for older upgrades.
 These config names and set constants refer to the target upgrade version, so `laravel-13.php` / `LaravelUpgradeSetList::LARAVEL_13` means “upgrade the project to Laravel 13.”
 The Laravel 11, Laravel 12, and Laravel 13 sets can also rewrite the nearest project `composer.json` when a supported dependency update applies.
+They do not update `composer.lock` or install new packages for you.
+
+## Recommended Upgrade Flow
+
+```bash
+# 1. Rewrite application code and supported config patterns
+vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php
+
+# 2. Install the upgraded framework and package versions
+composer update
+
+# 3. Run your test suite and application checks
+php artisan test
+```
+
+After Rector and Composer finish, review any generated advisory comments and TODO stubs before considering the upgrade complete.
+
+## Rule Types
+
+- Auto-fix rules rewrite code or configuration when the upgrade can be applied safely
+- Advisory rules add comments when the package can identify a Laravel upgrade concern but cannot safely rewrite project-specific behavior
+- Contract stub rules add required interface methods, often with TODO comments where implementation is application-specific
+
+Examples of advisory/manual-review areas include `change()` migrations, relationship methods named `casts()`, custom password rehashing behavior, and other behavior-sensitive upgrade-guide items.
 
 ## Supported Versions
 

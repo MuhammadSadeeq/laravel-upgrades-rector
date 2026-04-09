@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `UpdateSanctumConfigRector` now migrates the legacy `verify_csrf_token` Sanctum middleware key to `validate_csrf_token` and removes obsolete duplicates when the new key already exists
+- `RemoveDoctrineDBALRector` now removes legacy `dbal.types` configuration from database config arrays in addition to cleaning up Doctrine DBAL imports and method usage
 - Mixed `use` statements in `RemoveDoctrineDBALRector` now remove only Doctrine DBAL imports instead of dropping unrelated imports in the same declaration
 - `Carbon3MigrationRector` now preserves explicitly signed `diffIn*()` behavior when the old `absolute: false` / second `false` argument was used
 - `UpdateCashierStripeRector` now only adds the `'card'` argument on Billable-backed receivers instead of matching arbitrary methods with the same name
@@ -18,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UpdatePaginationViewNamesRector` now scopes replacements to pagination API calls instead of rewriting matching strings globally
 
 ### Added
+
+### Documentation
+
+- README now documents the expected upgrade flow: run Rector, run Composer, then verify the application
+- README now explicitly distinguishes `composer.json` rewriting from actual dependency installation and clarifies that advisory comments / TODOs require manual follow-up
 
 #### Laravel 12 &rarr; 13 Upgrade (20 Rules)
 - Composer dependency updates now target the real `composer.json` file (framework ^13.0, boost ^2.0, tinker ^3.0, phpunit ^12.0, pest ^4.0)
