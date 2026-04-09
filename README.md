@@ -24,11 +24,15 @@ composer require --dev muhammadsadeeq/laravel-upgrades-rector
 
 ## Usage
 
-```bash
-# Preview changes
-vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
+Preview changes:
 
-# Apply changes
+```bash
+vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
+```
+
+Apply changes:
+
+```bash
 vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
 ```
 
