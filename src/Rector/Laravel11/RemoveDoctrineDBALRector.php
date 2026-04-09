@@ -6,6 +6,8 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use PhpParser\Comment;
 use PhpParser\Node;
+use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Identifier;
@@ -44,7 +46,7 @@ final class RemoveDoctrineDBALRector extends AbstractRector
 
     public function getNodeTypes(): array
     {
-        return [Use_::class, Expression::class, StaticCall::class];
+        return [Use_::class, Expression::class, StaticCall::class, Array_::class];
     }
 
     /**
@@ -62,6 +64,10 @@ final class RemoveDoctrineDBALRector extends AbstractRector
 
         if ($node instanceof StaticCall) {
             return $this->refactorStaticCall($node);
+        }
+
+        if ($node instanceof Array_) {
+            return $this->refactorConfigArray($node);
         }
 
         return null;
@@ -158,6 +164,44 @@ final class RemoveDoctrineDBALRector extends AbstractRector
         return $node;
     }
 
+    private function refactorConfigArray(Array_ $node): ?Node
+    {
+        $dbalItem = $this->findArrayItemByKey($node, 'dbal');
+
+        if (! $dbalItem instanceof ArrayItem || ! $dbalItem->value instanceof Array_) {
+            return null;
+        }
+
+        $dbalTypesItem = $this->findArrayItemByKey($dbalItem->value, 'types');
+
+        if (! $dbalTypesItem instanceof ArrayItem) {
+            return null;
+        }
+
+        $remainingDbalItems = [];
+
+        foreach ($dbalItem->value->items as $item) {
+            if ($item === null || $item === $dbalTypesItem) {
+                continue;
+            }
+
+            $remainingDbalItems[] = $item;
+        }
+
+        if ($remainingDbalItems === []) {
+            $node->items = array_values(array_filter(
+                $node->items,
+                static fn ($item): bool => $item !== $dbalItem
+            ));
+
+            return $node;
+        }
+
+        $dbalItem->value->items = $remainingDbalItems;
+
+        return $node;
+    }
+
     private function isSchemaFacade(Name $className): bool
     {
         foreach ($this->schemaFacades as $fqcn) {
@@ -167,6 +211,21 @@ final class RemoveDoctrineDBALRector extends AbstractRector
         }
 
         return false;
+    }
+
+    private function findArrayItemByKey(Array_ $array, string $key): ?ArrayItem
+    {
+        foreach ($array->items as $item) {
+            if (! $item instanceof ArrayItem || ! $item->key instanceof Node\Scalar\String_) {
+                continue;
+            }
+
+            if ($item->key->value === $key) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     public function getRuleDefinition(): RuleDefinition
