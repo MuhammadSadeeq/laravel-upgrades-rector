@@ -18,9 +18,13 @@ use Illuminate\Contracts\Bus\Dispatcher;
 
 class CustomDispatcher implements Dispatcher
 {
-    public function dispatchAfterResponse($command, $handler = null): mixed
+    public function dispatchAfterResponse(mixed $command, mixed $handler = null): void
     {
-        return null;
+        // TODO: Implement dispatchAfterResponse() method.
+    }
+    public function chain(\Illuminate\Support\Collection|array|null $jobs = null): mixed
+    {
+        // TODO: Implement chain() method.
     }
 }
 
