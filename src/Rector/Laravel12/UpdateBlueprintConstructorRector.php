@@ -9,6 +9,8 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
+use PhpParser\Node\Stmt\Return_;
+use PhpParser\NodeTraverser;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -18,33 +20,16 @@ final class UpdateBlueprintConstructorRector extends AbstractRector
 {
     public function getNodeTypes(): array
     {
-        return [Expression::class];
+        return [Expression::class, Return_::class];
     }
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Expression) {
+        if (!$node instanceof Expression && !$node instanceof Return_) {
             return null;
         }
 
-        $newExpr = $this->extractNewExpression($node);
-
-        if ($newExpr === null) {
-            return null;
-        }
-
-        if (!$newExpr->class instanceof Name) {
-            return null;
-        }
-
-        if (
-            !$this->isName($newExpr->class, 'Blueprint') &&
-            !$this->isName($newExpr->class, 'Illuminate\Database\Schema\Blueprint')
-        ) {
-            return null;
-        }
-
-        if (count($newExpr->args) >= 4) {
+        if (! $this->containsOutdatedBlueprintConstructor($node)) {
             return null;
         }
 
@@ -65,6 +50,54 @@ final class UpdateBlueprintConstructorRector extends AbstractRector
         return $node;
     }
 
+    private function containsOutdatedBlueprintConstructor(Expression|Return_ $node): bool
+    {
+        $newExpr = $node instanceof Expression ? $this->extractNewExpression($node) : $this->extractReturnNewExpression($node);
+
+        if ($newExpr instanceof New_ && $this->isOutdatedBlueprintConstructor($newExpr)) {
+            return true;
+        }
+
+        $found = false;
+        $expr = $node->expr;
+
+        if (! $expr instanceof Node) {
+            return false;
+        }
+
+        $this->traverseNodesWithCallable($expr, function (Node $subNode) use (&$found): ?int {
+            if (! $subNode instanceof New_) {
+                return null;
+            }
+
+            if (! $this->isOutdatedBlueprintConstructor($subNode)) {
+                return null;
+            }
+
+            $found = true;
+
+            return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+        });
+
+        return $found;
+    }
+
+    private function isOutdatedBlueprintConstructor(New_ $newExpr): bool
+    {
+        if (!$newExpr->class instanceof Name) {
+            return false;
+        }
+
+        if (
+            !$this->isName($newExpr->class, 'Blueprint') &&
+            !$this->isName($newExpr->class, 'Illuminate\Database\Schema\Blueprint')
+        ) {
+            return false;
+        }
+
+        return count($newExpr->args) < 4;
+    }
+
     private function extractNewExpression(Expression $node): ?New_
     {
         if ($node->expr instanceof New_) {
@@ -79,6 +112,11 @@ final class UpdateBlueprintConstructorRector extends AbstractRector
         }
 
         return null;
+    }
+
+    private function extractReturnNewExpression(Return_ $node): ?New_
+    {
+        return $node->expr instanceof New_ ? $node->expr : null;
     }
 
     public function getRuleDefinition(): RuleDefinition

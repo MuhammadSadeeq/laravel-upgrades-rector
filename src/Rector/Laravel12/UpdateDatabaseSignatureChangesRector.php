@@ -9,8 +9,10 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
+use PhpParser\NodeTraverser;
 use PHPStan\Type\ObjectType;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
@@ -58,32 +60,52 @@ final class UpdateDatabaseSignatureChangesRector extends AbstractRector
             return self::COMMENT_MARKER . '. Grammar constructors now require a Connection instance, and setConnection() has been removed.';
         }
 
-        if (! $expression->expr instanceof MethodCall) {
-            return null;
-        }
+        $comment = null;
 
-        $methodName = $this->getName($expression->expr->name);
+        $this->traverseNodesWithCallable($expression->expr, function (Node $node) use (&$comment): ?int {
+            if ($comment !== null) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
+
+            if ($node instanceof New_ && $this->isGrammarInstantiationWithoutConnection($node)) {
+                $comment = self::COMMENT_MARKER . '. Grammar constructors now require a Connection instance, and setConnection() has been removed.';
+
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
+
+            if (! $node instanceof MethodCall) {
+                return null;
+            }
+
+            $comment = $this->resolveMethodCallComment($node);
+
+            return $comment === null ? null : NodeTraverser::DONT_TRAVERSE_CHILDREN;
+        });
+
+        return $comment;
+    }
+
+    private function resolveMethodCallComment(MethodCall $methodCall): ?string
+    {
+        $methodName = $this->getName($methodCall->name);
 
         if ($methodName === null) {
             return null;
         }
 
-        if ($methodName === 'setConnection' && $this->isObjectType($expression->expr->var, new ObjectType('Illuminate\\Database\\Grammar'))) {
+        if ($methodName === 'setConnection' && $this->isLikelyGrammar($methodCall->var)) {
             return self::COMMENT_MARKER . '. Grammar::setConnection() was removed; inject the Connection via the constructor instead.';
         }
 
-        if ($methodName === 'withTablePrefix' && (
-            $this->isObjectType($expression->expr->var, new ObjectType('Illuminate\\Database\\Connection')) ||
-            $this->isObjectType($expression->expr->var, new ObjectType('Illuminate\\Database\\ConnectionInterface'))
-        )) {
+        if ($methodName === 'withTablePrefix' && $this->isLikelyConnection($methodCall->var)) {
             return self::COMMENT_MARKER . '. Connection::withTablePrefix() was removed; read the prefix from the Connection directly instead.';
         }
 
-        if ($methodName === 'getPrefix' && $this->isObjectType($expression->expr->var, new ObjectType('Illuminate\\Database\\Schema\\Blueprint'))) {
+        if ($methodName === 'getPrefix' && $this->isLikelyBlueprint($methodCall->var)) {
             return self::COMMENT_MARKER . '. Blueprint::getPrefix() is deprecated; retrieve the table prefix from the Connection instead.';
         }
 
-        if (in_array($methodName, ['getTablePrefix', 'setTablePrefix'], true) && $this->isObjectType($expression->expr->var, new ObjectType('Illuminate\\Database\\Grammar'))) {
+        if (in_array($methodName, ['getTablePrefix', 'setTablePrefix'], true) && $this->isLikelyGrammar($methodCall->var)) {
             return self::COMMENT_MARKER . '. Grammar::' . $methodName . '() is deprecated; retrieve the table prefix from the Connection instead.';
         }
 
@@ -109,13 +131,41 @@ final class UpdateDatabaseSignatureChangesRector extends AbstractRector
             return false;
         }
 
-        $className = $new->class->toString();
+        $className = $this->getName($new->class) ?? $new->class->toString();
 
         if ($className === 'Illuminate\\Database\\Grammar') {
             return count($new->args) === 0;
         }
 
         return str_ends_with($className, 'Grammar') && str_contains($className, 'Illuminate\\Database\\') && count($new->args) === 0;
+    }
+
+    private function isLikelyGrammar(Node $node): bool
+    {
+        if ($this->isObjectType($node, new ObjectType('Illuminate\\Database\\Grammar'))) {
+            return true;
+        }
+
+        return $node instanceof Variable && is_string($node->name) && str_contains(strtolower($node->name), 'grammar');
+    }
+
+    private function isLikelyConnection(Node $node): bool
+    {
+        if ($this->isObjectType($node, new ObjectType('Illuminate\\Database\\Connection'))
+            || $this->isObjectType($node, new ObjectType('Illuminate\\Database\\ConnectionInterface'))) {
+            return true;
+        }
+
+        return $node instanceof Variable && is_string($node->name) && in_array(strtolower($node->name), ['connection', 'db'], true);
+    }
+
+    private function isLikelyBlueprint(Node $node): bool
+    {
+        if ($this->isObjectType($node, new ObjectType('Illuminate\\Database\\Schema\\Blueprint'))) {
+            return true;
+        }
+
+        return $node instanceof Variable && is_string($node->name) && in_array(strtolower($node->name), ['blueprint', 'table'], true);
     }
 
     private function hasUpgradeComment(Expression $expression): bool
