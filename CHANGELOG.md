@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `UpdateSanctumConfigRector` now migrates the legacy `verify_csrf_token` Sanctum middleware key to `validate_csrf_token` and removes obsolete duplicates when the new key already exists
 - `RemoveDoctrineDBALRector` now removes legacy `dbal.types` configuration from database config arrays in addition to cleaning up Doctrine DBAL imports and method usage
+- `ReplaceHasVersion7UuidsRector` now handles grouped imports and avoids duplicate `HasUuids` imports when replacing removed Laravel 12 `HasVersion7Uuids` usage
+- Laravel 12 database API advisories now detect imported grammar constructors, common untyped `$grammar` / `$connection` / `$blueprint` variables, and `return new Blueprint(...)` constructor usage
 - Mixed `use` statements in `RemoveDoctrineDBALRector` now remove only Doctrine DBAL imports instead of dropping unrelated imports in the same declaration
 - `Carbon3MigrationRector` now preserves explicitly signed `diffIn*()` behavior when the old `absolute: false` / second `false` argument was used
 - `UpdateCashierStripeRector` now only adds the `'card'` argument on Billable-backed receivers instead of matching arbitrary methods with the same name
@@ -105,8 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
 
 #### Testing & Quality
-- 279 tests across all 3 upgrade paths and support utilities
-- 407 assertions across Rector fixtures and support utility tests
+- 286 tests across all 3 upgrade paths and support utilities
+- 414 assertions across Rector fixtures and support utility tests
 - Full fixture-based testing using Rector's AbstractRectorTestCase
 - PHPStan at max level with zero errors
 
