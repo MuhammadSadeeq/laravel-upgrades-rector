@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
-use PhpParser\Comment;
 use PhpParser\Node;
-use PhpParser\Node\Identifier;
+use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\ConstFetch;
+use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Name;
+use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Use_;
@@ -18,8 +22,6 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
 {
-    private const ADVISORY_COMMENT = '// Laravel 13: The throw()/throwIf() method signatures have changed. Update: public function throw($callback = null) and public function throwIf($condition, $callback = null)';
-
     private const TARGET_PARENT_CLASS = 'Illuminate\Http\Client\Response';
 
     /** @var string[] */
@@ -53,13 +55,9 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
                 continue;
             }
 
-            if ($this->hasAdvisoryComment($stmt)) {
-                continue;
-            }
-
-            $existingComments = $stmt->getComments();
-            $newComment = new Comment(self::ADVISORY_COMMENT);
-            $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
+            $this->configureMethodSignature($stmt, $methodName);
+            $this->forwardCallbackToParentCall($stmt, $methodName);
+            $this->removeAdvisoryComment($stmt);
             $stmt->setAttribute(AttributeKey::ORIGINAL_NODE, null);
             $hasChanges = true;
         }
@@ -104,29 +102,73 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
         return $hasImport;
     }
 
-    private function hasAdvisoryComment(ClassMethod $node): bool
+    private function configureMethodSignature(ClassMethod $method, string $methodName): void
     {
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), 'Laravel 13:')) {
-                return true;
-            }
+        if ($methodName === 'throw') {
+            $method->params = [
+                new Param(new Variable('callback'), new ConstFetch(new Name('null'))),
+            ];
+
+            return;
         }
 
-        return false;
+        $method->params = [
+            new Param(new Variable('condition')),
+            new Param(new Variable('callback'), new ConstFetch(new Name('null'))),
+        ];
+    }
+
+    private function forwardCallbackToParentCall(ClassMethod $method, string $methodName): void
+    {
+        $expectedArgumentCount = $methodName === 'throw' ? 1 : 2;
+
+        $this->traverseNodesWithCallable($method->stmts ?? [], function (Node $node) use ($methodName, $expectedArgumentCount): ?int {
+            if (!$node instanceof StaticCall) {
+                return null;
+            }
+
+            if (!$this->isName($node->class, 'parent') || !$this->isName($node->name, $methodName)) {
+                return null;
+            }
+
+            if ($methodName === 'throwIf' && $node->args === []) {
+                $node->args[] = new Arg(new Variable('condition'));
+            }
+
+            if (count($node->args) < $expectedArgumentCount) {
+                $node->args[] = new Arg(new Variable('callback'));
+            }
+
+            return null;
+        });
+    }
+
+    private function removeAdvisoryComment(ClassMethod $node): void
+    {
+        $comments = [];
+
+        foreach ($node->getComments() as $comment) {
+            if (str_contains($comment->getText(), 'Laravel 13: The throw()/throwIf() method signatures have changed.')) {
+                continue;
+            }
+
+            $comments[] = $comment;
+        }
+
+        $node->setAttribute('comments', $comments);
     }
 
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Add advisory comment for HTTP Client throw()/throwIf() method signature changes in Laravel 13',
+            'Update HTTP Client throw()/throwIf() override signatures for Laravel 13',
             [
                 new CodeSample(
                     'class CustomResponse extends Response {
     public function throw() { /* ... */ }
 }',
                     'class CustomResponse extends Response {
-    // Laravel 13: The throw()/throwIf() method signatures have changed. Update: public function throw($callback = null) and public function throwIf($condition, $callback = null)
-    public function throw() { /* ... */ }
+    public function throw($callback = null) { /* ... */ }
 }'
                 ),
             ]

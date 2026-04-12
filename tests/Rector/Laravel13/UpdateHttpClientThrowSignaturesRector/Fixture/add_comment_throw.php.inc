@@ -27,16 +27,14 @@ use Illuminate\Http\Client\Response;
 
 class CustomResponse extends Response
 {
-    // Laravel 13: The throw()/throwIf() method signatures have changed. Update: public function throw($callback = null) and public function throwIf($condition, $callback = null)
-    public function throw()
+    public function throw($callback = null)
     {
-        parent::throw();
+        parent::throw($callback);
     }
 
-    // Laravel 13: The throw()/throwIf() method signatures have changed. Update: public function throw($callback = null) and public function throwIf($condition, $callback = null)
-    public function throwIf($condition)
+    public function throwIf($condition, $callback = null)
     {
-        parent::throwIf($condition);
+        parent::throwIf($condition, $callback);
     }
 }
 
