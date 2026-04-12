@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RemoveDoctrineDBALRector` now removes legacy `dbal.types` configuration from database config arrays in addition to cleaning up Doctrine DBAL imports and method usage
 - `ReplaceHasVersion7UuidsRector` now handles grouped imports and avoids duplicate `HasUuids` imports when replacing removed Laravel 12 `HasVersion7Uuids` usage
 - Laravel 12 database API advisories now detect imported grammar constructors, common untyped `$grammar` / `$connection` / `$blueprint` variables, and `return new Blueprint(...)` constructor usage
+- `UpdateResponseFactoryContractRector` now generates and normalizes the Laravel 13 `eventStream(Closure $callback, array $headers = [], StreamedEvent|string|null $endStreamWith = '</stream>'): StreamedResponse` signature
+- `UpdateBusDispatcherContractRector` now generates and normalizes the Laravel 13 `dispatchAfterResponse(...): void` signature and adds the new `chain(Collection|array|null $jobs = null): mixed` contract method
+- `UpdateHttpClientThrowSignaturesRector` now updates `throw()` / `throwIf()` override signatures and forwards callback arguments to parent calls instead of adding advisory-only comments
 - Mixed `use` statements in `RemoveDoctrineDBALRector` now remove only Doctrine DBAL imports instead of dropping unrelated imports in the same declaration
 - `Carbon3MigrationRector` now preserves explicitly signed `diffIn*()` behavior when the old `absolute: false` / second `false` argument was used
 - `UpdateCashierStripeRector` now only adds the `'card'` argument on Billable-backed receivers instead of matching arbitrary methods with the same name
@@ -38,8 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cache Repository contract: `touch($key, $seconds): bool`
 - Contract method additions:
   - Cache Store: `touch($key, $seconds): bool`
-  - Bus Dispatcher: `dispatchAfterResponse($command, $handler = null): mixed`
-  - ResponseFactory: `eventStream(callable $callback, ?string $endStream = null, array $headers = []): mixed`
+  - Bus Dispatcher: `dispatchAfterResponse(mixed $command, mixed $handler = null): void`, `chain(Collection|array|null $jobs = null): mixed`
+  - ResponseFactory: `eventStream(Closure $callback, array $headers = [], StreamedEvent|string|null $endStreamWith = '</stream>'): StreamedResponse`
   - MustVerifyEmail: `markEmailAsUnverified(): bool`
   - Queue: `pendingSize()`, `delayedSize()`, `reservedSize()`, `creationTimeOfOldestPendingJob()`
 - Advisory coverage for documented Laravel 13 behavior changes:
@@ -57,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Js::from()` Unicode escaping behavior
 - Event property renames: `JobAttempted::$exceptionOccurred` &rarr; `$exception`, `QueueBusy::$connection` &rarr; `$connectionName`
 - Pagination view name updates: `pagination::default` &rarr; `pagination::bootstrap-3`
-- HTTP Client `throw()`/`throwIf()` signature change advisory comments with narrower `Illuminate\Http\Client\Response` matching
+- HTTP Client `throw()`/`throwIf()` override signature updates with narrower `Illuminate\Http\Client\Response` matching
 
 #### Laravel 11 &rarr; 12 Upgrade (14 Rules)
 - Composer dependency updates now target the real `composer.json` file (Laravel 12, PHPUnit 11, Pest 3)
