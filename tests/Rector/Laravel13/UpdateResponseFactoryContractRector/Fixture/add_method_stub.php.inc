@@ -18,8 +18,9 @@ use Illuminate\Contracts\Routing\ResponseFactory;
 
 class CustomResponseFactory implements ResponseFactory
 {
-    public function eventStream(callable $callback, ?string $endStream = null, array $headers = []): mixed
+    public function eventStream(\Closure $callback, array $headers = [], \Illuminate\Http\StreamedEvent|string|null $endStreamWith = '</stream>'): \Symfony\Component\HttpFoundation\StreamedResponse
     {
+        // TODO: Implement eventStream() method.
     }
 }
 
