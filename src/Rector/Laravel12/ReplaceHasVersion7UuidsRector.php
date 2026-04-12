@@ -16,12 +16,19 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class ReplaceHasVersion7UuidsRector extends AbstractRector
 {
+    private const HAS_UUIDS = 'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids';
+
+    private const HAS_VERSION_7_UUIDS = 'Illuminate\\Database\\Eloquent\\Concerns\\HasVersion7Uuids';
+
     public function getNodeTypes(): array
     {
         return [Use_::class, Class_::class];
     }
 
-    public function refactor(Node $node): ?Node
+    /**
+     * @return int|Node|null
+     */
+    public function refactor(Node $node)
     {
         if ($node instanceof Use_) {
             return $this->refactorUseStatement($node);
@@ -34,25 +41,42 @@ final class ReplaceHasVersion7UuidsRector extends AbstractRector
         return null;
     }
 
-    private function refactorUseStatement(Use_ $node): ?Node
+    /**
+     * @return int|Node|null
+     */
+    private function refactorUseStatement(Use_ $node)
     {
+        $changed = false;
+        $hasHasUuidsImport = $this->fileHasImport(self::HAS_UUIDS);
+        $uses = [];
+
         foreach ($node->uses as $use) {
-            $name = $use->name->toString();
-
-            if ($name === 'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids') {
-                return null;
+            if ($use->name->toString() !== self::HAS_VERSION_7_UUIDS) {
+                $uses[] = $use;
+                continue;
             }
 
-            if ($name === 'Illuminate\\Database\\Eloquent\\Concerns\\HasVersion7Uuids') {
-                $use->name = new Name(
-                    'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids',
-                );
+            $changed = true;
 
-                return $node;
+            if ($hasHasUuidsImport && $use->alias === null) {
+                continue;
             }
+
+            $use->name = new Name(self::HAS_UUIDS);
+            $uses[] = $use;
         }
 
-        return null;
+        if (! $changed) {
+            return null;
+        }
+
+        if ($uses === []) {
+            return NodeTraverser::REMOVE_NODE;
+        }
+
+        $node->uses = $uses;
+
+        return $node;
     }
 
     private function refactorClass(Class_ $node): ?Node
@@ -65,13 +89,12 @@ final class ReplaceHasVersion7UuidsRector extends AbstractRector
             }
 
             foreach ($stmt->traits as $index => $trait) {
-                if ($this->isName($trait, 'HasVersion7Uuids')
-                    || $this->isName($trait, 'Illuminate\\Database\\Eloquent\\Concerns\\HasVersion7Uuids')) {
-                    if ($this->fileHasImport('Illuminate\\Database\\Eloquent\\Concerns\\HasVersion7Uuids')
-                        || $this->fileHasImport('Illuminate\\Database\\Eloquent\\Concerns\\HasUuids')) {
+                if ($this->isName($trait, self::HAS_VERSION_7_UUIDS)) {
+                    if ($this->fileHasImport(self::HAS_VERSION_7_UUIDS)
+                        || $this->fileHasImport(self::HAS_UUIDS)) {
                         $stmt->traits[$index] = new Name('HasUuids');
                     } else {
-                        $stmt->traits[$index] = new Name\FullyQualified('Illuminate\\Database\\Eloquent\\Concerns\\HasUuids');
+                        $stmt->traits[$index] = new Name\FullyQualified(self::HAS_UUIDS);
                     }
                     $changed = true;
                 }
