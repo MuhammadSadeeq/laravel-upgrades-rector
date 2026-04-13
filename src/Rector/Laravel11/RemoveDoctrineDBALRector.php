@@ -36,6 +36,8 @@ final class RemoveDoctrineDBALRector extends AbstractRector
         'getDoctrineColumn',
         'registerDoctrineType',
         'isDoctrineAvailable',
+        'usingNativeSchemaOperations',
+        'useNativeSchemaOperationsIfPossible',
     ];
 
     /** @var array<int, string> */
@@ -105,28 +107,18 @@ final class RemoveDoctrineDBALRector extends AbstractRector
 
     private function refactorExpression(Expression $node): ?Node
     {
-        $expr = $node->expr;
-
-        if (!$expr instanceof MethodCall) {
-            return null;
-        }
-
-        $methodName = $this->getName($expr->name);
-
-        if ($methodName === null) {
-            return null;
-        }
-
-        if (!in_array($methodName, $this->removedMethods, true)) {
-            return null;
-        }
-
         $existingComments = $node->getComments();
 
         foreach ($existingComments as $comment) {
             if (str_contains($comment->getText(), 'Laravel 11:')) {
                 return null;
             }
+        }
+
+        $methodName = $this->findRemovedMethodName($node->expr);
+
+        if ($methodName === null) {
+            return null;
         }
 
         $newComment = new Comment(
@@ -137,6 +129,33 @@ final class RemoveDoctrineDBALRector extends AbstractRector
         $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
+    }
+
+    private function findRemovedMethodName(Node $node): ?string
+    {
+        $removedMethodName = null;
+
+        $this->traverseNodesWithCallable($node, function (Node $subNode) use (&$removedMethodName): ?int {
+            if ($removedMethodName !== null) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
+
+            if (! $subNode instanceof MethodCall && ! $subNode instanceof StaticCall) {
+                return null;
+            }
+
+            $methodName = $this->getName($subNode->name);
+
+            if ($methodName === null || ! in_array($methodName, $this->removedMethods, true)) {
+                return null;
+            }
+
+            $removedMethodName = $methodName;
+
+            return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+        });
+
+        return $removedMethodName;
     }
 
     private function refactorStaticCall(StaticCall $node): ?Node
@@ -204,6 +223,10 @@ final class RemoveDoctrineDBALRector extends AbstractRector
 
     private function isSchemaFacade(Name $className): bool
     {
+        if ($this->isName($className, 'Schema') || $this->isName($className, 'DB')) {
+            return true;
+        }
+
         foreach ($this->schemaFacades as $fqcn) {
             if ($this->isName($className, $fqcn)) {
                 return true;
