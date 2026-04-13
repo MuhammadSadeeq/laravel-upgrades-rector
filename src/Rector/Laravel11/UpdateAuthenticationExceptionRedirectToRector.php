@@ -29,8 +29,6 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
         $requestVariableName = $this->resolveRequestVariableName($node);
 
         if ($requestVariableName !== null && $this->addRequestArgumentToCalls($node, $requestVariableName)) {
-            $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
-
             return $node;
         }
 
