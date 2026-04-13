@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use PhpParser\Node;
-use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PHPStan\Type\ObjectType;
@@ -26,7 +25,7 @@ final class UpdateFloatingPointTypesRector extends AbstractRector
             return null;
         }
 
-        if (!$this->isObjectType($node->var, new ObjectType('Illuminate\Database\Schema\Blueprint'))) {
+        if (!$this->isLikelyBlueprint($node->var)) {
             return null;
         }
 
@@ -86,6 +85,19 @@ final class UpdateFloatingPointTypesRector extends AbstractRector
         }
 
         return null;
+    }
+
+    private function isLikelyBlueprint(Node $node): bool
+    {
+        if ($this->isObjectType($node, new ObjectType('Illuminate\Database\Schema\Blueprint'))) {
+            return true;
+        }
+
+        if (! $node instanceof Node\Expr\Variable) {
+            return false;
+        }
+
+        return $this->isName($node, 'table') || $this->isName($node, 'blueprint');
     }
 
     public function getRuleDefinition(): RuleDefinition

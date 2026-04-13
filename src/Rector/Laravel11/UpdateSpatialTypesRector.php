@@ -79,7 +79,7 @@ final class UpdateSpatialTypesRector extends AbstractRector
     private function findSpatialMethodCallInChain(Node $node): ?MethodCall
     {
         while ($node instanceof MethodCall) {
-            if ($this->isObjectType($node->var, new ObjectType('Illuminate\\Database\\Schema\\Blueprint'))) {
+            if ($this->isLikelyBlueprint($node->var)) {
                 $methodName = $this->getName($node->name);
 
                 if ($methodName !== null && in_array($methodName, self::REMOVED_SPATIAL_METHODS, true)) {
@@ -91,6 +91,19 @@ final class UpdateSpatialTypesRector extends AbstractRector
         }
 
         return null;
+    }
+
+    private function isLikelyBlueprint(Node $node): bool
+    {
+        if ($this->isObjectType($node, new ObjectType('Illuminate\\Database\\Schema\\Blueprint'))) {
+            return true;
+        }
+
+        if (! $node instanceof Node\Expr\Variable) {
+            return false;
+        }
+
+        return $this->isName($node, 'table') || $this->isName($node, 'blueprint');
     }
 
     private function hasMigrationComment(Expression $node): bool
