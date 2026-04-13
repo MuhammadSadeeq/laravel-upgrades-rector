@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UpdateResponseFactoryContractRector` now generates and normalizes the Laravel 13 `eventStream(Closure $callback, array $headers = [], StreamedEvent|string|null $endStreamWith = '</stream>'): StreamedResponse` signature
 - `UpdateBusDispatcherContractRector` now generates and normalizes the Laravel 13 `dispatchAfterResponse(...): void` signature and adds the new `chain(Collection|array|null $jobs = null): mixed` contract method
 - `UpdateHttpClientThrowSignaturesRector` now updates `throw()` / `throwIf()` override signatures and forwards callback arguments to parent calls instead of adding advisory-only comments
+- `UpdateSanctumConfigRector` now rewrites old app middleware class constants, not only old middleware strings
+- Laravel 11 floating-point and spatial migration rules now fall back to common untyped `$table` / `$blueprint` migration variables when PHPStan cannot resolve `Blueprint`
+- `RemoveDoctrineDBALRector` now detects removed Doctrine/native schema operation calls inside assignments and covers `usingNativeSchemaOperations()` / `useNativeSchemaOperationsIfPossible()`
+- `UpdatePasswordRehashingRector` now adds `protected $authPasswordName` automatically when a custom `getAuthPassword()` column can be inferred
 - Mixed `use` statements in `RemoveDoctrineDBALRector` now remove only Doctrine DBAL imports instead of dropping unrelated imports in the same declaration
 - `Carbon3MigrationRector` now preserves explicitly signed `diffIn*()` behavior when the old `absolute: false` / second `false` argument was used
 - `UpdateCashierStripeRector` now only adds the `'card'` argument on Billable-backed receivers instead of matching arbitrary methods with the same name
@@ -110,8 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
 
 #### Testing & Quality
-- 286 tests across all 3 upgrade paths and support utilities
-- 414 assertions across Rector fixtures and support utility tests
+- 293 tests across all 3 upgrade paths and support utilities
+- 421 assertions across Rector fixtures and support utility tests
 - Full fixture-based testing using Rector's AbstractRectorTestCase
 - PHPStan at max level with zero errors
 
