@@ -102,8 +102,28 @@ final class UpdateSanctumConfigRector extends AbstractRector
                 continue;
             }
 
-            // Skip if already a class reference
             if ($item->value instanceof ClassConstFetch) {
+                $className = $this->getName($item->value->class);
+
+                if ($className === null) {
+                    $updatedItems[] = $item;
+                    continue;
+                }
+
+                $mapping = $this->middlewareMap[$key];
+
+                if ($className === $mapping['fqcn']) {
+                    $updatedItems[] = $item;
+                    continue;
+                }
+
+                if (! in_array($className, $mapping['old_defaults'], true)) {
+                    $updatedItems[] = $item;
+                    continue;
+                }
+
+                $item->value = new ClassConstFetch(new FullyQualified($mapping['fqcn']), 'class');
+                $changed = true;
                 $updatedItems[] = $item;
                 continue;
             }
