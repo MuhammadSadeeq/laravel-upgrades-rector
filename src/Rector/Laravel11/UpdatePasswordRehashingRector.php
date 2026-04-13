@@ -8,11 +8,11 @@ use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
-use PhpParser\Node\PropertyItem;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
+use PhpParser\Node\Stmt\PropertyProperty;
 use PhpParser\Node\Stmt\Return_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ClassReflection;
@@ -66,7 +66,7 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             array_unshift($node->stmts, new Property(
                 Class_::MODIFIER_PROTECTED,
                 [
-                    new PropertyItem('authPasswordName', new String_($passwordColumn)),
+                    new PropertyProperty('authPasswordName', new String_($passwordColumn)),
                 ],
             ));
 
@@ -93,7 +93,7 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             }
 
             foreach ($stmt->props as $prop) {
-                if (! $prop instanceof PropertyItem) {
+                if (! $prop instanceof PropertyProperty) {
                     continue;
                 }
 
