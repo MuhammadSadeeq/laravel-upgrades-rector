@@ -15,4 +15,6 @@ return RectorConfig::configure()
         getcwd() . "/routes",
         getcwd() . "/resources",
     ])
-    ->withPhpSets(php82: true);
+    ->withSkip([
+        getcwd() . "/bootstrap/cache",
+    ]);

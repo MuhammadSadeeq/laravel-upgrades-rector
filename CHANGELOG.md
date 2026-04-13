@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UpdateColumnModificationRector` now recognizes typed `Blueprint` variables instead of relying only on the `$table` variable name
 - Shared contract-method detection now respects inherited concrete implementations and avoids redundant stubs in subclasses
 - `UpdatePaginationViewNamesRector` now scopes replacements to pagination API calls instead of rewriting matching strings globally
+- Ready-to-use config files no longer enable Rector's generic PHP modernization sets and now skip generated `bootstrap/cache` files
 
 ### Added
 

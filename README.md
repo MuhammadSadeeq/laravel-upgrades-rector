@@ -40,6 +40,7 @@ Replace `laravel-13.php` with `laravel-12.php` or `laravel-11.php` for older upg
 These config names and set constants refer to the target upgrade version, so `laravel-13.php` / `LaravelUpgradeSetList::LARAVEL_13` means “upgrade the project to Laravel 13.”
 The Laravel 11, Laravel 12, and Laravel 13 sets can also rewrite the nearest project `composer.json` when a supported dependency update applies.
 They do not update `composer.lock` or install new packages for you.
+The ready-to-use config files run only this package's Laravel upgrade rules; they do not enable Rector's generic PHP modernization/code-style sets. Generated files under `bootstrap/cache` are skipped.
 
 ## Recommended Upgrade Flow
 
