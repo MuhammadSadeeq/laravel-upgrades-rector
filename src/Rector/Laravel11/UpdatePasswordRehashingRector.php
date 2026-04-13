@@ -6,10 +6,14 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use PhpParser\Comment;
 use PhpParser\Node;
+use PhpParser\Node\Expr\PropertyFetch;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\PropertyItem;
+use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
+use PhpParser\Node\Stmt\Return_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
@@ -56,10 +60,21 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             return null;
         }
 
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return null;
-            }
+        $passwordColumn = $this->resolveCustomPasswordColumn($node);
+
+        if ($passwordColumn !== null) {
+            array_unshift($node->stmts, new Property(
+                Class_::MODIFIER_PROTECTED,
+                [
+                    new PropertyItem('authPasswordName', new String_($passwordColumn)),
+                ],
+            ));
+
+            return $node;
+        }
+
+        if ($this->hasPasswordRehashingComment($node)) {
+            return null;
         }
 
         $node->setAttribute('comments', array_merge([
@@ -109,6 +124,50 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             }
 
             if ($stmt->name->name === 'getAuthPassword') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveCustomPasswordColumn(Class_ $class): ?string
+    {
+        foreach ($class->stmts as $stmt) {
+            if (! $stmt instanceof ClassMethod || $stmt->name->name !== 'getAuthPassword') {
+                continue;
+            }
+
+            if ($stmt->stmts === null) {
+                return null;
+            }
+
+            foreach ($stmt->stmts as $methodStmt) {
+                if (! $methodStmt instanceof Return_ || ! $methodStmt->expr instanceof PropertyFetch) {
+                    continue;
+                }
+
+                if (! $methodStmt->expr->var instanceof Variable || ! $this->isName($methodStmt->expr->var, 'this')) {
+                    continue;
+                }
+
+                $propertyName = $this->getName($methodStmt->expr->name);
+
+                if ($propertyName === null || $propertyName === 'password') {
+                    return null;
+                }
+
+                return $propertyName;
+            }
+        }
+
+        return null;
+    }
+
+    private function hasPasswordRehashingComment(Class_ $class): bool
+    {
+        foreach ($class->getComments() as $comment) {
+            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
                 return true;
             }
         }
