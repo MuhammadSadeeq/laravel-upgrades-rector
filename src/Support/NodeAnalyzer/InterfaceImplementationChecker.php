@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer;
 
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
@@ -21,15 +22,15 @@ final class InterfaceImplementationChecker
         if ($scope instanceof Scope) {
             $classReflection = $scope->getClassReflection();
 
-            if ($classReflection instanceof ClassReflection) {
-                return $classReflection->is($interfaceFqcn);
+            if ($classReflection instanceof ClassReflection && $classReflection->is($interfaceFqcn)) {
+                return true;
             }
         }
 
         $shortName = substr($interfaceFqcn, (int) strrpos($interfaceFqcn, '\\') + 1);
 
         foreach ($node->implements as $implement) {
-            $implementName = $implement->toString();
+            $implementName = $this->resolveName($implement);
 
             if ($implementName === $interfaceFqcn || $implementName === $shortName) {
                 return true;
@@ -37,6 +38,17 @@ final class InterfaceImplementationChecker
         }
 
         return false;
+    }
+
+    private function resolveName(Name $name): string
+    {
+        $resolvedName = $name->getAttribute('resolvedName');
+
+        if ($resolvedName instanceof Name) {
+            return $resolvedName->toString();
+        }
+
+        return $name->toString();
     }
 
     public function hasMethod(Class_ $node, string $methodName): bool

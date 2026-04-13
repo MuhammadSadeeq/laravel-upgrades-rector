@@ -9,8 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
-use PHPStan\Analyser\Scope;
-use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -46,19 +44,7 @@ final class UpdateEloquentCastsMethodRector extends AbstractRector
             return null;
         }
 
-        $scope = $node->getAttribute(AttributeKey::SCOPE);
-
-        if (! $scope instanceof Scope) {
-            return null;
-        }
-
-        $classReflection = $scope->getClassReflection();
-
-        if (! $classReflection instanceof ClassReflection) {
-            return null;
-        }
-
-        if (! $classReflection->is('Illuminate\\Database\\Eloquent\\Model')) {
+        if (! $this->isEloquentModel($node)) {
             return null;
         }
 
@@ -99,6 +85,20 @@ final class UpdateEloquentCastsMethodRector extends AbstractRector
         }
 
         return null;
+    }
+
+    private function isEloquentModel(Class_ $class): bool
+    {
+        if ($this->isObjectType($class, new \PHPStan\Type\ObjectType('Illuminate\\Database\\Eloquent\\Model'))) {
+            return true;
+        }
+
+        if (! $class->extends instanceof Node\Name) {
+            return false;
+        }
+
+        return $this->isName($class->extends, 'Illuminate\\Database\\Eloquent\\Model')
+            || in_array($class->extends->toString(), ['Model', 'User', 'Authenticatable'], true);
     }
 
     private function hasRelationshipCallInBody(ClassMethod $method): bool

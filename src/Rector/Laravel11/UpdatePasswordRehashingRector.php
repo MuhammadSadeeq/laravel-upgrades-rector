@@ -14,8 +14,6 @@ use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\PropertyProperty;
 use PhpParser\Node\Stmt\Return_;
-use PHPStan\Analyser\Scope;
-use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -36,19 +34,7 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             return null;
         }
 
-        $scope = $node->getAttribute(AttributeKey::SCOPE);
-
-        if (! $scope instanceof Scope) {
-            return null;
-        }
-
-        $classReflection = $scope->getClassReflection();
-
-        if (! $classReflection instanceof ClassReflection) {
-            return null;
-        }
-
-        if (! $classReflection->is('Illuminate\\Contracts\\Auth\\Authenticatable')) {
+        if (! $this->isAuthenticatableClass($node)) {
             return null;
         }
 
@@ -129,6 +115,28 @@ final class UpdatePasswordRehashingRector extends AbstractRector
         }
 
         return false;
+    }
+
+    private function isAuthenticatableClass(Class_ $class): bool
+    {
+        if ($this->isObjectType($class, new \PHPStan\Type\ObjectType('Illuminate\\Contracts\\Auth\\Authenticatable'))) {
+            return true;
+        }
+
+        foreach ($class->implements as $implement) {
+            if ($this->isName($implement, 'Illuminate\\Contracts\\Auth\\Authenticatable')
+                || $implement->toString() === 'Authenticatable') {
+                return true;
+            }
+        }
+
+        if (! $class->extends instanceof Node\Name) {
+            return false;
+        }
+
+        return $this->isName($class->extends, 'Illuminate\\Foundation\\Auth\\User')
+            || $this->isName($class->extends, 'Illuminate\\Database\\Eloquent\\Model')
+            || in_array($class->extends->toString(), ['User', 'Authenticatable', 'Model'], true);
     }
 
     private function resolveCustomPasswordColumn(Class_ $class): ?string

@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
-use PHPStan\Analyser\Scope;
-use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -18,6 +17,13 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateEnumerableContractRector extends AbstractRector
 {
+    private const INTERFACE_NAME = 'Illuminate\Support\Enumerable';
+
+    public function __construct(
+        private readonly InterfaceImplementationChecker $checker,
+    ) {
+    }
+
     public function getNodeTypes(): array
     {
         return [Class_::class];
@@ -29,19 +35,7 @@ final class UpdateEnumerableContractRector extends AbstractRector
             return null;
         }
 
-        $scope = $node->getAttribute(AttributeKey::SCOPE);
-
-        if (! $scope instanceof Scope) {
-            return null;
-        }
-
-        $classReflection = $scope->getClassReflection();
-
-        if (! $classReflection instanceof ClassReflection) {
-            return null;
-        }
-
-        if (! $classReflection->is('Illuminate\\Support\\Enumerable')) {
+        if (! $this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
             return null;
         }
 

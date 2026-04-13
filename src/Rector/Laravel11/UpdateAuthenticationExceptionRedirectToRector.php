@@ -7,6 +7,8 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Expression;
+use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Function_;
 use PHPStan\Type\ObjectType;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
@@ -19,11 +21,19 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
 
     public function getNodeTypes(): array
     {
-        return [Expression::class];
+        return [ClassMethod::class, Function_::class, Node\Expr\Closure::class, Expression::class];
     }
 
     public function refactor(Node $node): ?Node
     {
+        $requestVariableName = $this->resolveRequestVariableName($node);
+
+        if ($requestVariableName !== null && $this->addRequestArgumentToCalls($node, $requestVariableName)) {
+            $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+
+            return $node;
+        }
+
         if (! $node instanceof Expression) {
             return null;
         }
@@ -46,24 +56,58 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
         return $node;
     }
 
+    private function resolveRequestVariableName(Node $node): ?string
+    {
+        if (! $node instanceof ClassMethod && ! $node instanceof Function_ && ! $node instanceof Node\Expr\Closure) {
+            return null;
+        }
+
+        foreach ($node->params as $param) {
+            if (! $param->var instanceof Node\Expr\Variable || ! is_string($param->var->name)) {
+                continue;
+            }
+
+            if ($param->var->name === 'request') {
+                return $param->var->name;
+            }
+
+            if ($param->type instanceof Node\Name && $this->isName($param->type, 'Illuminate\\Http\\Request')) {
+                return $param->var->name;
+            }
+        }
+
+        return null;
+    }
+
+    private function addRequestArgumentToCalls(Node $node, string $requestVariableName): bool
+    {
+        $hasChanged = false;
+
+        $this->traverseNodesWithCallable($node, function (Node $node) use (&$hasChanged, $requestVariableName): ?Node {
+            if (! $node instanceof Node\Expr\MethodCall) {
+                return null;
+            }
+
+            if (! $this->isRedirectToCallWithoutRequest($node)) {
+                return null;
+            }
+
+            $node->args[] = new Node\Arg(new Node\Expr\Variable($requestVariableName));
+            $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+            $hasChanged = true;
+
+            return $node;
+        });
+
+        return $hasChanged;
+    }
+
     private function containsRedirectToCallWithoutRequest(Expression $expression): bool
     {
         $containsCall = false;
 
         $this->traverseNodesWithCallable($expression->expr, function (Node $node) use (&$containsCall): ?Node {
-            if (! $node instanceof Node\Expr\MethodCall) {
-                return null;
-            }
-
-            if (! $this->isName($node->name, 'redirectTo')) {
-                return null;
-            }
-
-            if ($node->args !== []) {
-                return null;
-            }
-
-            if (! $this->isObjectType($node->var, new ObjectType('Illuminate\\Auth\\AuthenticationException'))) {
+            if (! $node instanceof Node\Expr\MethodCall || ! $this->isRedirectToCallWithoutRequest($node)) {
                 return null;
             }
 
@@ -73,6 +117,32 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
         });
 
         return $containsCall;
+    }
+
+    private function isRedirectToCallWithoutRequest(Node\Expr\MethodCall $methodCall): bool
+    {
+        if (! $this->isName($methodCall->name, 'redirectTo')) {
+            return false;
+        }
+
+        if ($methodCall->args !== []) {
+            return false;
+        }
+
+        return $this->isAuthenticationExceptionExpression($methodCall->var);
+    }
+
+    private function isAuthenticationExceptionExpression(Node $node): bool
+    {
+        if ($this->isObjectType($node, new ObjectType('Illuminate\\Auth\\AuthenticationException'))) {
+            return true;
+        }
+
+        if (! $node instanceof Node\Expr\Variable || ! is_string($node->name)) {
+            return false;
+        }
+
+        return in_array($node->name, ['e', 'exception', 'authException', 'authenticationException'], true);
     }
 
     public function getRuleDefinition(): RuleDefinition

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UpdateHttpClientThrowSignaturesRector` now updates `throw()` / `throwIf()` override signatures and forwards callback arguments to parent calls instead of adding advisory-only comments
 - `UpdateSanctumConfigRector` now rewrites old app middleware class constants, not only old middleware strings
 - Laravel 11 floating-point and spatial migration rules now fall back to common untyped `$table` / `$blueprint` migration variables when PHPStan cannot resolve `Blueprint`
+- Laravel 11 contract, Eloquent casts, password rehashing, rate limiting, and authentication exception rules now include safer AST fallbacks for aliased imports and code PHPStan cannot fully resolve
 - `RemoveDoctrineDBALRector` now detects removed Doctrine/native schema operation calls inside assignments and covers `usingNativeSchemaOperations()` / `useNativeSchemaOperationsIfPossible()`
 - `UpdatePasswordRehashingRector` now adds `protected $authPasswordName` automatically when a custom `getAuthPassword()` column can be inferred
 - Mixed `use` statements in `RemoveDoctrineDBALRector` now remove only Doctrine DBAL imports instead of dropping unrelated imports in the same declaration
@@ -115,8 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
 
 #### Testing & Quality
-- 293 tests across all 3 upgrade paths and support utilities
-- 421 assertions across Rector fixtures and support utility tests
+- 301 tests across all 3 upgrade paths and support utilities
+- 429 assertions across Rector fixtures and support utility tests
 - Full fixture-based testing using Rector's AbstractRectorTestCase
 - PHPStan at max level with zero errors
 

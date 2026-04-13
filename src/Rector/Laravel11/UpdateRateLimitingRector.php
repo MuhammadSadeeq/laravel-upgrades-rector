@@ -54,7 +54,7 @@ final class UpdateRateLimitingRector extends AbstractRector
         $argIndex = null;
 
         foreach ($this->constructorTimeArgIndex as $fqcn => $index) {
-            if ($this->isName($node->class, $fqcn)) {
+            if ($this->isClassName($node->class, $fqcn)) {
                 $argIndex = $index;
                 break;
             }
@@ -120,6 +120,21 @@ final class UpdateRateLimitingRector extends AbstractRector
         }
 
         return false;
+    }
+
+    private function isClassName(Name $name, string $fqcn): bool
+    {
+        if ($this->isName($name, $fqcn)) {
+            return true;
+        }
+
+        $resolvedName = $name->getAttribute('resolvedName');
+
+        if ($resolvedName instanceof Name && $resolvedName->toString() === $fqcn) {
+            return true;
+        }
+
+        return $name->toString() === substr($fqcn, (int) strrpos($fqcn, '\\') + 1);
     }
 
     public function getRuleDefinition(): RuleDefinition
