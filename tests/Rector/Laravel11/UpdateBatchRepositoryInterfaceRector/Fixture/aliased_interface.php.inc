@@ -16,6 +16,7 @@ class LegacyBatchRepository implements BatchRepositoryContract
 {
     public function rollBack(): void
     {
+        // TODO: Laravel 11 — implement rollBack() to satisfy the updated contract.
     }
 }
 

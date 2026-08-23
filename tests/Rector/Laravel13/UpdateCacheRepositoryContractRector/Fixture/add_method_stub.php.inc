@@ -18,9 +18,9 @@ use Illuminate\Contracts\Cache\Repository;
 
 class CustomRepository implements Repository
 {
-    public function touch(string $key, int $seconds): bool
+    public function touch($key, $ttl)
     {
-        return false;
+        // TODO: Laravel 13 — implement touch() to satisfy the updated contract.
     }
 }
 

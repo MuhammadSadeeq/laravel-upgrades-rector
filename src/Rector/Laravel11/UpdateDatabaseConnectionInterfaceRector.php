@@ -5,21 +5,27 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
 use PhpParser\Node;
+use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ConstFetch;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Param;
-use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Stmt\Nop;
 use PhpParser\Node\Stmt\Return_;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
+/**
+ * Appends the scalar() method added to Illuminate\Database\ConnectionInterface
+ * in Laravel 11. The signature mirrors the interface exactly: the parameters
+ * are untyped there, so adding native parameter types here would be a fatal
+ * "Declaration must be compatible" error.
+ */
 final class UpdateDatabaseConnectionInterfaceRector extends AbstractRector
 {
     private const INTERFACE_NAME = 'Illuminate\Database\ConnectionInterface';
@@ -50,35 +56,18 @@ final class UpdateDatabaseConnectionInterfaceRector extends AbstractRector
             return null;
         }
 
-        $queryParam = new Param(
-            new Node\Expr\Variable('query'),
-            null,
-            new Identifier('string'),
-        );
-
-        $bindingsParam = new Param(
-            new Node\Expr\Variable('bindings'),
-            new Node\Expr\Array_(),
-            new Identifier('array'),
-        );
-
-        $useReadPdoParam = new Param(
-            new Node\Expr\Variable('useReadPdo'),
-            new ConstFetch(new Name('true')),
-            new Identifier('bool'),
-        );
-
-        $nop = new Nop();
-        $nop->setAttribute('comments', [
-            new Comment('// TODO: Implement scalar() method.'),
-        ]);
-
         $method = new ClassMethod(self::METHOD_NAME, [
             'flags' => Class_::MODIFIER_PUBLIC,
+            // The interface declares no return type; adding ": mixed" is
+            // covariant-legal and documents the intent from its docblock.
             'returnType' => new Identifier('mixed'),
-            'params' => [$queryParam, $bindingsParam, $useReadPdoParam],
+            'params' => [
+                new Param(new Variable('query')),
+                new Param(new Variable('bindings'), new Array_([])),
+                new Param(new Variable('useReadPdo'), new ConstFetch(new Name('true'))),
+            ],
             'stmts' => [
-                $nop,
+                TodoNopFactory::create(TodoNopFactory::implementMessage('scalar', 11)),
                 new Return_(new ConstFetch(new Name('null'))),
             ],
         ]);
@@ -91,7 +80,7 @@ final class UpdateDatabaseConnectionInterfaceRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Add scalar() method stub to ConnectionInterface implementations for Laravel 11',
+            'Add scalar() method to ConnectionInterface implementations for Laravel 11',
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
@@ -106,9 +95,9 @@ use Illuminate\Database\ConnectionInterface;
 
 class CustomConnection implements ConnectionInterface
 {
-    public function scalar(string $query, array $bindings = [], bool $useReadPdo = true): mixed
+    public function scalar($query, $bindings = [], $useReadPdo = true): mixed
     {
-        // TODO: Implement scalar() method.
+        // TODO: Laravel 11 — implement scalar() to satisfy the updated contract.
         return null;
     }
 }

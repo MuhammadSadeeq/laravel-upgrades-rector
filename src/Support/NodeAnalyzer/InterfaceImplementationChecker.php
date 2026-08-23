@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer;
 
+use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ClassReflection;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use ReflectionClass;
-use ReflectionMethod;
 
+/**
+ * Answers "does this class already satisfy X?" using PHPStan's reflection
+ * (which sees traits and parents) and, only for explicitly named parent
+ * classes from vendor/framework namespaces, the Composer autoloader.
+ *
+ * Interface declarations never count as provided implementations.
+ */
 final class InterfaceImplementationChecker
 {
     public function implementsInterface(Class_ $node, string $interfaceFqcn): bool
     {
-        $scope = $node->getAttribute(AttributeKey::SCOPE);
+        $scopeAttribute = $node->getAttribute(AttributeKey::SCOPE);
+        $scope = $scopeAttribute instanceof Scope ? $scopeAttribute : null;
 
         if ($scope instanceof Scope) {
             $classReflection = $scope->getClassReflection();
@@ -27,12 +33,11 @@ final class InterfaceImplementationChecker
             }
         }
 
-        $shortName = substr($interfaceFqcn, (int) strrpos($interfaceFqcn, '\\') + 1);
-
+        // Fallback for scopes without reflection: resolve through the scope
+        // (which honours use-statements). A short-name guess would match
+        // unrelated classes.
         foreach ($node->implements as $implement) {
-            $implementName = $this->resolveName($implement);
-
-            if ($implementName === $interfaceFqcn || $implementName === $shortName) {
+            if ($this->resolveName($scope, $implement) === $interfaceFqcn) {
                 return true;
             }
         }
@@ -40,17 +45,11 @@ final class InterfaceImplementationChecker
         return false;
     }
 
-    private function resolveName(Name $name): string
-    {
-        $resolvedName = $name->getAttribute('resolvedName');
-
-        if ($resolvedName instanceof Name) {
-            return $resolvedName->toString();
-        }
-
-        return $name->toString();
-    }
-
+    /**
+     * Whether the method is provided by the class itself, a parent or a used
+     * trait. Methods that only exist on an interface (or are abstract) count
+     * as missing — they still need an implementation.
+     */
     public function hasMethod(Class_ $node, string $methodName): bool
     {
         foreach ($node->stmts as $stmt) {
@@ -61,75 +60,95 @@ final class InterfaceImplementationChecker
 
         $scope = $node->getAttribute(AttributeKey::SCOPE);
 
-        if ($scope instanceof Scope) {
-            $classReflection = $scope->getClassReflection();
-
-            if ($classReflection instanceof ClassReflection) {
-                $nativeReflection = $classReflection->getNativeReflection();
-
-                if ($nativeReflection->hasMethod($methodName)) {
-                    $reflectionMethod = $nativeReflection->getMethod($methodName);
-
-                    if (! $reflectionMethod->getDeclaringClass()->isInterface()) {
-                        return true;
-                    }
-                }
-
-                $parentClassReflection = $classReflection->getParentClass();
-
-                while ($parentClassReflection instanceof ClassReflection) {
-                    if ($parentClassReflection->hasNativeMethod($methodName)
-                        && ! $parentClassReflection->getNativeMethod($methodName)->isAbstract()) {
-                        return true;
-                    }
-
-                    $parentClassReflection = $parentClassReflection->getParentClass();
-                }
-            }
+        if (! $scope instanceof Scope) {
+            return false;
         }
 
-        if ($this->hasConcreteMethodOnResolvedParentChain($node, $methodName)) {
+        $classReflection = $scope->getClassReflection();
+
+        if ($classReflection instanceof ClassReflection && $this->hasMethodInReflection(
+            $classReflection,
+            $methodName
+        )) {
             return true;
+        }
+
+        // Last resort for parents PHPStan could not reflect (e.g. classes
+        // known only through the project autoloader): resolve the explicitly
+        // extended class and inspect it. Only the parent FQCN is touched —
+        // never the analysed user class itself.
+        return $this->hasMethodOnAutoloadableParent($node, $methodName, $scope);
+    }
+
+    private function hasMethodInReflection(ClassReflection $classReflection, string $methodName): bool
+    {
+        // Concrete providers win over interface declarations: both PHP and
+        // PHPStan resolve ::getMethod() to the interface declaration even when
+        // a parent class or trait provides a body, so the hierarchy must be
+        // checked explicitly.
+        $current = $classReflection;
+
+        while ($current instanceof ClassReflection) {
+            if (! $current->isInterface()
+                && $current->hasNativeMethod($methodName)
+                && ! $current->getNativeMethod($methodName)->isAbstract()
+            ) {
+                return true;
+            }
+
+            $current = $current->getParentClass();
         }
 
         return false;
     }
 
-    private function hasConcreteMethodOnResolvedParentChain(Class_ $node, string $methodName): bool
+    private function hasMethodOnAutoloadableParent(Class_ $node, string $methodName, ?Scope $scope): bool
     {
-        if (! $node->extends instanceof \PhpParser\Node\Name) {
+        if (! $node->extends instanceof Name) {
             return false;
         }
 
-        $resolvedName = $node->extends->getAttribute('resolvedName');
+        $parentName = $this->resolveName($scope, $node->extends);
 
-        $parentClassName = $resolvedName instanceof \PhpParser\Node\Name
-            ? $resolvedName->toString()
-            : $node->extends->toString();
-
-        if (! class_exists($parentClassName)) {
+        if (! str_contains($parentName, '\\') || str_starts_with($parentName, 'App\\')) {
             return false;
         }
 
-        $reflectionClass = new ReflectionClass($parentClassName);
+        if (! class_exists($parentName)) {
+            return false;
+        }
 
-        while ($reflectionClass !== false) {
-            if ($reflectionClass->hasMethod($methodName)) {
-                $reflectionMethod = $reflectionClass->getMethod($methodName);
+        $reflection = new \ReflectionClass($parentName);
 
-                if ($this->isConcreteClassMethod($reflectionMethod)) {
+        while ($reflection !== false) {
+            if ($reflection->isInterface()) {
+                return false;
+            }
+
+            if ($reflection->hasMethod($methodName)) {
+                $method = $reflection->getMethod($methodName);
+
+                if (! $method->isAbstract()) {
                     return true;
                 }
             }
 
-            $reflectionClass = $reflectionClass->getParentClass();
+            $reflection = $reflection->getParentClass();
         }
 
         return false;
     }
 
-    private function isConcreteClassMethod(ReflectionMethod $reflectionMethod): bool
+    private function resolveName(?Scope $scope, Name $name): string
     {
-        return ! $reflectionMethod->isAbstract() && ! $reflectionMethod->getDeclaringClass()->isInterface();
+        if ($scope instanceof Scope) {
+            try {
+                return $scope->resolveName($name);
+            } catch (\Throwable) {
+                // fall through to the raw name below
+            }
+        }
+
+        return $name->toString();
     }
 }

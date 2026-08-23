@@ -18,9 +18,9 @@ use Illuminate\Contracts\Cache\Store;
 
 class CustomStore implements Store
 {
-    public function touch(string $key, int $seconds): bool
+    public function touch($key, $seconds)
     {
-        return false;
+        // TODO: Laravel 13 — implement touch() to satisfy the updated contract.
     }
 }
 

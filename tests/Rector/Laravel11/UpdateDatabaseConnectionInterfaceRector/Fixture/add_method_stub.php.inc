@@ -18,9 +18,9 @@ use Illuminate\Database\ConnectionInterface;
 
 class CustomConnection implements ConnectionInterface
 {
-    public function scalar(string $query, array $bindings = [], bool $useReadPdo = true): mixed
+    public function scalar($query, $bindings = [], $useReadPdo = true): mixed
     {
-        // TODO: Implement scalar() method.
+        // TODO: Laravel 11 — implement scalar() to satisfy the updated contract.
         return null;
     }
 }

@@ -20,6 +20,7 @@ class CustomBatchRepository implements BatchRepository
 {
     public function rollBack(): void
     {
+        // TODO: Laravel 11 — implement rollBack() to satisfy the updated contract.
     }
 }
 

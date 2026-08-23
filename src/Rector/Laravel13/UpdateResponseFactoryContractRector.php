@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\Variable;
@@ -16,7 +16,6 @@ use PhpParser\Node\Param;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Stmt\Nop;
 use PhpParser\Node\UnionType;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -48,13 +47,7 @@ final class UpdateResponseFactoryContractRector extends AbstractRector
             return null;
         }
 
-        $method = $this->findLocalMethod($node, self::METHOD_NAME);
-        if ($method instanceof ClassMethod) {
-            $this->configureEventStreamMethod($method);
-
-            return $node;
-        }
-
+        // Existing implementations are never rewritten (decision D7).
         if ($this->checker->hasMethod($node, self::METHOD_NAME)) {
             return null;
         }
@@ -68,53 +61,26 @@ final class UpdateResponseFactoryContractRector extends AbstractRector
     {
         $method = new ClassMethod(self::METHOD_NAME, [
             'flags' => Class_::MODIFIER_PUBLIC,
+            'params' => [
+                new Param(new Variable('callback'), null, new FullyQualified('Closure')),
+                new Param(new Variable('headers'), new Array_([]), new Identifier('array')),
+                new Param(
+                    new Variable('endStreamWith'),
+                    new String_('</stream>'),
+                    new UnionType([
+                        new FullyQualified('Illuminate\Http\StreamedEvent'),
+                        new Identifier('string'),
+                        new Name('null'),
+                    ]),
+                ),
+            ],
+            'returnType' => new FullyQualified('Symfony\Component\HttpFoundation\StreamedResponse'),
             'stmts' => [
-                $this->createTodoNop('eventStream'),
+                TodoNopFactory::create(TodoNopFactory::implementMessage('eventStream', 13)),
             ],
         ]);
 
-        $this->configureEventStreamMethod($method);
-
         return $method;
-    }
-
-    private function configureEventStreamMethod(ClassMethod $method): void
-    {
-        $method->params = [
-            new Param(new Variable('callback'), null, new FullyQualified('Closure')),
-            new Param(new Variable('headers'), new Array_([]), new Identifier('array')),
-            new Param(
-                new Variable('endStreamWith'),
-                new String_('</stream>'),
-                new UnionType([
-                    new FullyQualified('Illuminate\Http\StreamedEvent'),
-                    new Identifier('string'),
-                    new Name('null'),
-                ]),
-            ),
-        ];
-        $method->returnType = new FullyQualified('Symfony\Component\HttpFoundation\StreamedResponse');
-    }
-
-    private function createTodoNop(string $methodName): Nop
-    {
-        $nop = new Nop();
-        $nop->setAttribute('comments', [
-            new Comment(sprintf('// TODO: Implement %s() method.', $methodName)),
-        ]);
-
-        return $nop;
-    }
-
-    private function findLocalMethod(Class_ $class, string $methodName): ?ClassMethod
-    {
-        foreach ($class->getMethods() as $classMethod) {
-            if ($this->isName($classMethod, $methodName)) {
-                return $classMethod;
-            }
-        }
-
-        return null;
     }
 
     public function getRuleDefinition(): RuleDefinition
@@ -137,7 +103,7 @@ class CustomResponseFactory implements ResponseFactory
 {
     public function eventStream(\Closure $callback, array $headers = [], \Illuminate\Http\StreamedEvent|string|null $endStreamWith = '</stream>'): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        // TODO: Implement eventStream() method.
+        // TODO: Laravel 13 — implement eventStream() to satisfy the updated contract.
     }
 }
 CODE_SAMPLE,

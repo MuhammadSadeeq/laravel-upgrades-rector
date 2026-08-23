@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt\Class_;
@@ -45,8 +46,12 @@ final class UpdateBatchRepositoryInterfaceRector extends AbstractRector
 
         $method = new ClassMethod(self::METHOD_NAME, [
             'flags' => Class_::MODIFIER_PUBLIC,
+            // rollBack() is declared with no return type in the contract;
+            // adding ": void" is covariant-legal.
             'returnType' => new Identifier('void'),
-            'stmts' => [],
+            'stmts' => [
+                TodoNopFactory::create(TodoNopFactory::implementMessage('rollBack', 11)),
+            ],
         ]);
 
         $node->stmts[] = $method;

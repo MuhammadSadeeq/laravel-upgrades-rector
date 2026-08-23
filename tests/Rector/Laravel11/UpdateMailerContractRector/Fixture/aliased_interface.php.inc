@@ -18,9 +18,10 @@ use Illuminate\Contracts\Mail\Mailer as MailerContract;
 
 class LegacyMailer implements MailerContract
 {
-    public function sendNow($mailable, array $data = [], $callback = null): ?\Illuminate\Contracts\Mail\SentMessage
+    public function sendNow($mailable, array $data = [], $callback = null): ?\Illuminate\Mail\SentMessage
     {
-        // TODO: Implement sendNow() method.
+        // TODO: Laravel 11 — implement sendNow() to satisfy the updated contract.
+        return null;
     }
 }
 

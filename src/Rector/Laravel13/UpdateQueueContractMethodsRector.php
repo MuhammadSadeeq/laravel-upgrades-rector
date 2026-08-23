@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
 use PhpParser\Node;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\Variable;
@@ -12,7 +13,6 @@ use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\NullableType;
 use PhpParser\Node\Param;
-use PhpParser\Node\Scalar\LNumber;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Return_;
@@ -20,16 +20,27 @@ use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
+/**
+ * Appends the queue sizing methods added to Illuminate\Contracts\Queue\Queue
+ * in Laravel 13: pendingSize(), delayedSize(), reservedSize() and
+ * creationTimeOfOldestPendingJob().
+ *
+ * The interface declares them all as `($queue = null)` with untyped
+ * parameters, so generated parameters stay untyped (a typed parameter would
+ * fatal). The native return types are covariant-legal additions.
+ */
 final class UpdateQueueContractMethodsRector extends AbstractRector
 {
     private const INTERFACE_NAME = 'Illuminate\Contracts\Queue\Queue';
 
-    /** @var array<string, array{returnType: string, nullable: bool, defaultReturn: string}> */
+    /**
+     * @var array<string, string>
+     */
     private const METHODS = [
-        'pendingSize' => ['returnType' => 'int', 'nullable' => false, 'defaultReturn' => 'int'],
-        'delayedSize' => ['returnType' => 'int', 'nullable' => false, 'defaultReturn' => 'int'],
-        'reservedSize' => ['returnType' => 'int', 'nullable' => false, 'defaultReturn' => 'int'],
-        'creationTimeOfOldestPendingJob' => ['returnType' => 'int', 'nullable' => true, 'defaultReturn' => 'null'],
+        'pendingSize' => 'int',
+        'delayedSize' => 'int',
+        'reservedSize' => 'int',
+        'creationTimeOfOldestPendingJob' => '?int',
     ];
 
     public function __construct(
@@ -54,31 +65,26 @@ final class UpdateQueueContractMethodsRector extends AbstractRector
 
         $changed = false;
 
-        foreach (self::METHODS as $methodName => $config) {
+        foreach (self::METHODS as $methodName => $returnType) {
             if ($this->checker->hasMethod($node, $methodName)) {
                 continue;
             }
 
-            $returnType = $config['nullable']
-                ? new NullableType(new Identifier($config['returnType']))
-                : new Identifier($config['returnType']);
-
-            $defaultReturn = $config['defaultReturn'] === 'null'
+            $returnExpr = $methodName === 'creationTimeOfOldestPendingJob'
                 ? new ConstFetch(new Name('null'))
-                : new LNumber(0);
+                : new Node\Scalar\LNumber(0);
 
             $method = new ClassMethod($methodName, [
                 'flags' => Class_::MODIFIER_PUBLIC,
                 'params' => [
-                    new Param(
-                        new Variable('queue'),
-                        new ConstFetch(new Name('null')),
-                        new NullableType(new Identifier('string')),
-                    ),
+                    new Param(new Variable('queue'), new ConstFetch(new Name('null'))),
                 ],
-                'returnType' => $returnType,
+                'returnType' => str_starts_with($returnType, '?')
+                    ? new NullableType(new Identifier(substr($returnType, 1)))
+                    : new Identifier($returnType),
                 'stmts' => [
-                    new Return_($defaultReturn),
+                    TodoNopFactory::create(TodoNopFactory::implementMessage($methodName, 13)),
+                    new Return_($returnExpr),
                 ],
             ]);
 
@@ -96,7 +102,7 @@ final class UpdateQueueContractMethodsRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Add missing queue sizing methods to Queue contract implementations for Laravel 13',
+            'Add queue sizing methods to Queue contract implementations for Laravel 13',
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
@@ -111,20 +117,27 @@ use Illuminate\Contracts\Queue\Queue;
 
 class CustomQueue implements Queue
 {
-    public function pendingSize(?string $queue = null): int
+    public function pendingSize($queue = null): int
     {
+        // TODO: Laravel 13 — implement pendingSize() to satisfy the updated contract.
         return 0;
     }
-    public function delayedSize(?string $queue = null): int
+
+    public function delayedSize($queue = null): int
     {
+        // TODO: Laravel 13 — implement delayedSize() to satisfy the updated contract.
         return 0;
     }
-    public function reservedSize(?string $queue = null): int
+
+    public function reservedSize($queue = null): int
     {
+        // TODO: Laravel 13 — implement reservedSize() to satisfy the updated contract.
         return 0;
     }
-    public function creationTimeOfOldestPendingJob(?string $queue = null): ?int
+
+    public function creationTimeOfOldestPendingJob($queue = null): ?int
     {
+        // TODO: Laravel 13 — implement creationTimeOfOldestPendingJob() to satisfy the updated contract.
         return null;
     }
 }

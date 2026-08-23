@@ -20,7 +20,7 @@ class CustomResponseFactory implements ResponseFactory
 {
     public function eventStream(\Closure $callback, array $headers = [], \Illuminate\Http\StreamedEvent|string|null $endStreamWith = '</stream>'): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        // TODO: Implement eventStream() method.
+        // TODO: Laravel 13 — implement eventStream() to satisfy the updated contract.
     }
 }
 

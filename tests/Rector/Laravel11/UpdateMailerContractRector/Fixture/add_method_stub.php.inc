@@ -18,9 +18,10 @@ use Illuminate\Contracts\Mail\Mailer;
 
 class CustomMailer implements Mailer
 {
-    public function sendNow($mailable, array $data = [], $callback = null): ?\Illuminate\Contracts\Mail\SentMessage
+    public function sendNow($mailable, array $data = [], $callback = null): ?\Illuminate\Mail\SentMessage
     {
-        // TODO: Implement sendNow() method.
+        // TODO: Laravel 11 — implement sendNow() to satisfy the updated contract.
+        return null;
     }
 }
 

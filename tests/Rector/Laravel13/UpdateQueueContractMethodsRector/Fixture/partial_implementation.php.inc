@@ -36,12 +36,14 @@ class CustomQueue implements Queue
     {
         return $this->connection->zcard($queue);
     }
-    public function reservedSize(?string $queue = null): int
+    public function reservedSize($queue = null): int
     {
+        // TODO: Laravel 13 — implement reservedSize() to satisfy the updated contract.
         return 0;
     }
-    public function creationTimeOfOldestPendingJob(?string $queue = null): ?int
+    public function creationTimeOfOldestPendingJob($queue = null): ?int
     {
+        // TODO: Laravel 13 — implement creationTimeOfOldestPendingJob() to satisfy the updated contract.
         return null;
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Scalar\String_;
@@ -49,6 +50,9 @@ final class UpdateAuthenticatableContractRector extends AbstractRector
             'flags' => Class_::MODIFIER_PUBLIC,
             'returnType' => new Identifier('string'),
             'stmts' => [
+                TodoNopFactory::create(
+                    'Laravel 11 — adjust this default when the password credential column is not "password".'
+                ),
                 new Return_(new String_('password')),
             ],
         ]);
