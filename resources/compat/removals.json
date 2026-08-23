@@ -1,0 +1,18 @@
+{
+    "removals": {
+        "11": ["spatie/once", "doctrine/dbal"],
+        "12": [],
+        "13": []
+    },
+    "replacements": {
+        "fruitcake/laravel-cors": { "since": 9, "replacement": "Illuminate\\Http\\Middleware\\HandleCors (built-in)" },
+        "fideloper/proxy": { "since": 9, "replacement": "Illuminate\\Http\\Middleware\\TrustProxies (built-in)" },
+        "spatie/once": { "since": 11, "replacement": "native once() helper" },
+        "doctrine/dbal": { "since": 11, "replacement": "native schema operations; keep if used directly" },
+        "tightenco/ziggy": { "since": 0, "replacement": "tighten/ziggy (renamed)" }
+    },
+    "skeletonRemoved": {
+        "11": ["laravel/sanctum", "guzzlehttp/guzzle", "spatie/laravel-ignition"],
+        "13": ["laravel/sail"]
+    }
+}

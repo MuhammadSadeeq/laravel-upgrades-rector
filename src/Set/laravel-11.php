@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateComposerDependenciesLaravel11Rector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateFloatingPointTypesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateColumnModificationRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSanctumConfigRector;
@@ -37,7 +36,6 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\Carbon3MigrationRector
 
 return RectorConfig::configure()->withRules([
     // High Impact Changes
-    UpdateComposerDependenciesLaravel11Rector::class,
     UpdateFloatingPointTypesRector::class,
     UpdateColumnModificationRector::class,
     UpdateSanctumConfigRector::class,

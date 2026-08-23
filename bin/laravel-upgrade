@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+foreach ([__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../../autoload.php'] as $autoloader) {
+    if (is_file($autoloader)) {
+        require $autoloader;
+
+        break;
+    }
+}
+
+if (! class_exists(\MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Application::class)) {
+    fwrite(STDERR, "Could not locate the Composer autoloader. Run `composer install` first." . PHP_EOL);
+
+    exit(1);
+}
+
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Application;
+
+exit((new Application())->run());

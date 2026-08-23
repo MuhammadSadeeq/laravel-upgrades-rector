@@ -6,7 +6,6 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\Carbon3MigrationRector
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\ReplaceHasVersion4UuidsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\ReplaceHasVersion7UuidsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateBlueprintConstructorRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateComposerDependenciesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateConcurrencyResultMappingRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateContainerDependencyResolutionRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateDatabaseSignatureChangesRector;
@@ -23,7 +22,6 @@ return RectorConfig::configure()->withRules([
     ReplaceHasVersion4UuidsRector::class,
     ReplaceHasVersion7UuidsRector::class,
     UpdateBlueprintConstructorRector::class,
-    UpdateComposerDependenciesRector::class,
     UpdateConcurrencyResultMappingRector::class,
     UpdateContainerDependencyResolutionRector::class,
     UpdateDatabaseSignatureChangesRector::class,

@@ -20,8 +20,8 @@
         <testsuite name="Laravel 13 Upgrade Rules">
             <directory>tests/Rector/Laravel13</directory>
         </testsuite>
-        <testsuite name="Support Tests">
-            <directory>tests/Support</directory>
+        <testsuite name="Upgrade Orchestrator Tests">
+            <directory>tests/Upgrade</directory>
         </testsuite>
     </testsuites>
 

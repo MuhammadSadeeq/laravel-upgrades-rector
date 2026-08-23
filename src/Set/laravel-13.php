@@ -9,7 +9,6 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateBusDispatcherCon
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheConfigurationRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheRepositoryContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheStoreContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateComposerDependenciesLaravel13Rector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateContainerCallNullableDefaultsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateDatabaseQueryBehaviorRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateEloquentBehaviorChangesRector;
@@ -25,7 +24,6 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateSupportBehaviorC
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()->withRules([
-    UpdateComposerDependenciesLaravel13Rector::class,
     RenamePreventRequestForgeryMiddlewareRector::class,
     UpdateCacheConfigurationRector::class,
     UpdateCacheRepositoryContractRector::class,
