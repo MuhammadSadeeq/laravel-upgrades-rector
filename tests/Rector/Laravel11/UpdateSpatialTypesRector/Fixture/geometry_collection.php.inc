@@ -18,8 +18,8 @@ use Illuminate\Support\Facades\Schema;
 
 Schema::create('collections', function (Blueprint $table) {
     $table->id();
-    // Laravel 11: spatial types now use geometry() or geography(). Review whether geometry() or geography() is the correct replacement for this column.
-    $table->geometry('data', subtype: 'geometryCollection');
+    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
+    $table->geometry('data', 'geometrycollection');
     $table->timestamps();
 });
 

@@ -21,14 +21,13 @@ use Illuminate\Support\Facades\Schema;
 
 Schema::create('geometry', function (Blueprint $table) {
     $table->id();
-    // Laravel 11: spatial types now use geometry() or geography(). Review whether geometry() or geography() is the correct replacement for this column.
-    $table->geometry('points', subtype: 'multiPoint');
-    // Laravel 11: spatial types now use geometry() or geography(). Review whether geometry() or geography() is the correct replacement for this column.
-    $table->geometry('lines', subtype: 'multiLineString');
-    // Laravel 11: spatial types now use geometry() or geography(). Review whether geometry() or geography() is the correct replacement for this column.
-    $table->geometry('polygons', subtype: 'multiPolygon');
-    // Laravel 11: spatial types now use geometry() or geography(). Review whether geometry() or geography() is the correct replacement for this column.
-    $table->geometry('polygons_z', subtype: 'multiPolygonZ');
+    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
+    $table->geometry('points', 'multipoint');
+    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
+    $table->geometry('lines', 'multilinestring');
+    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
+    $table->geometry('polygons', 'multipolygon');
+    $table->multiPolygonZ('polygons_z');
     $table->timestamps();
 });
 

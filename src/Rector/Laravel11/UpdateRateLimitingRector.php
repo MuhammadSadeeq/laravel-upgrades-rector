@@ -11,31 +11,61 @@ use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\VarLikeIdentifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\LNumber;
+use PhpParser\Node\Stmt\Property;
+use PhpParser\Node\PropertyItem;
+use PhpParser\NodeVisitor;
+use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\ClassReflection;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
+/**
+ * Laravel 11 rate limiters express their window in seconds instead of minutes.
+ *
+ * - `new Limit(...)` / GlobalLimit / ThrottlesExceptions constructor time
+ *   arguments are multiplied by 60 — only when the class name resolves to the
+ *   exact framework FQCN (a userland `Limit` class is never touched);
+ * - inside classes extending ThrottlesExceptions(+Redis), the
+ *   `$decayMinutes` property (declaration, default value and `$this->`
+ *   reads) becomes `$decaySeconds`, with numeric defaults converted.
+ */
 final class UpdateRateLimitingRector extends AbstractRector
 {
-    /** @var array<string, int> */
-    private array $constructorTimeArgIndex = [
-        'Illuminate\\Cache\\RateLimiting\\GlobalLimit' => 1,
-        'Illuminate\\Cache\\RateLimiting\\Limit' => 2,
-        'Illuminate\\Queue\\Middleware\\ThrottlesExceptions' => 1,
-        'Illuminate\\Queue\\Middleware\\ThrottlesExceptionsWithRedis' => 1,
+    private const THROTTLE_CLASSES = [
+        'Illuminate\Queue\Middleware\ThrottlesExceptions',
+        'Illuminate\Queue\Middleware\ThrottlesExceptionsWithRedis',
+    ];
+
+    /**
+     * FQCN => index of the time argument in the constructor.
+     *
+     * @var array<string, int>
+     */
+    private const CONSTRUCTOR_TIME_ARG_INDEX = [
+        'Illuminate\Cache\RateLimiting\GlobalLimit' => 1,
+        'Illuminate\Cache\RateLimiting\Limit' => 2,
+        'Illuminate\Queue\Middleware\ThrottlesExceptions' => 1,
+        'Illuminate\Queue\Middleware\ThrottlesExceptionsWithRedis' => 1,
     ];
 
     public function getNodeTypes(): array
     {
-        return [New_::class, PropertyFetch::class];
+        return [New_::class, Property::class, PropertyFetch::class];
     }
 
     public function refactor(Node $node): ?Node
     {
         if ($node instanceof New_) {
             return $this->refactorNew($node);
+        }
+
+        if ($node instanceof Property) {
+            return $this->refactorPropertyDeclaration($node);
         }
 
         if ($node instanceof PropertyFetch) {
@@ -45,62 +75,168 @@ final class UpdateRateLimitingRector extends AbstractRector
         return null;
     }
 
-    private function refactorNew(New_ $node): ?Node
+    public function getRuleDefinition(): RuleDefinition
     {
-        if (! $node->class instanceof Name) {
+        return new RuleDefinition(
+            'Convert rate limiter windows from minutes to seconds for Laravel 11',
+            [
+                new CodeSample(
+                    <<<'CODE_SAMPLE'
+use Illuminate\Cache\RateLimiting\Limit;
+
+$limit = new Limit(perMinute: 5);
+
+final class RetryJob extends ThrottlesExceptions
+{
+    protected int $decayMinutes = 5;
+
+    public function middleware(): array
+    {
+        return [$this->buildDecay($this->decayMinutes)];
+    }
+}
+CODE_SAMPLE,
+                    <<<'CODE_SAMPLE'
+use Illuminate\Cache\RateLimiting\Limit;
+
+$limit = new Limit(perSecond: 5 * 60);
+
+final class RetryJob extends ThrottlesExceptions
+{
+    protected int $decaySeconds = 5 * 60;
+
+    public function middleware(): array
+    {
+        return [$this->buildDecay($this->decaySeconds)];
+    }
+}
+CODE_SAMPLE,
+                ),
+            ],
+        );
+    }
+
+    private function refactorNew(New_ $new): ?Node
+    {
+        if (! $new->class instanceof Name) {
             return null;
         }
 
-        $argIndex = null;
+        foreach (self::CONSTRUCTOR_TIME_ARG_INDEX as $fqcn => $argIndex) {
+            if (! $this->matchesClass($new->class, $fqcn)) {
+                continue;
+            }
 
-        foreach ($this->constructorTimeArgIndex as $fqcn => $index) {
-            if ($this->isClassName($node->class, $fqcn)) {
-                $argIndex = $index;
-                break;
+            if (! isset($new->args[$argIndex])) {
+                return null;
+            }
+
+            $arg = $new->args[$argIndex];
+
+            if (! $arg instanceof Arg || ! $arg->value instanceof LNumber) {
+                return null;
+            }
+
+            if ($this->isAlreadyMultipliedBy60($arg)) {
+                return null;
+            }
+
+            $arg->value = new Mul($arg->value, new LNumber(60));
+
+            return $new;
+        }
+
+        return null;
+    }
+
+    private function refactorPropertyDeclaration(Property $property): ?Node
+    {
+        $onlyPropertyItem = $property->props[0] ?? null;
+
+        if (! $onlyPropertyItem instanceof PropertyItem || ! $this->isName($onlyPropertyItem->name, 'decayMinutes')) {
+            return null;
+        }
+
+        $scope = $property->getAttribute(AttributeKey::SCOPE);
+
+        if (! $scope instanceof Scope) {
+            return null;
+        }
+
+        $classReflection = $scope->getClassReflection();
+
+        if (! $classReflection instanceof ClassReflection || ! $this->extendsThrottlesMiddleware($classReflection)) {
+            return null;
+        }
+
+        $onlyPropertyItem->name = new VarLikeIdentifier('decaySeconds');
+
+        $default = $onlyPropertyItem->default;
+
+        if ($default instanceof LNumber) {
+            $onlyPropertyItem->default = new Mul($default, new LNumber(60));
+        }
+
+        return $property;
+    }
+
+    private function refactorPropertyFetch(PropertyFetch $propertyFetch): ?Node
+    {
+        if (! $this->isName($propertyFetch->name, 'decayMinutes')) {
+            return null;
+        }
+
+        // Only match $this->decayMinutes inside a throttles middleware class
+        if (! $propertyFetch->var instanceof Variable || ! $this->isName($propertyFetch->var, 'this')) {
+            return null;
+        }
+
+        $scope = $propertyFetch->getAttribute(AttributeKey::SCOPE);
+
+        if (! $scope instanceof Scope) {
+            return null;
+        }
+
+        $classReflection = $scope->getClassReflection();
+
+        if (! $classReflection instanceof ClassReflection || ! $this->extendsThrottlesMiddleware($classReflection)) {
+            return null;
+        }
+
+        $propertyFetch->name = new Identifier('decaySeconds');
+
+        return $propertyFetch;
+    }
+
+    private function extendsThrottlesMiddleware(ClassReflection $classReflection): bool
+    {
+        foreach (self::THROTTLE_CLASSES as $throttleClass) {
+            if ($classReflection->is($throttleClass)) {
+                return true;
             }
         }
 
-        if ($argIndex === null) {
-            return null;
-        }
-
-        if (! isset($node->args[$argIndex])) {
-            return null;
-        }
-
-        $arg = $node->args[$argIndex];
-
-        if (! $arg instanceof Arg) {
-            return null;
-        }
-
-        if ($this->isAlreadyMultipliedBy60($arg)) {
-            return null;
-        }
-
-        if (! $arg->value instanceof LNumber) {
-            return null;
-        }
-
-        $arg->value = new Mul($arg->value, new LNumber(60));
-
-        return $node;
+        return false;
     }
 
-    private function refactorPropertyFetch(PropertyFetch $node): ?Node
+    private function matchesClass(Name $name, string $fqcn): bool
     {
-        if (! $this->isName($node->name, 'decayMinutes')) {
-            return null;
+        if ($this->isName($name, $fqcn)) {
+            return true;
         }
 
-        // Only match $this->decayMinutes (not arbitrary objects)
-        if (! $node->var instanceof Variable || ! $this->isName($node->var, 'this')) {
-            return null;
+        // Scope-resolved comparison only — no bare short-name guessing.
+        $scope = $name->getAttribute(AttributeKey::SCOPE);
+
+        if ($scope instanceof Scope) {
+            try {
+                return strcasecmp($scope->resolveName($name), $fqcn) === 0;
+            } catch (\Throwable) {
+                return false;
+            }
         }
 
-        $node->name = new Identifier('decaySeconds');
-
-        return $node;
+        return false;
     }
 
     private function isAlreadyMultipliedBy60(Arg $arg): bool
@@ -120,37 +256,5 @@ final class UpdateRateLimitingRector extends AbstractRector
         }
 
         return false;
-    }
-
-    private function isClassName(Name $name, string $fqcn): bool
-    {
-        if ($this->isName($name, $fqcn)) {
-            return true;
-        }
-
-        $resolvedName = $name->getAttribute('resolvedName');
-
-        if ($resolvedName instanceof Name && $resolvedName->toString() === $fqcn) {
-            return true;
-        }
-
-        return $name->toString() === substr($fqcn, (int) strrpos($fqcn, '\\') + 1);
-    }
-
-    public function getRuleDefinition(): RuleDefinition
-    {
-        return new RuleDefinition(
-            'Update rate limiting classes to use seconds instead of minutes for Laravel 11',
-            [
-                new CodeSample(
-                    'new \Illuminate\Cache\RateLimiting\GlobalLimit(100, 2)',
-                    'new \Illuminate\Cache\RateLimiting\GlobalLimit(100, 2 * 60)',
-                ),
-                new CodeSample(
-                    '$this->decayMinutes',
-                    '$this->decaySeconds',
-                ),
-            ]
-        );
     }
 }

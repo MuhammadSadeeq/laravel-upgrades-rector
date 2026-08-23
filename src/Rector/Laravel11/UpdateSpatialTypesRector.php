@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\BlueprintReceiverResolver;
 use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
@@ -11,27 +12,48 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
-use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
+/**
+ * Laravel 11 removed the individual spatial column helpers in favour of
+ * geometry($column, $subtype = null, $srid = 0) / geography(...).
+ *
+ * The rewrite keeps the verified positional argument order — the previous
+ * version appended a named `subtype:` argument, which made the srid land in
+ * the subtype slot and produced a fatal "named parameter overwrites
+ * previous argument" migration.
+ *
+ * - point('loc')            → geometry('loc', 'point')
+ * - point('geo', 4326)      → geometry('geo', 'point', 4326)
+ * - multiPolygonZ(...) etc. → untouched (no geometry() equivalent; reported)
+ */
 final class UpdateSpatialTypesRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 11: spatial types now use geometry() or geography()';
+    private const COMMENT_MARKER = '@laravel-upgrade spatial-types';
 
-    /** @var array<int, string> */
-    private const REMOVED_SPATIAL_METHODS = [
-        'point',
-        'lineString',
-        'polygon',
-        'geometryCollection',
-        'multiPoint',
-        'multiLineString',
-        'multiPolygon',
-        'multiPolygonZ',
+    /**
+     * camelCase helper name => lowercase geometry subtype.
+     *
+     * @var array<string, string>
+     */
+    private const SPATIAL_METHODS = [
+        'point' => 'point',
+        'lineString' => 'linestring',
+        'polygon' => 'polygon',
+        'geometryCollection' => 'geometrycollection',
+        'multiPoint' => 'multipoint',
+        'multiLineString' => 'multilinestring',
+        'multiPolygon' => 'multipolygon',
     ];
+
+    private BlueprintReceiverResolver $blueprintReceiverResolver;
+
+    public function __construct()
+    {
+        $this->blueprintReceiverResolver = new BlueprintReceiverResolver();
+    }
 
     public function getNodeTypes(): array
     {
@@ -52,37 +74,69 @@ final class UpdateSpatialTypesRector extends AbstractRector
 
         $methodName = $this->getName($spatialMethodCall->name);
 
-        if ($methodName === null) {
+        if ($methodName === null || ! isset(self::SPATIAL_METHODS[$methodName])) {
             return null;
         }
 
+        // Rewrite to geometry($column, '<subtype>', ...rest) positionally.
         $spatialMethodCall->name = new Identifier('geometry');
-        $spatialMethodCall->args[] = new Arg(
-            new String_($methodName),
-            false,
-            false,
-            [],
-            new Identifier('subtype')
-        );
 
-        if (! $this->hasMigrationComment($node)) {
-            $node->setAttribute('comments', array_merge([
-                new Comment('// ' . self::COMMENT_MARKER . '. Review whether geometry() or geography() is the correct replacement for this column.'),
-            ], $node->getComments()));
+        $args = [];
+
+        foreach ($spatialMethodCall->getArgs() as $arg) {
+            if ($arg instanceof Arg) {
+                $args[] = $arg;
+            }
         }
 
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+        /** @var Arg|null $columnArg */
+        $columnArg = array_shift($args);
+
+        if ($columnArg === null) {
+            return null;
+        }
+
+        $subtypeArg = new Arg(new String_(self::SPATIAL_METHODS[$methodName]));
+
+        $spatialMethodCall->args = array_merge([$columnArg, $subtypeArg], $args);
+
+        if (! $this->hasMigrationComment($node)) {
+            $comments = $node->getComments();
+            $comments[] = new Comment('// @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.');
+            $node->setAttribute('comments', $comments);
+        }
 
         return $node;
+    }
+
+    public function getRuleDefinition(): RuleDefinition
+    {
+        return new RuleDefinition(
+            'Rewrite removed spatial column helpers to geometry()/geography() calls in Laravel 11 migrations',
+            [
+                new CodeSample(
+                    <<<'CODE_SAMPLE'
+$table->point('location');
+$table->point('geo', 4326);
+$table->multiPolygonZ('areas');
+CODE_SAMPLE,
+                    <<<'CODE_SAMPLE'
+$table->geometry('location', 'point');
+$table->geometry('geo', 'point', 4326);
+$table->multiPolygonZ('areas');
+CODE_SAMPLE,
+                ),
+            ],
+        );
     }
 
     private function findSpatialMethodCallInChain(Node $node): ?MethodCall
     {
         while ($node instanceof MethodCall) {
-            if ($this->isLikelyBlueprint($node->var)) {
+            if ($this->blueprintReceiverResolver->isBlueprint($node->var)) {
                 $methodName = $this->getName($node->name);
 
-                if ($methodName !== null && in_array($methodName, self::REMOVED_SPATIAL_METHODS, true)) {
+                if ($methodName !== null && isset(self::SPATIAL_METHODS[$methodName])) {
                     return $node;
                 }
             }
@@ -91,19 +145,6 @@ final class UpdateSpatialTypesRector extends AbstractRector
         }
 
         return null;
-    }
-
-    private function isLikelyBlueprint(Node $node): bool
-    {
-        if ($this->isObjectType($node, new ObjectType('Illuminate\\Database\\Schema\\Blueprint'))) {
-            return true;
-        }
-
-        if (! $node instanceof Node\Expr\Variable) {
-            return false;
-        }
-
-        return $this->isName($node, 'table') || $this->isName($node, 'blueprint');
     }
 
     private function hasMigrationComment(Expression $node): bool
@@ -115,24 +156,5 @@ final class UpdateSpatialTypesRector extends AbstractRector
         }
 
         return false;
-    }
-
-    public function getRuleDefinition(): RuleDefinition
-    {
-        return new RuleDefinition(
-            'Update spatial column types and warn that geometry() or geography() may be needed in Laravel 11',
-            [
-                new CodeSample(
-                    '$table->point(\'coordinates\')',
-                    '// Laravel 11: spatial types now use geometry() or geography(). Review whether geometry() or geography() is the correct replacement for this column.
-$table->geometry(\'coordinates\', subtype: \'point\')',
-                ),
-                new CodeSample(
-                    '$table->polygon(\'area\')',
-                    '// Laravel 11: spatial types now use geometry() or geography(). Review whether geometry() or geography() is the correct replacement for this column.
-$table->geometry(\'area\', subtype: \'polygon\')',
-                ),
-            ],
-        );
     }
 }
