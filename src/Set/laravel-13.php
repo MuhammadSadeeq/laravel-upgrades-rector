@@ -6,7 +6,6 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameJobAttemptedEven
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameQueueBusyEventPropertyRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameValidateCsrfTokensMethodRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateBusDispatcherContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheConfigurationRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheRepositoryContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheStoreContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateContainerCallNullableDefaultsRector;
@@ -14,13 +13,10 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateDatabaseQueryBeh
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateEloquentBehaviorChangesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateHttpClientThrowSignaturesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateMustVerifyEmailContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateNotificationBehaviorRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdatePaginationViewNamesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdatePasswordResetSubjectRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateQueueContractMethodsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateResponseFactoryContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateRoutingDomainPrecedenceRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateSupportBehaviorChangesRector;
 use Rector\Config\RectorConfig;
 use Rector\Renaming\Rector\Name\RenameClassRector;
 
@@ -34,7 +30,6 @@ return RectorConfig::configure()
     ])
     ->withRules([
     RenameValidateCsrfTokensMethodRector::class,
-    UpdateCacheConfigurationRector::class,
     UpdateCacheRepositoryContractRector::class,
     UpdateCacheStoreContractRector::class,
     UpdateBusDispatcherContractRector::class,
@@ -44,12 +39,21 @@ return RectorConfig::configure()
     UpdateContainerCallNullableDefaultsRector::class,
     UpdateDatabaseQueryBehaviorRector::class,
     UpdateEloquentBehaviorChangesRector::class,
-    UpdateNotificationBehaviorRector::class,
     RenameJobAttemptedEventPropertyRector::class,
     RenameQueueBusyEventPropertyRector::class,
-    UpdateRoutingDomainPrecedenceRector::class,
     UpdatePaginationViewNamesRector::class,
     UpdatePasswordResetSubjectRector::class,
-    UpdateSupportBehaviorChangesRector::class,
     UpdateHttpClientThrowSignaturesRector::class,
 ]);
+
+/*
+ * Deliberately NOT registered — dead or harmful advisory rules whose checks
+ * move to the Phase 3 PHPStan advisory engine, the Phase 5 config merger or
+ * the Phase 4 verification step:
+ *
+ * - UpdateCacheConfigurationRector       → wrong session-cookie guidance; all fixtures were no-ops
+ * - UpdateNotificationBehaviorRector     → targeted the cohort that is already safe
+ * - UpdateRoutingDomainPrecedenceRector  → stateful, same-file only; route analysis moves to verification
+ * - UpdateSupportBehaviorChangesRector   → withSchedule branch unreachable, Str branch never scanned tests,
+ *                                          missed facade ::extend; replaced by four focused advisory rules
+ */
