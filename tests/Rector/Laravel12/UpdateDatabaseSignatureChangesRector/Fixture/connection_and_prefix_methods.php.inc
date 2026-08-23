@@ -22,13 +22,13 @@ use Illuminate\Database\Schema\Blueprint;
 
 function inspect(Connection $connection, Blueprint $blueprint, Grammar $grammar)
 {
-    // Laravel 12: database constructor and grammar APIs changed. Connection::withTablePrefix() was removed; read the prefix from the Connection directly instead.
+    // @laravel-upgrade db-signature-changes Connection::withTablePrefix() was removed; read the prefix from the Connection directly instead.
     $connection->withTablePrefix($grammar);
-    // Laravel 12: database constructor and grammar APIs changed. Blueprint::getPrefix() is deprecated; retrieve the table prefix from the Connection instead.
+    // @laravel-upgrade db-signature-changes Blueprint::getPrefix() is deprecated; retrieve the table prefix from the Connection instead.
     $blueprint->getPrefix();
-    // Laravel 12: database constructor and grammar APIs changed. Grammar::getTablePrefix() is deprecated; retrieve the table prefix from the Connection instead.
+    // @laravel-upgrade db-signature-changes Grammar::getTablePrefix() is deprecated; retrieve the table prefix from the Connection instead.
     $grammar->getTablePrefix();
-    // Laravel 12: database constructor and grammar APIs changed. Grammar::setTablePrefix() is deprecated; retrieve the table prefix from the Connection instead.
+    // @laravel-upgrade db-signature-changes Grammar::setTablePrefix() is deprecated; retrieve the table prefix from the Connection instead.
     $grammar->setTablePrefix('foo_');
 }
 

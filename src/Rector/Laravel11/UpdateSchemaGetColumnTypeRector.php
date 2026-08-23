@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
 use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateSchemaGetColumnTypeRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 11: Schema::getColumnType() now returns the actual column type';
+    private const COMMENT_MARKER = '@laravel-upgrade schema-get-column-type';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -35,16 +38,13 @@ final class UpdateSchemaGetColumnTypeRector extends AbstractRector
             return null;
         }
 
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return null;
-            }
+        if (! $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'Schema::getColumnType() now returns the actual column type, not the Doctrine DBAL equivalent. Review any type comparisons.'
+        )) {
+            return null;
         }
-
-        $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . ', not the Doctrine DBAL equivalent. Review any type comparisons.'),
-        ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

@@ -20,7 +20,7 @@ class SubscriptionManager
 {
     public function cancelSubscription(Subscription $subscription)
     {
-        // Cashier Stripe 15: cancel() now always ends subscription trials immediately
+        // @laravel-upgrade cashier-trial-cancel cancel() now always ends subscription trials immediately
         $subscription->cancel();
     }
 }

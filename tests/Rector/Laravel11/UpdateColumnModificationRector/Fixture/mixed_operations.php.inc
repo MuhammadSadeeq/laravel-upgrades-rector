@@ -22,12 +22,12 @@ use Illuminate\Support\Facades\Schema;
 Schema::table('products', function (Blueprint $table) {
     $table->string('sku')->unique();
     $table->decimal('weight', 5, 2)->nullable();
-    // Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.
+    // @laravel-upgrade column-change change() now requires all column modifiers to be explicitly re-specified. Review this migration.
     $table->string('title', 200)->nullable()->change();
-    // Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.
+    // @laravel-upgrade column-change change() now requires all column modifiers to be explicitly re-specified. Review this migration.
     $table->text('description')->change();
     $table->dropColumn(['old_field']);
-    // Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.
+    // @laravel-upgrade column-change change() now requires all column modifiers to be explicitly re-specified. Review this migration.
     $table->integer('stock')->unsigned()->default(0)->change();
 });
 

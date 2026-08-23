@@ -28,6 +28,7 @@ class ParameterizedCollection implements Enumerable
     {
         dd($this->toArray());
     }
+
     public function toArray()
     {
         return ['key' => 'value'];

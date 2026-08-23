@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
@@ -13,14 +13,17 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
 use PHPStan\Reflection\ClassReflection;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateCashierStripeRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Cashier Stripe 15:';
+    private const COMMENT_MARKER = '@laravel-upgrade cashier-card-default';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     /** @var array<int, string> */
     private array $paymentMethodMethods = [
@@ -97,19 +100,13 @@ final class UpdateCashierStripeRector extends AbstractRector
             return null;
         }
 
-        $existingComments = $stmt->getComments();
-
-        foreach ($existingComments as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return null;
-            }
+        if (! $this->commentInserter->addComment(
+            $stmt,
+            self::COMMENT_MARKER,
+            'Review Cashier static configuration for v15 compatibility'
+        )) {
+            return null;
         }
-
-        $newComment = new Comment(
-            '// ' . self::COMMENT_MARKER . ' Review Cashier static configuration for v15 compatibility'
-        );
-        $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $stmt->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $stmt;
     }

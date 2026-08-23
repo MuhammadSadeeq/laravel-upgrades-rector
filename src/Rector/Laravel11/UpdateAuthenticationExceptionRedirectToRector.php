@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Function_;
 use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 11: AuthenticationException::redirectTo() now requires the current Request instance';
+    private const COMMENT_MARKER = '@laravel-upgrade auth-redirect-to';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -40,16 +43,13 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
             return null;
         }
 
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return null;
-            }
+        if (! $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'AuthenticationException::redirectTo() now requires the current Request instance. Pass $request to redirectTo().'
+        )) {
+            return null;
         }
-
-        $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Pass $request to redirectTo().'),
-        ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }
@@ -91,7 +91,6 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
             }
 
             $node->args[] = new Node\Arg(new Node\Expr\Variable($requestVariableName));
-            $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
             $hasChanged = true;
 
             return $node;

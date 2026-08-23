@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\Expression;
 use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateColumnModificationRector extends AbstractRector
 {
+    private const COMMENT_MARKER = '@laravel-upgrade column-change';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
+
     public function getNodeTypes(): array
     {
         return [Expression::class];
@@ -40,20 +45,13 @@ final class UpdateColumnModificationRector extends AbstractRector
             return null;
         }
 
-        $existingComments = $node->getComments();
-
-        foreach ($existingComments as $comment) {
-            if (str_contains($comment->getText(), 'Laravel 11:')) {
-                return null;
-            }
+        if (!$this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'change() now requires all column modifiers to be explicitly re-specified. Review this migration.'
+        )) {
+            return null;
         }
-
-        $newComment = new Comment(
-            '// Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.'
-        );
-
-        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

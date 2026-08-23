@@ -29,12 +29,12 @@ class FormController
 {
     public function handleForm(Request $request)
     {
-        // Laravel 12: mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.
+        // @laravel-upgrade request-merge-dots mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.
         $request->mergeIfMissing(['created_at' => now()]);
 
         $data = $request->validated();
 
-        // Laravel 12: mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.
+        // @laravel-upgrade request-merge-dots mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.
         $request->mergeIfMissing([
             'updated_at' => now(),
             'user_id' => auth()->id()

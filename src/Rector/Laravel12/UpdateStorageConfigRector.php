@@ -46,7 +46,6 @@ final class UpdateStorageConfigRector extends AbstractRector
 
         $comment = new Doc('/** ' . self::COMMENT_MARKER . ', Laravel now defaults it to storage/app/private. Define disks.local.root explicitly to preserve storage/app. */');
         $disksItem->setAttribute('comments', array_merge([$comment], $disksItem->getComments()));
-        $disksItem->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

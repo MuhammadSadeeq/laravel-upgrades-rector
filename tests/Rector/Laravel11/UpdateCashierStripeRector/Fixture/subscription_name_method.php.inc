@@ -20,7 +20,7 @@ class Config
 {
     public function setup()
     {
-        // Cashier Stripe 15: Review Cashier static configuration for v15 compatibility
+        // @laravel-upgrade cashier-card-default Review Cashier static configuration for v15 compatibility
         Cashier::useCustomerModel(User::class);
     }
 }

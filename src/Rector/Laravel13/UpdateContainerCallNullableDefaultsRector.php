@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\Assign;
@@ -17,14 +17,17 @@ use PhpParser\Node\Name;
 use PhpParser\Node\NullableType;
 use PhpParser\Node\Stmt\Expression;
 use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateContainerCallNullableDefaultsRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 13: Container::call() now preserves nullable class defaults';
+    private const COMMENT_MARKER = '@laravel-upgrade container-nullable-defaults';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -33,7 +36,7 @@ final class UpdateContainerCallNullableDefaultsRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (! $node instanceof Expression || $this->hasComment($node)) {
+        if (! $node instanceof Expression) {
             return null;
         }
 
@@ -43,10 +46,13 @@ final class UpdateContainerCallNullableDefaultsRector extends AbstractRector
             return null;
         }
 
-        $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Review any logic that expected an auto-resolved instance here.'),
-        ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+        if (! $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'Container::call() now preserves nullable class defaults. Review any logic that expected an auto-resolved instance here.'
+        )) {
+            return null;
+        }
 
         return $node;
     }
@@ -108,17 +114,6 @@ final class UpdateContainerCallNullableDefaultsRector extends AbstractRector
             }
 
             return true;
-        }
-
-        return false;
-    }
-
-    private function hasComment(Expression $expression): bool
-    {
-        foreach ($expression->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return true;
-            }
         }
 
         return false;

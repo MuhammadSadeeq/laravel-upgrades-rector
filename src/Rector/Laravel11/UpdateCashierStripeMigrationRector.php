@@ -91,7 +91,6 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
             '// ' . self::COMMENT_MARKER . ' Renamed "name" column to "type" in subscriptions table'
         );
         $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $stmt->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $stmt;
     }
@@ -132,7 +131,6 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
             '// ' . self::COMMENT_MARKER . ' Unique constraint replaced with regular index on subscription_items'
         );
         $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $stmt->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $stmt;
     }

@@ -60,7 +60,6 @@ final class UpdateRoutingDomainPrecedenceRector extends AbstractRector
         $node->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . ' during matching. Review route behavior if this file mixes both route types.'),
         ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

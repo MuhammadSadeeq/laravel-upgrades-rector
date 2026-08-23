@@ -33,9 +33,9 @@ class MixedSchemaUsage
 {
     public function analyze()
     {
-        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
+        // @laravel-upgrade schema-inspection-methods This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $allTables = Schema::getTables();
-        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
+        // @laravel-upgrade schema-inspection-methods This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $allViews = Schema::getViews();
 
         $publicTables = Schema::getTables('public');
@@ -45,9 +45,9 @@ class MixedSchemaUsage
             $table->id();
         });
 
-        // Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
+        // @laravel-upgrade schema-inspection-methods This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.
         $types = Schema::getTypes();
-        // Laravel 12: getTableListing() now returns schema-qualified table names from all schemas by default. Pass schema and schemaQualified arguments to preserve previous behavior.
+        // @laravel-upgrade schema-inspection-methods getTableListing() now returns schema-qualified table names from all schemas by default. Pass schema and schemaQualified arguments to preserve previous behavior.
         $listing = Schema::getTableListing();
 
         return compact('allTables', 'allViews', 'publicTables', 'testViews', 'types', 'listing');

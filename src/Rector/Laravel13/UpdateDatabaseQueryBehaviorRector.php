@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\Assign;
@@ -12,16 +12,17 @@ use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateDatabaseQueryBehaviorRector extends AbstractRector
 {
-    private const UPSERT_MARKER = 'Laravel 13: upsert() now throws InvalidArgumentException when uniqueBy is empty';
+    private const COMMENT_MARKER = '@laravel-upgrade db-query-behavior';
 
-    private const DELETE_MARKER = 'Laravel 13: MySQL joined delete queries now compile ORDER BY / LIMIT clauses';
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -40,20 +41,26 @@ final class UpdateDatabaseQueryBehaviorRector extends AbstractRector
             return null;
         }
 
-        if ($this->isName($call->name, 'upsert') && $this->hasEmptyUniqueBy($call) && ! $this->hasComment($node, self::UPSERT_MARKER)) {
-            $node->setAttribute('comments', array_merge([
-                new Comment('// ' . self::UPSERT_MARKER . ' on MySQL or MariaDB. Pass a non-empty uniqueBy value.'),
-            ], $node->getComments()));
-            $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+        if ($this->isName($call->name, 'upsert') && $this->hasEmptyUniqueBy($call)) {
+            if (! $this->commentInserter->addComment(
+                $node,
+                self::COMMENT_MARKER,
+                'upsert() now throws InvalidArgumentException when uniqueBy is empty on MySQL or MariaDB. Pass a non-empty uniqueBy value.'
+            )) {
+                return null;
+            }
 
             return $node;
         }
 
-        if ($this->isName($call->name, 'delete') && $this->isDeleteChainWithJoinAndOrderOrLimit($call) && ! $this->hasComment($node, self::DELETE_MARKER)) {
-            $node->setAttribute('comments', array_merge([
-                new Comment('// ' . self::DELETE_MARKER . '. Review this delete() call if it targets MySQL or MariaDB.'),
-            ], $node->getComments()));
-            $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+        if ($this->isName($call->name, 'delete') && $this->isDeleteChainWithJoinAndOrderOrLimit($call)) {
+            if (! $this->commentInserter->addComment(
+                $node,
+                self::COMMENT_MARKER,
+                'MySQL joined delete queries now compile ORDER BY / LIMIT clauses. Review this delete() call if it targets MySQL or MariaDB.'
+            )) {
+                return null;
+            }
 
             return $node;
         }
@@ -112,17 +119,6 @@ final class UpdateDatabaseQueryBehaviorRector extends AbstractRector
         }
 
         return $hasJoin && $hasOrderOrLimit;
-    }
-
-    private function hasComment(Expression $expression, string $marker): bool
-    {
-        foreach ($expression->getComments() as $comment) {
-            if (str_contains($comment->getText(), $marker)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function getRuleDefinition(): RuleDefinition

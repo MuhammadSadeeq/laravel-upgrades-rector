@@ -4,21 +4,23 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StaticCallExtractor;
-use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateSchemaMethodsRector extends AbstractRector
 {
+    private const COMMENT_MARKER = '@laravel-upgrade schema-inspection-methods';
+
     public function __construct(
         private readonly StaticCallExtractor $staticCallExtractor,
+        private readonly CommentInserter $commentInserter,
     ) {}
 
     /** @var array<int, string> */
@@ -66,28 +68,24 @@ final class UpdateSchemaMethodsRector extends AbstractRector
             return null;
         }
 
-        $existingComments = $node->getComments();
-        foreach ($existingComments as $comment) {
-            if (str_contains($comment->getText(), 'Laravel 12:')) {
-                return null;
-            }
+        if (! $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            $this->resolveCommentMessage($methodName)
+        )) {
+            return null;
         }
-
-        $newComment = new Comment('// ' . $this->resolveCommentText($methodName));
-
-        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }
 
-    private function resolveCommentText(string $methodName): string
+    private function resolveCommentMessage(string $methodName): string
     {
         if ($methodName === 'getTableListing') {
-            return 'Laravel 12: getTableListing() now returns schema-qualified table names from all schemas by default. Pass schema and schemaQualified arguments to preserve previous behavior.';
+            return 'getTableListing() now returns schema-qualified table names from all schemas by default. Pass schema and schemaQualified arguments to preserve previous behavior.';
         }
 
-        return 'Laravel 12: This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.';
+        return 'This method now returns results from all schemas by default. Pass a schema name to limit to a specific schema.';
     }
 
     public function getRuleDefinition(): RuleDefinition

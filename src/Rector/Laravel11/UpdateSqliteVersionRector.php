@@ -48,7 +48,6 @@ final class UpdateSqliteVersionRector extends AbstractRector
         $driverItem->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . '. Verify the runtime SQLite version before upgrading.'),
         ], $driverItem->getComments()));
-        $driverItem->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

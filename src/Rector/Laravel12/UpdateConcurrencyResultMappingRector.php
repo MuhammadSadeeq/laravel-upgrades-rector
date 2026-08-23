@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StaticCallExtractor;
-use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\ArrayItem;
@@ -14,15 +14,17 @@ use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateConcurrencyResultMappingRector extends AbstractRector
 {
+    private const COMMENT_MARKER = '@laravel-upgrade concurrency-keyed-results';
+
     public function __construct(
         private readonly StaticCallExtractor $staticCallExtractor,
+        private readonly CommentInserter $commentInserter,
     ) {}
 
     public function getNodeTypes(): array
@@ -71,16 +73,15 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
             return null;
         }
 
-        if ($this->hasUpgradeComment($node) || $this->hasUpgradeComment($firstAssociativeItem)) {
-            return null;
+        if ($this->commentInserter->addComment(
+            $firstAssociativeItem,
+            self::COMMENT_MARKER,
+            'Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.'
+        )) {
+            return $node;
         }
 
-        $newComment = new Comment('// Laravel 12: Concurrency::run() now preserves associative array keys in results. Verify your code handles keyed results correctly.');
-
-        $firstAssociativeItem->setAttribute('comments', array_merge([$newComment], $firstAssociativeItem->getComments()));
-        $firstAssociativeItem->setAttribute(AttributeKey::ORIGINAL_NODE, null);
-
-        return $node;
+        return null;
     }
 
     private function hasAssociativeStringKeys(Array_ $array): bool
@@ -109,17 +110,6 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
         }
 
         return null;
-    }
-
-    private function hasUpgradeComment(Node $node): bool
-    {
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), 'Laravel 12:')) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function getRuleDefinition(): RuleDefinition

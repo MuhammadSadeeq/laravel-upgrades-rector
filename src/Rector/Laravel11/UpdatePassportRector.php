@@ -64,7 +64,6 @@ final class UpdatePassportRector extends AbstractRector
             . 'Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations'
         );
         $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

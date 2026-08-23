@@ -66,7 +66,6 @@ final class UpdatePasswordRehashingRector extends AbstractRector
         $node->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . '. This model overrides getAuthPassword(); if the password column is not "password", set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php'),
         ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

@@ -65,7 +65,6 @@ final class ReplaceHasVersion4UuidsRector extends AbstractRector
         $node->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . '. Switch to HasVersion4Uuids if you need the previous ordered UUIDv4 behavior.'),
         ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

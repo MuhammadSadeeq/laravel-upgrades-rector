@@ -63,7 +63,6 @@ final class UpdateEnumerableContractRector extends AbstractRector
                 '// Laravel 11: Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.'
             );
             $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-            $node->setAttribute(\Rector\NodeTypeResolver\Node\AttributeKey::ORIGINAL_NODE, null);
 
             return $node;
         }

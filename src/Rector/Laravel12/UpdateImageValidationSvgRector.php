@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\ArrayItem;
@@ -18,14 +18,17 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateImageValidationSvgRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 12: the image validation rule no longer allows SVG files by default';
+    private const COMMENT_MARKER = '@laravel-upgrade image-rule-svg';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -51,36 +54,34 @@ final class UpdateImageValidationSvgRector extends AbstractRector
             return null;
         }
 
-        if ($this->hasUpgradeComment($classMethod)) {
-            return null;
-        }
-
         if (! $this->containsSvgSensitiveNode($classMethod)) {
             return null;
         }
 
-        $classMethod->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.'),
-        ], $classMethod->getComments()));
-        $classMethod->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+        if (! $this->commentInserter->addComment(
+            $classMethod,
+            self::COMMENT_MARKER,
+            'the image validation rule no longer allows SVG files by default. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.'
+        )) {
+            return null;
+        }
 
         return $classMethod;
     }
 
     private function refactorExpression(Expression $expression): ?Expression
     {
-        if ($this->hasUpgradeComment($expression)) {
-            return null;
-        }
-
         if (! $this->containsSvgSensitiveValidationCall($expression)) {
             return null;
         }
 
-        $expression->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.'),
-        ], $expression->getComments()));
-        $expression->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+        if (! $this->commentInserter->addComment(
+            $expression,
+            self::COMMENT_MARKER,
+            'the image validation rule no longer allows SVG files by default. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.'
+        )) {
+            return null;
+        }
 
         return $expression;
     }
@@ -200,17 +201,6 @@ final class UpdateImageValidationSvgRector extends AbstractRector
     private function isTrueLiteral(Node $node): bool
     {
         return $node instanceof ConstFetch && strtolower($this->getName($node->name) ?? '') === 'true';
-    }
-
-    private function hasUpgradeComment(Node $node): bool
-    {
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function getRuleDefinition(): RuleDefinition

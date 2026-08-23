@@ -15,7 +15,7 @@ use Illuminate\Database\Query\Builder;
 
 function runUpsert(Builder $query, array $rows)
 {
-    // Laravel 13: upsert() now throws InvalidArgumentException when uniqueBy is empty on MySQL or MariaDB. Pass a non-empty uniqueBy value.
+    // @laravel-upgrade db-query-behavior upsert() now throws InvalidArgumentException when uniqueBy is empty on MySQL or MariaDB. Pass a non-empty uniqueBy value.
     $query->upsert($rows, [], ['name']);
 }
 

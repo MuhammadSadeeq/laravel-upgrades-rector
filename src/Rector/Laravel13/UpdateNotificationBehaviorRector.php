@@ -41,7 +41,6 @@ final class UpdateNotificationBehaviorRector extends AbstractRector
         $node->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . '. Verify this notification should be deleted instead of failing when related models are missing.'),
         ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

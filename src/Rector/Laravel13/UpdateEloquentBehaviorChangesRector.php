@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Name;
@@ -13,18 +13,17 @@ use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\NodeTraverser;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateEloquentBehaviorChangesRector extends AbstractRector
 {
-    private const BOOT_MARKER = 'Laravel 13: instantiating models during boot() is now disallowed';
+    private const COMMENT_MARKER = '@laravel-upgrade eloquent-behavior';
 
-    private const MORPH_PIVOT_MARKER = 'Laravel 13: inferred morph pivot table names are now pluralized';
-
-    private const COLLECTION_MARKER = 'Laravel 13: serialized Eloquent collections now restore eager-loaded relations';
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -42,29 +41,35 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
 
         if ($this->extendsClass($node, 'Illuminate\\Database\\Eloquent\\Model', 'Model')) {
             foreach ($node->getMethods() as $method) {
-                if (! $this->isBootMethod($method) || $this->hasMethodComment($method, self::BOOT_MARKER) || ! $this->containsNestedInstantiation($method, $className)) {
+                if (! $this->isBootMethod($method) || ! $this->containsNestedInstantiation($method, $className)) {
                     continue;
                 }
 
-                $method->setAttribute('comments', array_merge([
-                    new Comment('// ' . self::BOOT_MARKER . '. Move this logic outside the model boot cycle.'),
-                ], $method->getComments()));
-                $method->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+                if (! $this->commentInserter->addComment(
+                    $method,
+                    self::COMMENT_MARKER,
+                    'instantiating models during boot() is now disallowed. Move this logic outside the model boot cycle.'
+                )) {
+                    continue;
+                }
+
                 $changed = true;
             }
         }
 
-        if ($this->extendsClass($node, 'Illuminate\\Database\\Eloquent\\Relations\\MorphPivot', 'MorphPivot') && ! $this->hasClassComment($node, self::MORPH_PIVOT_MARKER) && ! $this->hasTableProperty($node)) {
-            $node->setAttribute('comments', array_merge([
-                new Comment('// ' . self::MORPH_PIVOT_MARKER . '. Define protected $table explicitly if you relied on the previous singular inferred name.'),
-            ], $node->getComments()));
+        if ($this->extendsClass($node, 'Illuminate\\Database\\Eloquent\\Relations\\MorphPivot', 'MorphPivot') && ! $this->hasTableProperty($node) && $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'inferred morph pivot table names are now pluralized. Define protected $table explicitly if you relied on the previous singular inferred name.'
+        )) {
             $changed = true;
         }
 
-        if ($this->implementsInterface($node, 'Illuminate\\Contracts\\Queue\\ShouldQueue', 'ShouldQueue') && ! $this->hasClassComment($node, self::COLLECTION_MARKER) && $this->hasEloquentCollectionProperty($node)) {
-            $node->setAttribute('comments', array_merge([
-                new Comment('// ' . self::COLLECTION_MARKER . '. Review queued-job logic that expected relations to be absent after deserialization.'),
-            ], $node->getComments()));
+        if ($this->implementsInterface($node, 'Illuminate\\Contracts\\Queue\\ShouldQueue', 'ShouldQueue') && $this->hasEloquentCollectionProperty($node) && $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'serialized Eloquent collections now restore eager-loaded relations. Review queued-job logic that expected relations to be absent after deserialization.'
+        )) {
             $changed = true;
         }
 
@@ -72,7 +77,6 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
             return null;
         }
 
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }
@@ -204,28 +208,6 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
         });
 
         return $hasImport;
-    }
-
-    private function hasMethodComment(ClassMethod $method, string $marker): bool
-    {
-        foreach ($method->getComments() as $comment) {
-            if (str_contains($comment->getText(), $marker)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function hasClassComment(Class_ $class, string $marker): bool
-    {
-        foreach ($class->getComments() as $comment) {
-            if (str_contains($comment->getText(), $marker)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function getRuleDefinition(): RuleDefinition

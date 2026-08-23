@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\Variable;
@@ -12,13 +12,18 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Use_;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateRequestMergingRector extends AbstractRector
 {
+    private const COMMENT_MARKER = '@laravel-upgrade request-merge-dots';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
+
     public function getNodeTypes(): array
     {
         return [Expression::class];
@@ -42,19 +47,13 @@ final class UpdateRequestMergingRector extends AbstractRector
             return null;
         }
 
-        $existingComments = $node->getComments();
-        foreach ($existingComments as $comment) {
-            if (str_contains($comment->getText(), 'Laravel 12:')) {
-                return null;
-            }
+        if (! $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.'
+        )) {
+            return null;
         }
-
-        $newComment = new Comment(
-            '// Laravel 12: mergeIfMissing() now supports nested array merging with dot notation. This may change behavior if you were relying on shallow merging.'
-        );
-
-        $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

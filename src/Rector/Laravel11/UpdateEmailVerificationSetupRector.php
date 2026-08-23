@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
@@ -22,7 +22,11 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateEmailVerificationSetupRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 11: EventServiceProvider now auto-registers SendEmailVerificationNotification';
+    private const COMMENT_MARKER = '@laravel-upgrade email-verification-setup';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -59,16 +63,13 @@ final class UpdateEmailVerificationSetupRector extends AbstractRector
             return null;
         }
 
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return null;
-            }
+        if (! $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'EventServiceProvider now auto-registers SendEmailVerificationNotification. Define configureEmailVerification() if you want to opt out of the automatic listener registration.'
+        )) {
+            return null;
         }
-
-        $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Define configureEmailVerification() if you want to opt out of the automatic listener registration.'),
-        ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

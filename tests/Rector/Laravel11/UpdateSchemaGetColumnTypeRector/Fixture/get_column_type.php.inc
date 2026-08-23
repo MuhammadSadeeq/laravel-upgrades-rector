@@ -10,7 +10,7 @@ $type = Schema::getColumnType('users', 'amount');
 
 use Illuminate\Support\Facades\Schema;
 
-// Laravel 11: Schema::getColumnType() now returns the actual column type, not the Doctrine DBAL equivalent. Review any type comparisons.
+// @laravel-upgrade schema-get-column-type Schema::getColumnType() now returns the actual column type, not the Doctrine DBAL equivalent. Review any type comparisons.
 $type = Schema::getColumnType('users', 'amount');
 
 ?>

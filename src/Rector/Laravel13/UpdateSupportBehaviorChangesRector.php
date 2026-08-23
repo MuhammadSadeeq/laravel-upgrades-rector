@@ -151,7 +151,6 @@ final class UpdateSupportBehaviorChangesRector extends AbstractRector
         $expression->setAttribute('comments', array_merge([
             new Comment('// ' . $commentText),
         ], $expression->getComments()));
-        $expression->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $expression;
     }

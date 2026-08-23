@@ -56,7 +56,6 @@ final class UpdateContainerDependencyResolutionRector extends AbstractRector
         );
 
         $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

@@ -54,7 +54,6 @@ final class UpdateTelescopeRector extends AbstractRector
             . 'Run: php artisan vendor:publish --tag=telescope-migrations'
         );
         $node->setAttribute('comments', array_merge([$newComment], $existingComments));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

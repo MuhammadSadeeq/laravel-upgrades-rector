@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use PhpParser\Comment;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdatePublishedServiceProviderRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 11: publish service providers via ServiceProvider::addProviderToBootstrapFile()';
+    private const COMMENT_MARKER = '@laravel-upgrade published-provider';
+
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -33,16 +36,13 @@ final class UpdatePublishedServiceProviderRector extends AbstractRector
             return null;
         }
 
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return null;
-            }
+        if (! $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'publish service providers via ServiceProvider::addProviderToBootstrapFile() instead of modifying config/app.php directly.'
+        )) {
+            return null;
         }
-
-        $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . ' instead of modifying config/app.php directly.'),
-        ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

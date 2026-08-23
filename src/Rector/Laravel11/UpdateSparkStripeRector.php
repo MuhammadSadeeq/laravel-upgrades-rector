@@ -54,7 +54,6 @@ final class UpdateSparkStripeRector extends AbstractRector
         $node->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . ' Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=spark-migrations'),
         ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

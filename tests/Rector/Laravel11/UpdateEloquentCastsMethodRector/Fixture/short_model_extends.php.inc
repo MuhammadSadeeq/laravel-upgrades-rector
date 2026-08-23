@@ -16,7 +16,7 @@ class LegacyCastsMethodUsage extends Model
 
 use Illuminate\Database\Eloquent\Model;
 
-// Laravel 11: Base Eloquent model now defines a casts() method. If this casts() method is a relationship, rename it to avoid conflicts.
+// @laravel-upgrade eloquent-casts-conflict Base Eloquent model now defines a casts() method. If this casts() method is a relationship, rename it to avoid conflicts.
 class LegacyCastsMethodUsage extends Model
 {
     public function casts()

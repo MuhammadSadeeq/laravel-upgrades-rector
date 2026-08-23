@@ -54,7 +54,6 @@ final class UpdateQueueAfterCommitRector extends AbstractRector
         $afterCommitItem->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . '. Review any sync jobs dispatched inside database transactions.'),
         ], $afterCommitItem->getComments()));
-        $afterCommitItem->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

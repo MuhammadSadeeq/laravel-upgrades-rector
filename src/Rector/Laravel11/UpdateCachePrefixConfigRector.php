@@ -52,7 +52,6 @@ final class UpdateCachePrefixConfigRector extends AbstractRector
         $prefixItem->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . '. Add it manually if you need the previous behavior.'),
         ], $prefixItem->getComments()));
-        $prefixItem->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

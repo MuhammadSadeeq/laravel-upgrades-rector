@@ -50,7 +50,6 @@ final class UpdateMariaDbUuidColumnRector extends AbstractRector
         $node->setAttribute('comments', array_merge([
             new Comment('// ' . self::COMMENT_MARKER . ' Use char(..., 36) instead if you switch to the mariadb driver and need the previous behavior'),
         ], $node->getComments()));
-        $node->setAttribute(AttributeKey::ORIGINAL_NODE, null);
 
         return $node;
     }

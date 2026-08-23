@@ -89,7 +89,6 @@ final class UpdateCacheConfigurationRector extends AbstractRector
             }
 
             $item->setAttribute('comments', array_merge($newComments, $item->getComments()));
-            $item->setAttribute(AttributeKey::ORIGINAL_NODE, null);
             $hasChanges = true;
         }
 
