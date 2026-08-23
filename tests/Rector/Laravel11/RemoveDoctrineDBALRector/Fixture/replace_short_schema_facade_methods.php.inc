@@ -8,6 +8,6 @@ DB::getAllViews();
 <?php
 
 Schema::getTables();
-DB::getViews();
+DB::getAllViews();
 
 ?>

@@ -24,8 +24,8 @@ class StaticExample
 {
     public function example()
     {
-        DB::getTables();
-        DB::getViews();
+        DB::getAllTables();
+        DB::getAllViews();
 
         // This should not be changed
         DB::select('SELECT * FROM users');
