@@ -32,18 +32,18 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSchemaGetColumnT
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdatePublishedServiceProviderRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSparkStripeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSqliteVersionRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\Carbon3MigrationRector;
 
-return RectorConfig::configure()->withRules([
-    // High Impact Changes
-    UpdateFloatingPointTypesRector::class,
-    UpdateColumnModificationRector::class,
-    UpdateSanctumConfigRector::class,
-    UpdateSqliteVersionRector::class,
+return RectorConfig::configure()
+    ->withSets([__DIR__ . '/carbon-3.php'])
+    ->withRules([
+        // High Impact Changes
+        UpdateFloatingPointTypesRector::class,
+        UpdateColumnModificationRector::class,
+        UpdateSanctumConfigRector::class,
+        UpdateSqliteVersionRector::class,
 
-    // Medium Impact Changes
-    Carbon3MigrationRector::class,
-    UpdatePasswordRehashingRector::class,
+        // Medium Impact Changes
+        UpdatePasswordRehashingRector::class,
     UpdateRateLimitingRector::class,
     RemoveSpatieOnceRector::class,
 

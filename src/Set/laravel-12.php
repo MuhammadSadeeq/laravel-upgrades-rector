@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\Carbon3MigrationRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\ReplaceHasVersion4UuidsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\ReplaceHasVersion7UuidsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateBlueprintConstructorRector;
@@ -17,8 +16,9 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateSchemaMethodsRec
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateStorageConfigRector;
 use Rector\Config\RectorConfig;
 
-return RectorConfig::configure()->withRules([
-    Carbon3MigrationRector::class,
+return RectorConfig::configure()
+    ->withSets([__DIR__ . '/carbon-3.php'])
+    ->withRules([
     ReplaceHasVersion4UuidsRector::class,
     ReplaceHasVersion7UuidsRector::class,
     UpdateBlueprintConstructorRector::class,
