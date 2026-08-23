@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -19,8 +19,11 @@ final class UpdateEnumerableContractRector extends AbstractRector
 {
     private const INTERFACE_NAME = 'Illuminate\Support\Enumerable';
 
+    private const COMMENT_MARKER = '@laravel-upgrade enumerable-dump';
+
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
+        private readonly CommentInserter $commentInserter,
     ) {
     }
 
@@ -51,18 +54,11 @@ final class UpdateEnumerableContractRector extends AbstractRector
 
         if ($dumpMethod->params !== []) {
             // Add warning comment instead of silently skipping
-            $existingComments = $node->getComments();
-
-            foreach ($existingComments as $comment) {
-                if (str_contains($comment->getText(), 'Laravel 11: dump()')) {
-                    return null;
-                }
-            }
-
-            $newComment = new \PhpParser\Comment(
-                '// Laravel 11: Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.'
+            $this->commentInserter->addComment(
+                $node,
+                self::COMMENT_MARKER,
+                'Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.'
             );
-            $node->setAttribute('comments', array_merge([$newComment], $existingComments));
 
             return $node;
         }

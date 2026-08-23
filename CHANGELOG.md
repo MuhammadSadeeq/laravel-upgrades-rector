@@ -5,134 +5,178 @@ All notable changes to `laravel-upgrades-rector` will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] — 2026-08-23
 
-### Fixed
+Stop-the-bleeding release: nothing the published package did can corrupt a
+project any more, and dependency planning moved out of AST visitors into a
+proper CLI command.
 
-- `UpdateSanctumConfigRector` now migrates the legacy `verify_csrf_token` Sanctum middleware key to `validate_csrf_token` and removes obsolete duplicates when the new key already exists
-- `RemoveDoctrineDBALRector` now removes legacy `dbal.types` configuration from database config arrays in addition to cleaning up Doctrine DBAL imports and method usage
-- `ReplaceHasVersion7UuidsRector` now handles grouped imports and avoids duplicate `HasUuids` imports when replacing removed Laravel 12 `HasVersion7Uuids` usage
-- Laravel 12 database API advisories now detect imported grammar constructors, common untyped `$grammar` / `$connection` / `$blueprint` variables, and `return new Blueprint(...)` constructor usage
-- `UpdateResponseFactoryContractRector` now generates and normalizes the Laravel 13 `eventStream(Closure $callback, array $headers = [], StreamedEvent|string|null $endStreamWith = '</stream>'): StreamedResponse` signature
-- `UpdateBusDispatcherContractRector` now generates and normalizes the Laravel 13 `dispatchAfterResponse(...): void` signature and adds the new `chain(Collection|array|null $jobs = null): mixed` contract method
-- `UpdateHttpClientThrowSignaturesRector` now updates `throw()` / `throwIf()` override signatures and forwards callback arguments to parent calls instead of adding advisory-only comments
-- `UpdateSanctumConfigRector` now rewrites old app middleware class constants, not only old middleware strings
-- Laravel 11 floating-point and spatial migration rules now fall back to common untyped `$table` / `$blueprint` migration variables when PHPStan cannot resolve `Blueprint`
-- Laravel 11 contract, Eloquent casts, password rehashing, rate limiting, and authentication exception rules now include safer AST fallbacks for aliased imports and code PHPStan cannot fully resolve
-- `RemoveDoctrineDBALRector` now detects removed Doctrine/native schema operation calls inside assignments and covers `usingNativeSchemaOperations()` / `useNativeSchemaOperationsIfPossible()`
-- `UpdatePasswordRehashingRector` now adds `protected $authPasswordName` automatically when a custom `getAuthPassword()` column can be inferred
-- Mixed `use` statements in `RemoveDoctrineDBALRector` now remove only Doctrine DBAL imports instead of dropping unrelated imports in the same declaration
-- `Carbon3MigrationRector` now preserves explicitly signed `diffIn*()` behavior when the old `absolute: false` / second `false` argument was used
-- `UpdateCashierStripeRector` now only adds the `'card'` argument on Billable-backed receivers instead of matching arbitrary methods with the same name
-- `UpdateImageValidationSvgRector` now matches actual `image` rule segments and avoids false positives in rule parameters such as `required_without:image`
-- `UpdateColumnModificationRector` now recognizes typed `Blueprint` variables instead of relying only on the `$table` variable name
-- Shared contract-method detection now respects inherited concrete implementations and avoids redundant stubs in subclasses
-- `UpdatePaginationViewNamesRector` now scopes replacements to pagination API calls instead of rewriting matching strings globally
-- Ready-to-use config files no longer enable Rector's generic PHP modernization sets and now skip generated `bootstrap/cache` files
+### Removed
+
+- **composer.json is no longer written by Rector rules.** The three
+  `UpdateComposerDependencies*` rules rewrote `composer.json` from inside node
+  visitors: they mutated files during `--dry-run`, raced between parallel
+  workers on a non-atomic write, produced schema-invalid JSON (`"require": []`
+  after removing the last entry), destroyed formatting, and silently did
+  nothing when Rector's cache elided the file. Dependency planning now lives in
+  the new `deps` command (below).
 
 ### Added
 
-### Documentation
+- `vendor/bin/laravel-upgrade deps <major> [--dry-run]`: plans per-package
+  bumps/removals with composer/semver against a vendored compatibility matrix,
+  applies them through the Composer CLI (formatting preserved), validates
+  strictly and rehearses `composer update --dry-run -W`, surfacing solver
+  failures with `composer why-not` output and exit code 3.
+- Carbon 3 rules split into five focused rules in their own set
+  (`carbon-3.php`) that activates only when installed `nesbot/carbon` is `^3`
+  — Laravel 11 accepts both Carbon 2 and 3, so only the installed version is a
+  valid trigger.
+- Idempotency gate: every rule fixture is re-applied to its own expected output
+  in CI; a second run must change nothing.
+- Compatibility data files under `resources/compat/` (packages, removals).
 
-- README now documents the expected upgrade flow: run Rector, run Composer, then verify the application
-- README now explicitly distinguishes `composer.json` rewriting from actual dependency installation and clarifies that advisory comments / TODOs require manual follow-up
+### Fixed
 
-#### Laravel 12 &rarr; 13 Upgrade (20 Rules)
-- Composer dependency updates now target the real `composer.json` file (framework ^13.0, boost ^2.0, tinker ^3.0, phpunit ^12.0, pest ^4.0)
-- CSRF middleware rename: `VerifyCsrfToken`/`ValidateCsrfToken` &rarr; `PreventRequestForgery`
-- Method rename: `validateCsrfTokens()` &rarr; `preventRequestForgery()`
-- Cache configuration upgrade coverage:
-  - Cache `serializable_classes` config defaults
-  - Cache/store prefix and session cookie default advisories
-  - Cache Repository contract: `touch($key, $seconds): bool`
-- Contract method additions:
-  - Cache Store: `touch($key, $seconds): bool`
-  - Bus Dispatcher: `dispatchAfterResponse(mixed $command, mixed $handler = null): void`, `chain(Collection|array|null $jobs = null): mixed`
-  - ResponseFactory: `eventStream(Closure $callback, array $headers = [], StreamedEvent|string|null $endStreamWith = '</stream>'): StreamedResponse`
-  - MustVerifyEmail: `markEmailAsUnverified(): bool`
-  - Queue: `pendingSize()`, `delayedSize()`, `reservedSize()`, `creationTimeOfOldestPendingJob()`
-- Advisory coverage for documented Laravel 13 behavior changes:
-  - `Container::call()` nullable class defaults
-  - MySQL/MariaDB `upsert` empty `uniqueBy`
-  - MySQL `DELETE ... JOIN` with `ORDER BY` / `LIMIT`
-  - Model booting nested instantiation
-  - Polymorphic pivot table naming
-  - Queued notifications with missing models
-  - Domain route registration precedence
-  - Default password reset subject
-  - `withScheduling()` registration timing
-  - Manager `extend()` callback binding
-  - `Str` factories reset between tests
-  - `Js::from()` Unicode escaping behavior
-- Event property renames: `JobAttempted::$exceptionOccurred` &rarr; `$exception`, `QueueBusy::$connection` &rarr; `$connectionName`
-- Pagination view name updates: `pagination::default` &rarr; `pagination::bootstrap-3`
-- HTTP Client `throw()`/`throwIf()` override signature updates with narrower `Illuminate\Http\Client\Response` matching
+- **Contract signatures that load.** Every generated signature was verified
+  against real `laravel/framework` sources. The stubs had made typed parameters
+  pass tests while real apps fataled: `ConnectionInterface::scalar()`,
+  `Cache\Contracts touch()`, queue sizing methods and
+  `dispatchAfterResponse()` are declared with untyped parameters — generated
+  implementations now match exactly.
+- `UpdateMailerContractRector` return type corrected to the real
+  `\Illuminate\Mail\SentMessage` (the contract class never existed).
+- Contract rules append missing methods and never rewrite existing ones;
+  the bus dispatcher no longer invents a `chain()` addition (not a Laravel 13
+  change) nor strips `return` statements from user methods.
+- `MustVerifyEmail::markEmailAsUnverified()` implementations use `forceFill(...)`
+  on Eloquent models instead of a silent `return false`.
+- HTTP Client `throw()/throwIf()` overrides get missing callback parameters
+  appended by name — never renamed — with parent calls forwarding positionally.
+- Carbon: signed-diff wrapping detects existing `(int)`/`abs()` wrappers through
+  node structure instead of sniffing source text (`fabs(` defeated it);
+  `formatLocalized()` conversion escapes literal text into `[...]` and refuses
+  unmapped strftime tokens instead of emitting garbage;
+  `createFromTimestamp($ts)` is left alone (the old UTC rewrite silently changed
+  behaviour); `minValue()/maxValue()` map to `startOfTime()/endOfTime()` on the
+  same receiver class instead of switching mutability.
+- Spatial columns: `point('geo', 4326)` becomes `geometry('geo', 'point', 4326)`
+  in the verified positional order — the old named-argument append produced a
+  fatal "named parameter overwrites previous argument" migration. Subtypes are
+  lowercased; `*Z` variants are left untouched.
+- Rate limiting: exact-FQCN matching only (a userland `Limit` class no longer
+  receives `5 * 60`), and `$decayMinutes` renames require the enclosing class to
+  extend `ThrottlesExceptions(+Redis)` and rename the declaration too.
+- Floating point: named/unpack arguments skipped instead of deleted; receivers
+  must be confirmed `Blueprint` instances (the `$table` name-guess corrupted
+  unrelated classes such as `PdfTable`).
+- Import removal (`doctrine/dbal`, `spatie/once`) keeps imports that are still
+  referenced anywhere in the file, docblocks included.
+- Doctrine method renames apply only to the `Schema` facade — never `DB`, whose
+  methods were never renamed; removed-method advisories distinguish confirmed
+  vs low-confidence receivers.
+- Eighteen dead or harmful advisory rules are no longer registered (shapes that
+  never occur in real configs, per-call comment spam, contradictory sibling
+  rules, seconds multiplied twice). Their checks move to future advisory/
+  preflight/config engines; each set file documents where.
+- Advisory comments carry unique per-rule markers and dedupe correctly (five
+  rules previously shared the generic `'Laravel 12:'` marker and silenced each
+  other); `ORIGINAL_NODE = null` is gone everywhere, ending full-class reprint
+  churn that deleted blank lines and collapsed promoted constructors.
+- Presets tolerate any working directory, include `tests/`, skip Blade files
+  (previously parsed as inline HTML for zero effect), set the target PHP
+  version and load Larastan when installed.
 
-#### Laravel 11 &rarr; 12 Upgrade (14 Rules)
-- Composer dependency updates now target the real `composer.json` file (Laravel 12, PHPUnit 11, Pest 3)
-- Carbon 3 migration handling for the Laravel 11 -> 12 upgrade path
-- UUID trait migration advisories (UUIDv7 by default, backward compatibility support)
-- Image validation SVG advisory comments for string rules and `File::image()`
-- Storage configuration advisory comments for implicit `local` disk behavior
-- Database schema multi-schema behavior documentation
-- Database constructor and grammar API change advisories
-- Container dependency resolution behavior changes
-- Blueprint and DatabaseTokenRepository constructor updates
-- Request merging nested array support documentation
-- Concurrency result mapping behavior notes
-- Route precedence duplicate-name advisories
+### Changed
 
-#### Laravel 10 &rarr; 11 Upgrade (31 Rules)
-- Composer dependency updates now target the real `composer.json` file:
-  - Laravel and ecosystem package versions updated in `require` / `require-dev`
-  - PHP requirement updated to `^8.2`
-  - `doctrine/dbal` and `spatie/once` removed when present
-- Carbon 3 migration with comprehensive breaking change handling:
-  - Method renames (`formatLocalized` &rarr; `isoFormat` with format string conversion)
-  - `diffIn*` methods now return floats/negatives
-  - `setUtf8()` removal
-  - Named argument updates (`tz` &rarr; `timezone`)
-  - `isSame*()` &rarr; `isCurrent*()` conversions
-- Database schema changes (floating-point types, spatial types, column modifications)
-- Additional upgrade advisories for documented Laravel 11 behavior changes:
-  - SQLite minimum version
-  - `AuthenticationException::redirectTo($request)`
-  - Email verification auto-registration in `EventServiceProvider`
-  - Cache prefix suffix behavior
-  - `Schema::getColumnType()` behavior
-  - MariaDB `uuid()` column behavior
-  - `sync` queue `after_commit`
-  - Publishing providers to `bootstrap/providers.php`
-- Authentication updates (password rehashing, contract methods)
-- Rate limiting conversion (minutes to seconds)
-- Doctrine DBAL removal automation
-- Package-specific updates:
-  - Cashier Stripe 15.0 (payment methods, trial behavior, migrations)
-  - Passport 12.0 (migration publishing, password grant)
-  - Sanctum 4.0 (middleware configuration, migrations)
-  - Spark Stripe 5.0 (migration publishing)
-  - Telescope 5.0 (migration publishing)
-- Spatie Once package removal (Laravel has native `once()` now)
-- Contract interface updates (Authenticatable, Enumerable, Mailer, BatchRepository, ConnectionInterface, UserProvider)
+- PHP floor lowered back to `^8.2` — the 10→11 audience was locked out.
+- `rector/rector` constraint narrowed to `^2.3` (Rector 1 is untested here).
+- CI matrix: PHP 8.2/8.3/8.4 × prefer-lowest/prefer-stable + strict composer
+  validation.
 
-#### Testing & Quality
-- 301 tests across all 3 upgrade paths and support utilities
-- 429 assertions across Rector fixtures and support utility tests
-- Full fixture-based testing using Rector's AbstractRectorTestCase
-- PHPStan at max level with zero errors
+## [1.0.5] — 2026-03-28
 
-#### Architecture
-- Shared utilities in `src/Support/NodeAnalyzer/` (InterfaceImplementationChecker, StaticCallExtractor)
-- Set-based rule registration with cumulative upgrade paths
-- 60+ type stubs for reliable PHPStan resolution
-- Pre-configured convenience configs per version
+### Fixed
 
-### Technical Details
-- Minimum PHP version: 8.3
-- Rector version: ^1.0 || ^2.0
-- PSR-4 autoloading
-- CI/CD ready with PHPUnit and PHPStan
+- Avoid reprinting `redirectTo` wrapper functions in the authentication
+  exception rule.
+- Improve Laravel 11 fallback matching for aliased imports and untyped
+  variables across contract, casts, password rehashing, rate limiting and
+  authentication exception rules.
 
----
+## [1.0.4] — 2026-03-27
 
-[Unreleased]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/main...HEAD
+### Fixed
+
+- Limit ready-made configs to this package's upgrade rules (no generic Rector
+  modernization sets) and skip `bootstrap/cache`.
+
+## [1.0.3] — 2026-03-26
+
+### Fixed
+
+- Cross-version compatibility fixes for Rector and PHPStan ranges.
+- Mixed `use` statements: only Doctrine DBAL imports are dropped, not unrelated
+  imports in the same declaration.
+- `Carbon3MigrationRector` preserves explicitly signed `diffIn*()` behaviour
+  when `absolute: false` was passed.
+- `UpdateCashierStripeRector` narrows the `'card'` argument match to Billable
+  receivers.
+- `UpdateImageValidationSvgRector` matches real `image` rule segments and stops
+  false positives like `required_without:image`.
+- `UpdatePaginationViewNamesRector` scopes replacements to pagination API calls.
+
+## [1.0.2] — 2026-03-25
+
+### Fixed
+
+- `RemoveDoctrineDBALRector` removes legacy `dbal.types` config arrays and
+  detects removed Doctrine calls inside assignments.
+- `UpdatePasswordRehashingRector` adds `protected $authPasswordName` when a
+  custom password column can be inferred.
+- Shared contract-method detection respects inherited concrete implementations
+  (no redundant stubs in subclasses).
+- `UpdateSanctumConfigRector` rewrites middleware class constants, not only
+  strings.
+
+## [1.0.1] — 2026-03-24
+
+### Fixed
+
+- `UpdateResponseFactoryContractRector` generates the full Laravel 13
+  `eventStream(...)` signature.
+- `UpdateHttpClientThrowSignaturesRector` updates override signatures and
+  forwards callbacks to parent calls instead of advisory-only comments.
+- Laravel 12 database API advisories detect imported grammar constructors and
+  common untyped `$grammar` / `$connection` / `$blueprint` variables.
+- `ReplaceHasVersion7UuidsRector` handles grouped imports without duplicating
+  `HasUuids`.
+
+## [1.0.0] — 2026-03-23
+
+### Added
+
+- Initial release: 64 rules across three upgrade paths (Laravel 10→11,
+  11→12, 12→13) plus cumulative `UP_TO_*` sets:
+  - Contract interface updates (Authenticatable, Enumerable, Mailer,
+    BatchRepository, ConnectionInterface, UserProvider, Cache, Queue, Bus,
+    ResponseFactory, MustVerifyEmail)
+  - Carbon 3 migration handling (diffs, formatLocalized, removed methods,
+    named arguments, isSame→isCurrent)
+  - Schema changes: floating-point types, spatial types, column modification
+    advisories, Doctrine DBAL removal, spatie/once removal
+  - Rate limiting minutes → seconds, password rehashing, Sanctum/Cashier/
+    Passport/Spark/Telescope package advisories
+  - Laravel 12: UUID trait migration, concurrency result mapping, image SVG
+    validation, storage/schema/token-repository advisories
+  - Laravel 13: CSRF middleware rename, pagination view names, event property
+    renames, container/query/eloquent behavior advisories
+
+[Unreleased]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.5...v1.1.0
+[1.0.5]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.4...v1.0.5
+[1.0.4]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/releases/tag/v1.0.0

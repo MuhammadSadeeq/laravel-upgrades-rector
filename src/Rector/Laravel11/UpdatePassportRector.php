@@ -77,7 +77,7 @@ final class UpdatePassportRector extends AbstractRector
                     'Passport::routes()',
                     <<<'CODE_SAMPLE'
 // Laravel 11 Passport 12: Password grant disabled by default. Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations
-Passport::routes()
+Passport::routes();
 CODE_SAMPLE
                 ),
             ]

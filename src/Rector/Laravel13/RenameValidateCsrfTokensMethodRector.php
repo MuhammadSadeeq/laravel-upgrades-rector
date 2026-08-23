@@ -50,14 +50,14 @@ final class RenameValidateCsrfTokensMethodRector extends AbstractRector
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
-->withMiddleware(function (Middleware $middleware) {
+$app->withMiddleware(function (Middleware $middleware) {
     $middleware->validateCsrfTokens(except: ['webhook/*']);
-})
+});
 CODE_SAMPLE,
                     <<<'CODE_SAMPLE'
-->withMiddleware(function (Middleware $middleware) {
+$app->withMiddleware(function (Middleware $middleware) {
     $middleware->preventRequestForgery(except: ['webhook/*']);
-})
+});
 CODE_SAMPLE,
                 ),
             ],

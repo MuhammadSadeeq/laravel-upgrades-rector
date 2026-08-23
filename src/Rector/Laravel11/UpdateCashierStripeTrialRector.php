@@ -77,7 +77,7 @@ final class UpdateCashierStripeTrialRector extends AbstractRector
                     '$subscription->cancel()',
                     <<<'CODE_SAMPLE'
 // Cashier Stripe 15: cancel() now always ends subscription trials immediately
-$subscription->cancel()
+$subscription->cancel();
 CODE_SAMPLE
                 ),
             ]

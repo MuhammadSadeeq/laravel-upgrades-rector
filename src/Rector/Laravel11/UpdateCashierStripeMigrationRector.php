@@ -144,7 +144,7 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
                     "\$table->renameColumn('name', 'type')",
                     <<<'CODE_SAMPLE'
 // Cashier Stripe 15: Renamed "name" column to "type" in subscriptions table
-$table->renameColumn('name', 'type')
+$table->renameColumn('name', 'type');
 CODE_SAMPLE
                 ),
             ]

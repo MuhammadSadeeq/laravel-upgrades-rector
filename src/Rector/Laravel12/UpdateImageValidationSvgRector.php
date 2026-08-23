@@ -210,12 +210,12 @@ final class UpdateImageValidationSvgRector extends AbstractRector
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
-'photo' => 'required|image'
+$rules = ['photo' => 'required|image'];
 CODE_SAMPLE
                     ,
                     <<<'CODE_SAMPLE'
 // Laravel 12: the image validation rule no longer allows SVG files by default. Add image:allow_svg or File::image(allowSvg: true) if your application relied on SVG uploads.
-'photo' => 'required|image'
+$rules = ['photo' => 'required|image'];
 CODE_SAMPLE
                 ),
             ],

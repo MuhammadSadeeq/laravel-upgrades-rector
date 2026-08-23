@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>Automate your Laravel upgrades</strong> with 64 Rector rules covering Laravel 10 through 13.
+  <strong>Rector rules and a dependency planner for Laravel upgrades</strong> — Laravel 10 through 13.
 </p>
 
 ---
@@ -22,58 +22,100 @@
 composer require --dev muhammadsadeeq/laravel-upgrades-rector
 ```
 
-## Usage
-
-Preview changes:
-
-```bash
-vendor/bin/rector process --dry-run --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
-```
-
-Apply changes:
-
-```bash
-vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
-```
-
-Replace `laravel-13.php` with `laravel-12.php` or `laravel-11.php` for older upgrades.
-These config names and set constants refer to the target upgrade version, so `laravel-13.php` / `LaravelUpgradeSetList::LARAVEL_13` means “upgrade the project to Laravel 13.”
-The Laravel 11, Laravel 12, and Laravel 13 sets can also rewrite the nearest project `composer.json` when a supported dependency update applies.
-They do not update `composer.lock` or install new packages for you.
-The ready-to-use config files run only this package's Laravel upgrade rules; they do not enable Rector's generic PHP modernization/code-style sets. Generated files under `bootstrap/cache` are skipped.
+Requires PHP 8.2+ and Rector ^2.3.
 
 ## Recommended Upgrade Flow
 
+Order matters: the new vendor must be installed **before** Rector runs, so that
+type-dependent rules see the target framework's classes.
+
 ```bash
-# 1. Rewrite application code and supported config patterns
+# 1. Plan (writes nothing) — review the per-package decisions
+vendor/bin/laravel-upgrade deps 11 --dry-run
+
+# 2. Apply dependency changes to composer.json, then install them
+vendor/bin/laravel-upgrade deps 11
+composer update --with-all-dependencies
+
+# 3. Rewrite application code
 vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php
 
-# 2. Install the upgraded framework and package versions
-composer update
+# 4. Run a second Rector pass — it must change nothing (idempotency is tested)
+vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php && git diff --stat
 
-# 3. Run your test suite and application checks
-php artisan test
+# 5. Verify
+composer validate --strict && php artisan test
 ```
 
-After Rector and Composer finish, review any generated advisory comments and TODO stubs before considering the upgrade complete.
+`--dry-run` for `deps` prints the exact `composer require/remove` commands and
+the decision table; it never writes. `rector --dry-run` previews code changes;
+neither dry-run mode mutates any file.
+
+## The `deps` command
+
+`deps <target-major>` reads your `composer.json`, decides per direct dependency
+whether it already admits versions supporting the target major, must be bumped,
+or can be removed (`doctrine/dbal`, `spatie/once` on the path to Laravel 11 —
+only when no other locked package still requires them). Decisions come from a
+vendored compatibility matrix (`resources/compat/packages.json`) evaluated with
+composer/semver; unknown packages are flagged for manual review instead of
+guessed. After editing, it validates strictly and rehearses `composer update`
+as a dry run so solver conflicts surface before you commit.
 
 ## Rule Types
 
-- Auto-fix rules rewrite code or configuration when the upgrade can be applied safely
-- Advisory rules add comments when the package can identify a Laravel upgrade concern but cannot safely rewrite project-specific behavior
-- Contract stub rules add required interface methods, often with TODO comments where implementation is application-specific
+| Type | What it does | Examples |
+|------|--------------|----------|
+| Transform rules | Rewrite code when the upgrade can be applied safely | contract methods appended with signatures matching the real interfaces, spatial columns → `geometry()`, rate limiter minutes → seconds |
+| Advisory rules | Attach a deduped, marker-tagged comment where behaviour needs a human decision | `->change()` index modifiers, `Concurrency::run()` keyed results |
 
-Examples of advisory/manual-review areas include `change()` migrations, relationship methods named `casts()`, custom password rehashing behavior, and other behavior-sensitive upgrade-guide items.
+Contract stub rules are transform rules whose generated bodies carry explicit
+`TODO` comments wherever an implementation is application-specific. Every
+generated signature was verified against the real `laravel/framework` sources
+of the target version, and every fixture output is re-applied to itself in CI
+to prove idempotency.
 
 ## Supported Versions
 
-| Upgrade Path | Rules |
-|--------------|-------|
-| Laravel 12 &rarr; 13 | 20 rules |
-| Laravel 11 &rarr; 12 | 14 rules |
-| Laravel 10 &rarr; 11 | 31 rules |
+| Upgrade Path | Rules registered |
+|--------------|------------------|
+| Laravel 12 &rarr; 13 | 15 + CSRF class renames |
+| Laravel 11 &rarr; 12 | 6 |
+| Laravel 10 &rarr; 11 | 21 (+ gated Carbon 3 set) |
 
-Cumulative sets are available to upgrade across multiple versions at once.
+Carbon 3 rules ship in their own set, included by the Laravel 11/12 presets,
+and activate only when `nesbot/carbon` `^3` is actually installed.
+
+## Manual steps per version
+
+The tool cannot do these for you; check them before upgrading:
+
+**To Laravel 11**
+- SQLite ≥ 3.26 and curl ≥ 7.34 on the deploy environment.
+- Publish framework migrations when installed:
+  `php artisan vendor:publish --tag=sanctum-migrations` / `passport-migrations` /
+  `telescope-migrations` / `cashier-migrations` / `spark-migrations`.
+- Passport 11+: call `Passport::enablePasswordGrant()` if you use password grants;
+  `Passport::routes()` is gone.
+- Cashier 15: `ignoreMigrations()` removed; `newSubscriptionName()` → `newSubscriptionType()`;
+  `$subscription->name` → `$subscription->type`.
+- The application structure (slim skeleton) migration is optional and not automated.
+- Livewire 3 / Jetstream 5 / Inertia have their own upgrade guides.
+
+**To Laravel 12**
+- Bump `php` to `^8.2` if you have not already (the `deps` command does this).
+- Carbon: `create*()` now returns `null` instead of `false`; compare accordingly.
+- horizon/octane/pest-plugin-laravel majors are computed by `deps`.
+
+**To Laravel 13**
+- PHP ≥ 8.3 required.
+- `config/session.php`: `'serialization' => 'json'` is the new default — switching
+  invalidates every active session; migrate during a maintenance window.
+- User-defined global `array_first()`/`array_last()` helpers collide with the new
+  framework polyfills — rename yours or remove them.
+- Republish vendor views if you customized `resources/views/vendor/**`
+  (e.g. pagination `default.blade.php` → `bootstrap-3.blade.php`).
+- Update the global Laravel installer (`composer global update laravel/installer`).
 
 ## Custom Configuration
 
@@ -108,7 +150,9 @@ composer test
 composer analyse
 ```
 
-Current verification: 301 tests, 429 assertions, and PHPStan at max level with zero errors.
+Current verification: 294 tests / 528 assertions — every fixture additionally
+re-applied to itself to prove idempotency — and PHPStan at max level with zero
+errors.
 
 ## Contributing
 
