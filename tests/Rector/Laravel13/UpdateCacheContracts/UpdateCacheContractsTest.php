@@ -6,13 +6,13 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel13\UpdateCach
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
 
 /**
  * A class implementing both cache contracts must receive exactly ONE touch()
  * method: the second rule sees the method appended by the first and skips.
  */
-final class UpdateCacheContractsTest extends AbstractRectorTestCase
+final class UpdateCacheContractsTest extends AbstractUpgradeRectorTestCase
 {
     #[DataProvider('provideData')]
     public function test(string $filePath): void

@@ -6,9 +6,9 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel13\UpdateQueu
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
 
-final class UpdateQueueContractMethodsRectorTest extends AbstractRectorTestCase
+final class UpdateQueueContractMethodsRectorTest extends AbstractUpgradeRectorTestCase
 {
     #[DataProvider('provideData')]
     public function test(string $filePath): void

@@ -6,9 +6,9 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel13\UpdateHttp
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
 
-final class UpdateHttpClientThrowSignaturesRectorTest extends AbstractRectorTestCase
+final class UpdateHttpClientThrowSignaturesRectorTest extends AbstractUpgradeRectorTestCase
 {
     #[DataProvider('provideData')]
     public function test(string $filePath): void

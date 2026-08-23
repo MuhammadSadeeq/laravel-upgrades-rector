@@ -6,9 +6,9 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel12\UpdateRequ
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
 
-final class UpdateRequestMergingRectorTest extends AbstractRectorTestCase
+final class UpdateRequestMergingRectorTest extends AbstractUpgradeRectorTestCase
 {
     #[DataProvider('provideData')]
     public function test(string $filePath): void

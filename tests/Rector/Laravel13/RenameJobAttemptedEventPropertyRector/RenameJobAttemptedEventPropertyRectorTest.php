@@ -6,9 +6,9 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel13\RenameJobA
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
 
-final class RenameJobAttemptedEventPropertyRectorTest extends AbstractRectorTestCase
+final class RenameJobAttemptedEventPropertyRectorTest extends AbstractUpgradeRectorTestCase
 {
     #[DataProvider('provideData')]
     public function test(string $filePath): void

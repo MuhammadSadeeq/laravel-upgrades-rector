@@ -6,13 +6,13 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel13\CsrfMiddle
 
 use Iterator;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
 
 /**
  * Laravel 13 CSRF middleware + bootstrap/app.php renames, combining core
  * RenameClassRector (configured in the Laravel 13 set) with the method rule.
  */
-final class CsrfMiddlewareTest extends AbstractRectorTestCase
+final class CsrfMiddlewareTest extends AbstractUpgradeRectorTestCase
 {
     #[DataProvider('provideData')]
     public function test(string $filePath): void

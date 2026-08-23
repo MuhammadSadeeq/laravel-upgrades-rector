@@ -21,7 +21,7 @@ class ParameterizedCollection implements Enumerable
 
 use Illuminate\Support\Enumerable;
 
-// Laravel 11: Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.
+// @laravel-upgrade enumerable-dump Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.
 class ParameterizedCollection implements Enumerable
 {
     public function dump($format = 'array')
