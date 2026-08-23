@@ -117,8 +117,8 @@ final class UpdateCashierStripeRector extends AbstractRector
             'Update Cashier Stripe code for version 15.0 compatibility',
             [
                 new CodeSample(
-                    '$billable->hasPaymentMethod()',
-                    "\$billable->hasPaymentMethod('card')",
+                    '$billable->hasPaymentMethod();',
+                    "\$billable->hasPaymentMethod('card');",
                 ),
             ]
         );

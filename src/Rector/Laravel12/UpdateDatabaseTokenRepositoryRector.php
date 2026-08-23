@@ -72,8 +72,8 @@ final class UpdateDatabaseTokenRepositoryRector extends AbstractRector
             'Update DatabaseTokenRepository constructor to convert expires from minutes to seconds for Laravel 12',
             [
                 new CodeSample(
-                    'new DatabaseTokenRepository($connection, $hasher, $table, $key, 60)',
-                    'new DatabaseTokenRepository($connection, $hasher, $table, $key, 60 * 60)',
+                    'new DatabaseTokenRepository($connection, $hasher, $table, $key, 60);',
+                    'new DatabaseTokenRepository($connection, $hasher, $table, $key, 60 * 60);',
                 ),
             ],
         );

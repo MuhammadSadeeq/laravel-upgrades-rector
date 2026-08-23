@@ -54,13 +54,14 @@ final class UpdateEnumerableContractRector extends AbstractRector
 
         if ($dumpMethod->params !== []) {
             // Add warning comment instead of silently skipping
-            $this->commentInserter->addComment(
+            $added = $this->commentInserter->addComment(
                 $node,
                 self::COMMENT_MARKER,
                 'Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.'
             );
 
-            return $node;
+            // Returning the unchanged node makes applied-rule reporting lie.
+            return $added ? $node : null;
         }
 
         $variadicParam = new Param(
@@ -101,8 +102,22 @@ final class UpdateEnumerableContractRector extends AbstractRector
             'Update Enumerable contract dump() method to accept variadic arguments for Laravel 11',
             [
                 new CodeSample(
-                    'public function dump()',
-                    'public function dump(...$args)'
+                    <<<'CODE_SAMPLE'
+class ParameterizedCollection implements Enumerable
+{
+    public function dump($format = 'array')
+    {
+    }
+}
+CODE_SAMPLE,
+                    <<<'CODE_SAMPLE'
+class ParameterizedCollection implements Enumerable
+{
+    public function dump(...$args)
+    {
+    }
+}
+CODE_SAMPLE
                 ),
             ]
         );

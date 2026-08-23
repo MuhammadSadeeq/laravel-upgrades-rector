@@ -150,7 +150,7 @@ composer test
 composer analyse
 ```
 
-Current verification: 294 tests / 528 assertions — every fixture additionally
+Current verification: 297 tests / 531 assertions plus a sample-parse gate over every rule definition — every fixture additionally
 re-applied to itself to prove idempotency — and PHPStan at max level with zero
 errors.
 

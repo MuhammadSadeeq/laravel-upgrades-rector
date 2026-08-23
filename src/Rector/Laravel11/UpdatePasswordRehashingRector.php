@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
@@ -14,14 +13,19 @@ use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\PropertyProperty;
 use PhpParser\Node\Stmt\Return_;
-use Rector\NodeTypeResolver\Node\AttributeKey;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdatePasswordRehashingRector extends AbstractRector
 {
-    private const COMMENT_MARKER = 'Laravel 11: Auto password rehashing may require authPasswordName';
+    public function __construct(
+        private readonly CommentInserter $commentInserter,
+    ) {
+    }
+
+    private const COMMENT_MARKER = '@laravel-upgrade password-rehashing';
 
     public function getNodeTypes(): array
     {
@@ -59,15 +63,14 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             return $node;
         }
 
-        if ($this->hasPasswordRehashingComment($node)) {
-            return null;
-        }
+        $added = $this->commentInserter->addComment(
+            $node,
+            self::COMMENT_MARKER,
+            'This model overrides getAuthPassword(); if the password column is not "password", '
+            . 'set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php.'
+        );
 
-        $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. This model overrides getAuthPassword(); if the password column is not "password", set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php'),
-        ], $node->getComments()));
-
-        return $node;
+        return $added ? $node : null;
     }
 
     private function hasPasswordNameConfiguration(Class_ $class): bool
@@ -171,16 +174,6 @@ final class UpdatePasswordRehashingRector extends AbstractRector
         return null;
     }
 
-    private function hasPasswordRehashingComment(Class_ $class): bool
-    {
-        foreach ($class->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     public function getRuleDefinition(): RuleDefinition
     {

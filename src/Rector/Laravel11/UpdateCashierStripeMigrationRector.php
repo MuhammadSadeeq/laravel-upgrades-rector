@@ -141,7 +141,7 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
             'Add documentation for Cashier Stripe 15.0 database migration changes',
             [
                 new CodeSample(
-                    "\$table->renameColumn('name', 'type')",
+                    "\$table->renameColumn('name', 'type');",
                     <<<'CODE_SAMPLE'
 // Cashier Stripe 15: Renamed "name" column to "type" in subscriptions table
 $table->renameColumn('name', 'type');

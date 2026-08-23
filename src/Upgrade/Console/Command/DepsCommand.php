@@ -16,6 +16,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 /**
  * Computes and applies the dependency changes required to move a project to
@@ -90,6 +91,18 @@ HELP
             $style->error($exception->getMessage());
 
             return Command::FAILURE;
+        } catch (ProcessFailedException $exception) {
+            // A require/remove step failed mid-apply: the manifest may already
+            // be partially edited. Report the captured output instead of a raw
+            // stack trace so the user can fix and re-run.
+            $style->error(sprintf(
+                "A Composer command failed while applying decisions:\n%s\n\n"
+                . "The manifest may be partially edited — fix the cause and run `deps %d` again.\n",
+                $this->indent($exception->getMessage()),
+                $targetMajor
+            ));
+
+            return 3; // dependency resolution failure
         }
     }
 

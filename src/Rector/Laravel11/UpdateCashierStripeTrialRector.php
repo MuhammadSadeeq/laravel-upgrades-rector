@@ -74,7 +74,7 @@ final class UpdateCashierStripeTrialRector extends AbstractRector
             'Warn about Cashier Stripe 15.0 trial ending behavior when canceling subscriptions',
             [
                 new CodeSample(
-                    '$subscription->cancel()',
+                    '$subscription->cancel();',
                     <<<'CODE_SAMPLE'
 // Cashier Stripe 15: cancel() now always ends subscription trials immediately
 $subscription->cancel();

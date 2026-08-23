@@ -84,9 +84,9 @@ final class UpdateColumnModificationRector extends AbstractRector
             'Add documentation comments for column modification behavior changes in Laravel 11',
             [
                 new CodeSample(
-                    '$table->integer(\'votes\')->nullable()->change()',
+                    '$table->integer(\'votes\')->nullable()->change();',
                     '// Laravel 11: change() now requires all column modifiers to be explicitly re-specified. Review this migration.
-$table->integer(\'votes\')->nullable()->change()',
+$table->integer(\'votes\')->nullable()->change();',
                 ),
             ],
         );
