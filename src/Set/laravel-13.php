@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameJobAttemptedEventPropertyRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenamePreventRequestForgeryMiddlewareRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameQueueBusyEventPropertyRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameValidateCsrfTokensMethodRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateBusDispatcherContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheConfigurationRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheRepositoryContractRector;
@@ -22,9 +22,18 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateResponseFactoryC
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateRoutingDomainPrecedenceRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateSupportBehaviorChangesRector;
 use Rector\Config\RectorConfig;
+use Rector\Renaming\Rector\Name\RenameClassRector;
 
-return RectorConfig::configure()->withRules([
-    RenamePreventRequestForgeryMiddlewareRector::class,
+return RectorConfig::configure()
+    ->withImportNames()
+    ->withConfiguredRule(RenameClassRector::class, [
+        // Laravel 13 renamed the CSRF middleware; both legacy aliases are
+        // deprecated subclasses of the new class.
+        'Illuminate\Foundation\Http\Middleware\VerifyCsrfToken' => 'Illuminate\Foundation\Http\Middleware\PreventRequestForgery',
+        'Illuminate\Foundation\Http\Middleware\ValidateCsrfToken' => 'Illuminate\Foundation\Http\Middleware\PreventRequestForgery',
+    ])
+    ->withRules([
+    RenameValidateCsrfTokensMethodRector::class,
     UpdateCacheConfigurationRector::class,
     UpdateCacheRepositoryContractRector::class,
     UpdateCacheStoreContractRector::class,
