@@ -11,15 +11,15 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateSchemaMethodsRec
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withSets([__DIR__ . '/carbon-3.php'])
+    ->withSets([__DIR__.'/carbon-3.php'])
     ->withRules([
-    ReplaceHasVersion7UuidsRector::class,
-    UpdateConcurrencyResultMappingRector::class,
-    UpdateDatabaseSignatureChangesRector::class,
-    UpdateImageValidationSvgRector::class,
-    UpdateRequestMergingRector::class,
-    UpdateSchemaMethodsRector::class,
-]);
+        ReplaceHasVersion7UuidsRector::class,
+        UpdateConcurrencyResultMappingRector::class,
+        UpdateDatabaseSignatureChangesRector::class,
+        UpdateImageValidationSvgRector::class,
+        UpdateRequestMergingRector::class,
+        UpdateSchemaMethodsRector::class,
+    ]);
 
 /*
  * Deliberately NOT registered — dead or harmful advisory rules whose checks

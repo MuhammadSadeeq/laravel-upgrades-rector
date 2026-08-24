@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\Variable;
@@ -45,8 +46,7 @@ final class UpdateQueueContractMethodsRector extends AbstractRector
 
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
-    ) {
-    }
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -55,11 +55,11 @@ final class UpdateQueueContractMethodsRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Class_) {
+        if (! $node instanceof Class_) {
             return null;
         }
 
-        if (!$this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
+        if (! $this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
             return null;
         }
 
@@ -75,7 +75,7 @@ final class UpdateQueueContractMethodsRector extends AbstractRector
                 : new Node\Scalar\LNumber(0);
 
             $method = new ClassMethod($methodName, [
-                'flags' => Class_::MODIFIER_PUBLIC,
+                'flags' => Modifiers::PUBLIC,
                 'params' => [
                     new Param(new Variable('queue'), new ConstFetch(new Name('null'))),
                 ],
@@ -92,7 +92,7 @@ final class UpdateQueueContractMethodsRector extends AbstractRector
             $changed = true;
         }
 
-        if (!$changed) {
+        if (! $changed) {
             return null;
         }
 

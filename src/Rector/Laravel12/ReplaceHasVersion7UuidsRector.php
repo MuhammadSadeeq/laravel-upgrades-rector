@@ -53,6 +53,7 @@ final class ReplaceHasVersion7UuidsRector extends AbstractRector
         foreach ($node->uses as $use) {
             if ($use->name->toString() !== self::HAS_VERSION_7_UUIDS) {
                 $uses[] = $use;
+
                 continue;
             }
 
@@ -84,7 +85,7 @@ final class ReplaceHasVersion7UuidsRector extends AbstractRector
         $changed = false;
 
         foreach ($node->stmts as $stmt) {
-            if (!$stmt instanceof TraitUse) {
+            if (! $stmt instanceof TraitUse) {
                 continue;
             }
 
@@ -116,6 +117,7 @@ final class ReplaceHasVersion7UuidsRector extends AbstractRector
             foreach ($node->uses as $use) {
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
+
                     return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }

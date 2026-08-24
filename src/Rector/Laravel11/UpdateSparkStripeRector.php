@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -52,7 +51,7 @@ final class UpdateSparkStripeRector extends AbstractRector
         }
 
         $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . ' Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=spark-migrations'),
+            new Comment('// '.self::COMMENT_MARKER.' Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=spark-migrations'),
         ], $node->getComments()));
 
         return $node;

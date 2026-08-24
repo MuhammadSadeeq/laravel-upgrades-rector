@@ -11,17 +11,16 @@ declare(strict_types=1);
  * the type stubs are gone on purpose (plan P1-01). Rule suites that do not
  * match the active environment skip themselves via AbstractUpgradeRectorTestCase.
  */
-
 $laravelEnv = getenv('LARAVEL_ENV');
 
 if (is_string($laravelEnv) && in_array($laravelEnv, ['11', '12', '13'], true)) {
-    $envAutoloader = __DIR__ . '/env/laravel-' . $laravelEnv . '/vendor/autoload.php';
+    $envAutoloader = __DIR__.'/env/laravel-'.$laravelEnv.'/vendor/autoload.php';
 
     if (! is_file($envAutoloader)) {
         fwrite(STDERR, sprintf(
             "LARAVEL_ENV=%s is set but %s is missing.\n"
-            . "Run `composer install` inside tests/env/laravel-%s first "
-            . "(or drop LARAVEL_ENV to run only environment-independent suites).\n",
+            .'Run `composer install` inside tests/env/laravel-%s first '
+            ."(or drop LARAVEL_ENV to run only environment-independent suites).\n",
             $laravelEnv,
             $envAutoloader,
             $laravelEnv
@@ -33,4 +32,4 @@ if (is_string($laravelEnv) && in_array($laravelEnv, ['11', '12', '13'], true)) {
     require $envAutoloader;
 }
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';

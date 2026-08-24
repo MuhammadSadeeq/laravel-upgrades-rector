@@ -60,7 +60,7 @@ final class UpdateCashierStripeTrialRector extends AbstractRector
         if (! $this->commentInserter->addComment(
             $node,
             self::COMMENT_MARKER,
-            $methodName . '() now always ends subscription trials immediately'
+            $methodName.'() now always ends subscription trials immediately'
         )) {
             return null;
         }

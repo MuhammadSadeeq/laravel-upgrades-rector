@@ -104,7 +104,7 @@ final class UpdateDatabaseSignatureChangesRector extends AbstractRector
         }
 
         if (in_array($methodName, ['getTablePrefix', 'setTablePrefix'], true) && $this->isLikelyGrammar($methodCall->var)) {
-            return 'Grammar::' . $methodName . '() is deprecated; retrieve the table prefix from the Connection instead.';
+            return 'Grammar::'.$methodName.'() is deprecated; retrieve the table prefix from the Connection instead.';
         }
 
         return null;

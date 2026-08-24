@@ -15,7 +15,7 @@ final class TodoNopFactory
 {
     public static function create(string $message): Nop
     {
-        $nop = new Nop();
+        $nop = new Nop;
         $nop->setAttribute('comments', [new Comment(sprintf('// TODO: %s', $message))]);
 
         return $nop;

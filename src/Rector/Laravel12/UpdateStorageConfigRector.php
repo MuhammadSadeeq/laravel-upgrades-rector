@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
+use PhpParser\Comment\Doc;
 use PhpParser\Node;
 use PhpParser\Node\ArrayItem;
-use PhpParser\Comment\Doc;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Return_;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -44,7 +43,7 @@ final class UpdateStorageConfigRector extends AbstractRector
             return null;
         }
 
-        $comment = new Doc('/** ' . self::COMMENT_MARKER . ', Laravel now defaults it to storage/app/private. Define disks.local.root explicitly to preserve storage/app. */');
+        $comment = new Doc('/** '.self::COMMENT_MARKER.', Laravel now defaults it to storage/app/private. Define disks.local.root explicitly to preserve storage/app. */');
         $disksItem->setAttribute('comments', array_merge([$comment], $disksItem->getComments()));
 
         return $node;

@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\PropertyItem;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
-use PhpParser\Node\Stmt\PropertyProperty;
 use PhpParser\Node\Stmt\Return_;
-use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
+use PHPStan\Type\ObjectType;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -22,8 +24,7 @@ final class UpdatePasswordRehashingRector extends AbstractRector
 {
     public function __construct(
         private readonly CommentInserter $commentInserter,
-    ) {
-    }
+    ) {}
 
     private const COMMENT_MARKER = '@laravel-upgrade password-rehashing';
 
@@ -54,10 +55,8 @@ final class UpdatePasswordRehashingRector extends AbstractRector
 
         if ($passwordColumn !== null) {
             array_unshift($node->stmts, new Property(
-                Class_::MODIFIER_PROTECTED,
-                [
-                    new PropertyProperty('authPasswordName', new String_($passwordColumn)),
-                ],
+                Modifiers::PROTECTED,
+                [new PropertyItem('authPasswordName', new String_($passwordColumn))],
             ));
 
             return $node;
@@ -67,7 +66,7 @@ final class UpdatePasswordRehashingRector extends AbstractRector
             $node,
             self::COMMENT_MARKER,
             'This model overrides getAuthPassword(); if the password column is not "password", '
-            . 'set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php.'
+            .'set protected $authPasswordName. To disable: rehash_on_login => false in config/hashing.php.'
         );
 
         return $added ? $node : null;
@@ -80,12 +79,12 @@ final class UpdatePasswordRehashingRector extends AbstractRector
                 continue;
             }
 
-            foreach ($stmt->props as $prop) {
-                if (! $prop instanceof PropertyProperty) {
+            foreach ($stmt->props as $propItem) {
+                if (! $propItem instanceof PropertyItem) {
                     continue;
                 }
 
-                if ($prop->name->name === 'authPasswordName') {
+                if ($propItem->name->name === 'authPasswordName') {
                     return true;
                 }
             }
@@ -121,7 +120,7 @@ final class UpdatePasswordRehashingRector extends AbstractRector
 
     private function isAuthenticatableClass(Class_ $class): bool
     {
-        if ($this->isObjectType($class, new \PHPStan\Type\ObjectType('Illuminate\\Contracts\\Auth\\Authenticatable'))) {
+        if ($this->isObjectType($class, new ObjectType('Illuminate\\Contracts\\Auth\\Authenticatable'))) {
             return true;
         }
 
@@ -173,7 +172,6 @@ final class UpdatePasswordRehashingRector extends AbstractRector
 
         return null;
     }
-
 
     public function getRuleDefinition(): RuleDefinition
     {

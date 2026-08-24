@@ -10,7 +10,6 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\NodeTraverser;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -39,7 +38,7 @@ final class UpdateNotificationBehaviorRector extends AbstractRector
         }
 
         $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Verify this notification should be deleted instead of failing when related models are missing.'),
+            new Comment('// '.self::COMMENT_MARKER.'. Verify this notification should be deleted instead of failing when related models are missing.'),
         ], $node->getComments()));
 
         return $node;
@@ -127,6 +126,7 @@ final class UpdateNotificationBehaviorRector extends AbstractRector
             foreach ($node->uses as $use) {
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
+
                     return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }

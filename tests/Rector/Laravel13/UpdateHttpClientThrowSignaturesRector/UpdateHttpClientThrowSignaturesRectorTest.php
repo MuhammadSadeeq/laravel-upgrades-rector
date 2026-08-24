@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel13\UpdateHttpClientThrowSignaturesRector;
 
 use Iterator;
-use PHPUnit\Framework\Attributes\DataProvider;
 use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class UpdateHttpClientThrowSignaturesRectorTest extends AbstractUpgradeRectorTestCase
 {
@@ -18,11 +18,11 @@ final class UpdateHttpClientThrowSignaturesRectorTest extends AbstractUpgradeRec
 
     public static function provideData(): Iterator
     {
-        return self::yieldFilesFromDirectory(__DIR__ . '/Fixture');
+        return self::yieldFilesFromDirectory(__DIR__.'/Fixture');
     }
 
     public function provideConfigFilePath(): string
     {
-        return __DIR__ . '/config/configured_rule.php';
+        return __DIR__.'/config/configured_rule.php';
     }
 }

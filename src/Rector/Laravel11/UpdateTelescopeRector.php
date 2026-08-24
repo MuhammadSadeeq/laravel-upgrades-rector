@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -50,8 +49,8 @@ final class UpdateTelescopeRector extends AbstractRector
         }
 
         $newComment = new Comment(
-            '// ' . self::COMMENT_MARKER . ' Migrations no longer auto-loaded. '
-            . 'Run: php artisan vendor:publish --tag=telescope-migrations'
+            '// '.self::COMMENT_MARKER.' Migrations no longer auto-loaded. '
+            .'Run: php artisan vendor:publish --tag=telescope-migrations'
         );
         $node->setAttribute('comments', array_merge([$newComment], $existingComments));
 

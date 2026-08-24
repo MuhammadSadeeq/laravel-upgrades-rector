@@ -17,11 +17,10 @@ final class ComposerCli
     public function __construct(
         private readonly string $workingDirectory,
         private readonly ?string $composerBinary = null,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, string> $constraints package => constraint, applied as one command per pair
+     * @param  array<string, string>  $constraints  package => constraint, applied as one command per pair
      * @return list<string>
      */
     public function requirePackages(array $constraints, bool $dev): array
@@ -44,7 +43,7 @@ final class ComposerCli
     }
 
     /**
-     * @param list<string> $packages
+     * @param  list<string>  $packages
      * @return list<string>
      */
     public function removePackages(array $packages, bool $dev): array
@@ -81,7 +80,7 @@ final class ComposerCli
     }
 
     /**
-     * @param list<string> $arguments
+     * @param  list<string>  $arguments
      */
     private function run(array $arguments): void
     {
@@ -94,7 +93,7 @@ final class ComposerCli
     }
 
     /**
-     * @param list<string> $arguments
+     * @param  list<string>  $arguments
      */
     private function capture(array $arguments): ProcessResult
     {
@@ -110,7 +109,7 @@ final class ComposerCli
         return new ProcessResult(
             $displayArguments,
             $process->getExitCode() ?? 0,
-            $process->getOutput() . $process->getErrorOutput()
+            $process->getOutput().$process->getErrorOutput()
         );
     }
 

@@ -24,7 +24,7 @@ final class RemoveSpatieOnceRector extends AbstractRector
 
     public function __construct()
     {
-        $this->importUsageChecker = new ImportUsageChecker();
+        $this->importUsageChecker = new ImportUsageChecker;
     }
 
     public function getNodeTypes(): array
@@ -67,9 +67,8 @@ final class RemoveSpatieOnceRector extends AbstractRector
                 continue;
             }
 
-            ++$removedCount;
+            $removedCount++;
         }
-
 
         if ($removedCount === 0) {
             return null;

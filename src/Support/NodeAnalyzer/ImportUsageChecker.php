@@ -6,7 +6,9 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer;
 
 use PhpParser\Node;
 use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\GroupUse;
 use PhpParser\Node\Stmt\Use_;
+use Rector\PhpParser\Node\FileNode;
 
 /**
  * Answers "is this imported class actually referenced anywhere in the file?"
@@ -20,12 +22,12 @@ use PhpParser\Node\Stmt\Use_;
 final class ImportUsageChecker
 {
     /**
-     * @param array<Node\Stmt> $fileStmts
+     * @param  array<Node\Stmt>  $fileStmts
      */
     public function isUsed(array $fileStmts, string $rawFileContents, string $fqcn, string $localAlias): bool
     {
         // Rector's file container wraps the statement list.
-        if ($fileStmts !== [] && $fileStmts[0] instanceof \Rector\PhpParser\Node\FileNode) {
+        if ($fileStmts !== [] && $fileStmts[0] instanceof FileNode) {
             $fileStmts = $fileStmts[0]->stmts;
         }
 
@@ -47,8 +49,8 @@ final class ImportUsageChecker
     /**
      * Collects every non-import Name string in the file.
      *
-     * @param array<Node\Stmt> $stmts
-     * @param list<string> $out
+     * @param  array<Node\Stmt>  $stmts
+     * @param  list<string>  $out
      */
     private function collectNames(array $stmts, array &$out): void
     {
@@ -74,12 +76,12 @@ final class ImportUsageChecker
     }
 
     /**
-     * @param list<string> $out
+     * @param  list<string>  $out
      */
     private function collectFromNode(Node $node, array &$out): void
     {
         // Import statements are never usages, wherever they appear.
-        if ($node instanceof Use_ || $node instanceof \PhpParser\Node\Stmt\GroupUse) {
+        if ($node instanceof Use_ || $node instanceof GroupUse) {
             return;
         }
 
@@ -127,7 +129,7 @@ final class ImportUsageChecker
         // Word-boundary, case-sensitive match on the short name catches
         // docblocks (@var Cache ...) without treating every once() helper
         // call as a reference to Spatie\Once.
-        $pattern = '/\b' . preg_quote($shortName, '/') . '\b/';
+        $pattern = '/\b'.preg_quote($shortName, '/').'\b/';
 
         return preg_match($pattern, $contentsWithoutImports) === 1;
     }

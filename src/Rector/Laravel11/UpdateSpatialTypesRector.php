@@ -52,7 +52,7 @@ final class UpdateSpatialTypesRector extends AbstractRector
 
     public function __construct()
     {
-        $this->blueprintReceiverResolver = new BlueprintReceiverResolver();
+        $this->blueprintReceiverResolver = new BlueprintReceiverResolver;
     }
 
     public function getNodeTypes(): array

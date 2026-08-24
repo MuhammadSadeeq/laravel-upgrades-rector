@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Rector\Laravel13\UpdateCacheContracts;
 
 use Iterator;
-use PHPUnit\Framework\Attributes\DataProvider;
 use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\AbstractUpgradeRectorTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * A class implementing both cache contracts must receive exactly ONE touch()
@@ -22,11 +22,11 @@ final class UpdateCacheContractsTest extends AbstractUpgradeRectorTestCase
 
     public static function provideData(): Iterator
     {
-        return self::yieldFilesFromDirectory(__DIR__ . '/Fixture');
+        return self::yieldFilesFromDirectory(__DIR__.'/Fixture');
     }
 
     public function provideConfigFilePath(): string
     {
-        return __DIR__ . '/config/configured_rule.php';
+        return __DIR__.'/config/configured_rule.php';
     }
 }

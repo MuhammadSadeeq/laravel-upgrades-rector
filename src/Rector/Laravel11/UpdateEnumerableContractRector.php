@@ -24,8 +24,7 @@ final class UpdateEnumerableContractRector extends AbstractRector
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
         private readonly CommentInserter $commentInserter,
-    ) {
-    }
+    ) {}
 
     public function getNodeTypes(): array
     {

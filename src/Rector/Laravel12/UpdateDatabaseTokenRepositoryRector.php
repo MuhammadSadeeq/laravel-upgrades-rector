@@ -23,17 +23,17 @@ final class UpdateDatabaseTokenRepositoryRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof New_) {
+        if (! $node instanceof New_) {
             return null;
         }
 
-        if (!$node->class instanceof Name) {
+        if (! $node->class instanceof Name) {
             return null;
         }
 
         if (
-            !$this->isName($node->class, 'DatabaseTokenRepository') &&
-            !$this->isName($node->class, 'Illuminate\Auth\Passwords\DatabaseTokenRepository')
+            ! $this->isName($node->class, 'DatabaseTokenRepository') &&
+            ! $this->isName($node->class, 'Illuminate\Auth\Passwords\DatabaseTokenRepository')
         ) {
             return null;
         }
@@ -44,7 +44,7 @@ final class UpdateDatabaseTokenRepositoryRector extends AbstractRector
 
         $expiresArg = $node->args[4];
 
-        if (!$expiresArg instanceof Arg) {
+        if (! $expiresArg instanceof Arg) {
             return null;
         }
 
@@ -52,7 +52,7 @@ final class UpdateDatabaseTokenRepositoryRector extends AbstractRector
             return null;
         }
 
-        if (!$expiresArg->value instanceof LNumber) {
+        if (! $expiresArg->value instanceof LNumber) {
             return null;
         }
 

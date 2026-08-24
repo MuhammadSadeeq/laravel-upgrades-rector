@@ -6,11 +6,12 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
+use PhpParser\Modifiers;
 use PhpParser\Node;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Expr\Variable;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -28,8 +29,7 @@ final class UpdateCacheStoreContractRector extends AbstractRector
 
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
-    ) {
-    }
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -38,11 +38,11 @@ final class UpdateCacheStoreContractRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Class_) {
+        if (! $node instanceof Class_) {
             return null;
         }
 
-        if (!$this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
+        if (! $this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
             return null;
         }
 
@@ -51,7 +51,7 @@ final class UpdateCacheStoreContractRector extends AbstractRector
         }
 
         $method = new ClassMethod(self::METHOD_NAME, [
-            'flags' => Class_::MODIFIER_PUBLIC,
+            'flags' => Modifiers::PUBLIC,
             'params' => [
                 new Param(new Variable('key')),
                 new Param(new Variable('seconds')),

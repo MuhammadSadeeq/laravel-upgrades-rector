@@ -2,16 +2,18 @@
 
 declare(strict_types=1);
 
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveDoctrineDBALRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveSpatieOnceRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticatableContractRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateBatchRepositoryInterfaceRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeTrialRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateColumnModificationRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateDatabaseConnectionInterfaceRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEloquentCastsMethodRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEmailVerificationSetupRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEnumerableContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEloquentCastsMethodRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateFloatingPointTypesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateMailerContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdatePasswordRehashingRector;
@@ -21,12 +23,10 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSanctumConfigRec
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSchemaGetColumnTypeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSpatialTypesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateUserProviderContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveDoctrineDBALRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveSpatieOnceRector;
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withSets([__DIR__ . '/carbon-3.php'])
+    ->withSets([__DIR__.'/carbon-3.php'])
     ->withRules([
         // High Impact Changes
         UpdateFloatingPointTypesRector::class,

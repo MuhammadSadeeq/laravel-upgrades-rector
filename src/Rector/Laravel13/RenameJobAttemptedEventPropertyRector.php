@@ -21,15 +21,15 @@ final class RenameJobAttemptedEventPropertyRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof PropertyFetch) {
+        if (! $node instanceof PropertyFetch) {
             return null;
         }
 
-        if (!$this->isName($node->name, 'exceptionOccurred')) {
+        if (! $this->isName($node->name, 'exceptionOccurred')) {
             return null;
         }
 
-        if (!$this->isObjectType($node->var, new ObjectType('Illuminate\Queue\Events\JobAttempted'))) {
+        if (! $this->isObjectType($node->var, new ObjectType('Illuminate\Queue\Events\JobAttempted'))) {
             return null;
         }
 

@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Support;
 
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Symplify\EasyTesting\DataProvider\StaticFixtureFinder;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 /**
  * Base test case for upgrade rules. Adds a second-pass idempotency gate to
@@ -107,8 +105,8 @@ abstract class AbstractUpgradeRectorTestCase extends AbstractRectorTestCase
         $expected = explode('-----', $contents)[1];
         // The ".inc" suffix makes Rector derive a distinct input-file path.
         // Content is trimmed so no inline HTML precedes the open tag.
-        $tempPath = sys_get_temp_dir() . '/idempotency-' . md5($fixtureFilePath) . '.php.inc';
-        file_put_contents($tempPath, ltrim(rtrim($expected) . "\n"));
+        $tempPath = sys_get_temp_dir().'/idempotency-'.md5($fixtureFilePath).'.php.inc';
+        file_put_contents($tempPath, ltrim(rtrim($expected)."\n"));
 
         return $tempPath;
     }
@@ -135,7 +133,7 @@ abstract class AbstractUpgradeRectorTestCase extends AbstractRectorTestCase
         $expected = null;
 
         foreach (self::ENV_BY_NAMESPACE_SEGMENT as $segment => $env) {
-            if (str_contains($fixtureFilePath, '/Rector/' . $segment . '/')) {
+            if (str_contains($fixtureFilePath, '/Rector/'.$segment.'/')) {
                 $expected = $env;
 
                 break;

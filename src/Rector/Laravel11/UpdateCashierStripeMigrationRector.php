@@ -12,7 +12,6 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
 use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -88,7 +87,7 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
         }
 
         $newComment = new Comment(
-            '// ' . self::COMMENT_MARKER . ' Renamed "name" column to "type" in subscriptions table'
+            '// '.self::COMMENT_MARKER.' Renamed "name" column to "type" in subscriptions table'
         );
         $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
 
@@ -128,7 +127,7 @@ final class UpdateCashierStripeMigrationRector extends AbstractRector
         }
 
         $newComment = new Comment(
-            '// ' . self::COMMENT_MARKER . ' Unique constraint replaced with regular index on subscription_items'
+            '// '.self::COMMENT_MARKER.' Unique constraint replaced with regular index on subscription_items'
         );
         $stmt->setAttribute('comments', array_merge([$newComment], $existingComments));
 

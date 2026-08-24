@@ -26,7 +26,7 @@ final class CarbonSetGatingTest extends TestCase
         $this->repoRoot = dirname(__DIR__, 3);
     }
 
-    public function testRulesApplyOnlyWhenCarbonThreeIsInstalled(): void
+    public function test_rules_apply_only_when_carbon_three_is_installed(): void
     {
         $fixture = <<<'PHP'
 <?php
@@ -62,18 +62,18 @@ PHP;
      */
     private function runInSyntheticProject(string $fixtureContents, ?string $carbonVersion): string
     {
-        $projectDir = sys_get_temp_dir() . '/carbon-gate-' . uniqid('', true);
-        mkdir($projectDir . '/vendor/composer', 0777, true);
+        $projectDir = sys_get_temp_dir().'/carbon-gate-'.uniqid('', true);
+        mkdir($projectDir.'/vendor/composer', 0777, true);
 
         if ($carbonVersion !== null) {
-            file_put_contents($projectDir . '/vendor/composer/installed.json', (string) json_encode([
+            file_put_contents($projectDir.'/vendor/composer/installed.json', (string) json_encode([
                 'packages' => [
-                    ['name' => 'nesbot/carbon', 'version' => 'v' . $carbonVersion, 'version_normalized' => $carbonVersion],
+                    ['name' => 'nesbot/carbon', 'version' => 'v'.$carbonVersion, 'version_normalized' => $carbonVersion],
                 ],
             ]));
         }
 
-        $fixturePath = $projectDir . '/fixture.php';
+        $fixturePath = $projectDir.'/fixture.php';
         file_put_contents($fixturePath, $fixtureContents);
 
         $command = sprintf(
@@ -90,9 +90,9 @@ PHP;
 
         // clean up
         @unlink($fixturePath);
-        @unlink($projectDir . '/vendor/composer/installed.json');
-        @rmdir($projectDir . '/vendor/composer');
-        @rmdir($projectDir . '/vendor');
+        @unlink($projectDir.'/vendor/composer/installed.json');
+        @rmdir($projectDir.'/vendor/composer');
+        @rmdir($projectDir.'/vendor');
         @rmdir($projectDir);
 
         self::assertSame(0, $exitCode, 'Rector must exit cleanly.');

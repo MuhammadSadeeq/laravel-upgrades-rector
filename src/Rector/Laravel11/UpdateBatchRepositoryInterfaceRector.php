@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt\Class_;
@@ -22,8 +23,7 @@ final class UpdateBatchRepositoryInterfaceRector extends AbstractRector
 
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
-    ) {
-    }
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -32,11 +32,11 @@ final class UpdateBatchRepositoryInterfaceRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Class_) {
+        if (! $node instanceof Class_) {
             return null;
         }
 
-        if (!$this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
+        if (! $this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
             return null;
         }
 
@@ -45,7 +45,7 @@ final class UpdateBatchRepositoryInterfaceRector extends AbstractRector
         }
 
         $method = new ClassMethod(self::METHOD_NAME, [
-            'flags' => Class_::MODIFIER_PUBLIC,
+            'flags' => Modifiers::PUBLIC,
             // rollBack() is declared with no return type in the contract;
             // adding ": void" is covariant-legal.
             'returnType' => new Identifier('void'),

@@ -29,22 +29,22 @@ return RectorConfig::configure()
         'Illuminate\Foundation\Http\Middleware\ValidateCsrfToken' => 'Illuminate\Foundation\Http\Middleware\PreventRequestForgery',
     ])
     ->withRules([
-    RenameValidateCsrfTokensMethodRector::class,
-    UpdateCacheRepositoryContractRector::class,
-    UpdateCacheStoreContractRector::class,
-    UpdateBusDispatcherContractRector::class,
-    UpdateResponseFactoryContractRector::class,
-    UpdateMustVerifyEmailContractRector::class,
-    UpdateQueueContractMethodsRector::class,
-    UpdateContainerCallNullableDefaultsRector::class,
-    UpdateDatabaseQueryBehaviorRector::class,
-    UpdateEloquentBehaviorChangesRector::class,
-    RenameJobAttemptedEventPropertyRector::class,
-    RenameQueueBusyEventPropertyRector::class,
-    UpdatePaginationViewNamesRector::class,
-    UpdatePasswordResetSubjectRector::class,
-    UpdateHttpClientThrowSignaturesRector::class,
-]);
+        RenameValidateCsrfTokensMethodRector::class,
+        UpdateCacheRepositoryContractRector::class,
+        UpdateCacheStoreContractRector::class,
+        UpdateBusDispatcherContractRector::class,
+        UpdateResponseFactoryContractRector::class,
+        UpdateMustVerifyEmailContractRector::class,
+        UpdateQueueContractMethodsRector::class,
+        UpdateContainerCallNullableDefaultsRector::class,
+        UpdateDatabaseQueryBehaviorRector::class,
+        UpdateEloquentBehaviorChangesRector::class,
+        RenameJobAttemptedEventPropertyRector::class,
+        RenameQueueBusyEventPropertyRector::class,
+        UpdatePaginationViewNamesRector::class,
+        UpdatePasswordResetSubjectRector::class,
+        UpdateHttpClientThrowSignaturesRector::class,
+    ]);
 
 /*
  * Deliberately NOT registered — dead or harmful advisory rules whose checks

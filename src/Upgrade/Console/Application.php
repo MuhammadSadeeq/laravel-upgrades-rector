@@ -17,6 +17,6 @@ final class Application extends SymfonyApplication
     {
         parent::__construct(self::NAME, self::VERSION);
 
-        $this->add(new DepsCommand());
+        $this->add(new DepsCommand);
     }
 }

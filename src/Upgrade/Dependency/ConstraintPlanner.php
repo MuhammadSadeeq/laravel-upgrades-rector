@@ -29,12 +29,11 @@ final class ConstraintPlanner
     public function __construct(
         private readonly CompatibilityMatrix $matrix,
         private readonly string $removalsJsonPath,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $manifest decoded composer.json
-     * @param array<string, array<string, mixed>> $lockedPackages decoded composer.lock entries keyed by name
+     * @param  array<string, mixed>  $manifest  decoded composer.json
+     * @param  array<string, array<string, mixed>>  $lockedPackages  decoded composer.lock entries keyed by name
      * @return list<DependencyDecision>
      */
     public function planAll(int $targetMajor, array $manifest, array $lockedPackages): array
@@ -54,8 +53,8 @@ final class ConstraintPlanner
     }
 
     /**
-     * @param array<string, mixed> $manifest
-     * @param array<string, true> $skipPackages
+     * @param  array<string, mixed>  $manifest
+     * @param  array<string, true>  $skipPackages
      * @return list<DependencyDecision>
      */
     public function plan(int $targetMajor, array $manifest, array $skipPackages = []): array
@@ -127,7 +126,7 @@ final class ConstraintPlanner
             $package,
             $section,
             $currentConstraint,
-            '^' . $minimum,
+            '^'.$minimum,
             DependencyDecision::ACTION_BUMP,
             sprintf('requires %s for Laravel %d', $minimum, $targetMajor)
         );
@@ -136,8 +135,8 @@ final class ConstraintPlanner
     /**
      * Removals are only safe when no other locked package requires the package.
      *
-     * @param array<string, mixed> $manifest
-     * @param array<string, array<string, mixed>> $lockedPackages
+     * @param  array<string, mixed>  $manifest
+     * @param  array<string, array<string, mixed>>  $lockedPackages
      * @return list<DependencyDecision>
      */
     public function planRemovals(int $targetMajor, array $manifest, array $lockedPackages): array
@@ -161,7 +160,7 @@ final class ConstraintPlanner
                     $this->currentConstraint($manifest, $package),
                     null,
                     DependencyDecision::ACTION_KEEP,
-                    'kept — still required by ' . implode(', ', $requiredBy)
+                    'kept — still required by '.implode(', ', $requiredBy)
                 );
 
                 continue;
@@ -173,7 +172,7 @@ final class ConstraintPlanner
                 $this->currentConstraint($manifest, $package),
                 null,
                 DependencyDecision::ACTION_REMOVE,
-                'no longer needed for Laravel ' . $targetMajor . ' and unused by other packages'
+                'no longer needed for Laravel '.$targetMajor.' and unused by other packages'
             );
         }
 
@@ -182,13 +181,13 @@ final class ConstraintPlanner
 
     private function isCompatible(string $package, string $minimum, string $currentConstraint): bool
     {
-        $parser = new VersionParser();
+        $parser = new VersionParser;
 
         try {
             $parsed = $parser->parseConstraints($currentConstraint);
             // Both sides must go through VersionParser so that dev-precision
             // bounds are normalized consistently.
-            $floor = $parser->parseConstraints('>=' . $minimum);
+            $floor = $parser->parseConstraints('>='.$minimum);
         } catch (\UnexpectedValueException) {
             return false;
         }
@@ -222,7 +221,7 @@ final class ConstraintPlanner
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      */
     private function directSection(array $manifest, string $package): ?string
     {
@@ -238,7 +237,7 @@ final class ConstraintPlanner
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      */
     private function currentConstraint(array $manifest, string $package): ?string
     {
@@ -257,7 +256,7 @@ final class ConstraintPlanner
      * Locked packages (excluding the package itself) whose require section
      * mentions the given package.
      *
-     * @param array<string, array<string, mixed>> $lockedPackages
+     * @param  array<string, array<string, mixed>>  $lockedPackages
      * @return list<string>
      */
     private function lockedRequirers(string $package, array $lockedPackages): array

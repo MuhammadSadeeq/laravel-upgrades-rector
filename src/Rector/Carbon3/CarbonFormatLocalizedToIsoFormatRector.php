@@ -139,7 +139,7 @@ CODE_SAMPLE,
         $literalRun = '';
         $length = strlen($format);
 
-        for ($index = 0; $index < $length; ++$index) {
+        for ($index = 0; $index < $length; $index++) {
             $char = $format[$index];
 
             if ($char !== '%') {
@@ -159,11 +159,11 @@ CODE_SAMPLE,
             [$tokenLength, $replacement] = $token;
             $index += $tokenLength - 1;
 
-            $result .= $this->flushLiteralRun($literalRun) . $replacement;
+            $result .= $this->flushLiteralRun($literalRun).$replacement;
             $literalRun = '';
         }
 
-        return $result . $this->flushLiteralRun($literalRun);
+        return $result.$this->flushLiteralRun($literalRun);
     }
 
     /**
@@ -195,6 +195,6 @@ CODE_SAMPLE,
 
         $escaped = str_replace(['\\', '[', ']'], ['\\\\', '\\[', '\\]'], $run);
 
-        return '[' . $escaped . ']';
+        return '['.$escaped.']';
     }
 }

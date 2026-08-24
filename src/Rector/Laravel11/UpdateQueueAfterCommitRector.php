@@ -10,7 +10,6 @@ use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Scalar\String_;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -52,7 +51,7 @@ final class UpdateQueueAfterCommitRector extends AbstractRector
         }
 
         $afterCommitItem->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Review any sync jobs dispatched inside database transactions.'),
+            new Comment('// '.self::COMMENT_MARKER.'. Review any sync jobs dispatched inside database transactions.'),
         ], $afterCommitItem->getComments()));
 
         return $node;

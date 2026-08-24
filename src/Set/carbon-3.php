@@ -20,7 +20,6 @@ use Rector\Config\RectorConfig;
  * resolved (no vendor/composer/installed.json), no rules register — a run
  * against an unknown vendor state must not guess.
  */
-
 $rules = [
     CarbonDiffInToSignedFloatRector::class,
     CarbonRemovedMethodsRector::class,
@@ -34,7 +33,7 @@ $builder = RectorConfig::configure();
 try {
     $installedPackageResolver = new InstalledPackageResolver((string) getcwd());
     $carbonVersion = $installedPackageResolver->resolvePackageVersion('nesbot/carbon');
-} catch (\Throwable) {
+} catch (Throwable) {
     $carbonVersion = null;
 }
 

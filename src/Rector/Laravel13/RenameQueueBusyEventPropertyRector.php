@@ -21,15 +21,15 @@ final class RenameQueueBusyEventPropertyRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof PropertyFetch) {
+        if (! $node instanceof PropertyFetch) {
             return null;
         }
 
-        if (!$this->isName($node->name, 'connection')) {
+        if (! $this->isName($node->name, 'connection')) {
             return null;
         }
 
-        if (!$this->isObjectType($node->var, new ObjectType('Illuminate\Queue\Events\QueueBusy'))) {
+        if (! $this->isObjectType($node->var, new ObjectType('Illuminate\Queue\Events\QueueBusy'))) {
             return null;
         }
 

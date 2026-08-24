@@ -6,8 +6,8 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
-use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Function_;
 use PHPStan\Type\ObjectType;
 use Rector\Rector\AbstractRector;

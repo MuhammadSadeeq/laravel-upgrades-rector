@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -58,7 +57,7 @@ final class UpdateRoutingDomainPrecedenceRector extends AbstractRector
         }
 
         $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . ' during matching. Review route behavior if this file mixes both route types.'),
+            new Comment('// '.self::COMMENT_MARKER.' during matching. Review route behavior if this file mixes both route types.'),
         ], $node->getComments()));
 
         return $node;

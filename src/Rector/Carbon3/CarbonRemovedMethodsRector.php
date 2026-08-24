@@ -165,7 +165,7 @@ CODE_SAMPLE,
             $unit = substr($methodName, 6);
 
             if (in_array($unit, self::CURRENT_UNITS, true)) {
-                $methodCall->name = new Identifier('isCurrent' . $unit);
+                $methodCall->name = new Identifier('isCurrent'.$unit);
 
                 return $methodCall;
             }

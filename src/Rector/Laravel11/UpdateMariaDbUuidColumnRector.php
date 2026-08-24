@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Stmt\Expression;
 use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -48,7 +47,7 @@ final class UpdateMariaDbUuidColumnRector extends AbstractRector
         }
 
         $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . ' Use char(..., 36) instead if you switch to the mariadb driver and need the previous behavior'),
+            new Comment('// '.self::COMMENT_MARKER.' Use char(..., 36) instead if you switch to the mariadb driver and need the previous behavior'),
         ], $node->getComments()));
 
         return $node;

@@ -7,7 +7,6 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\ImportUsageChecker;
 use PhpParser\Comment;
 use PhpParser\Node;
-use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\MethodCall;
@@ -17,10 +16,11 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Use_;
-use PHPStan\Analyser\Scope;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use PhpParser\NodeTraverser;
+use PHPStan\Analyser\Scope;
+use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -67,7 +67,7 @@ final class RemoveDoctrineDBALRector extends AbstractRector
 
     public function __construct()
     {
-        $this->importUsageChecker = new ImportUsageChecker();
+        $this->importUsageChecker = new ImportUsageChecker;
     }
 
     public function getNodeTypes(): array
@@ -147,7 +147,7 @@ CODE_SAMPLE,
                 continue;
             }
 
-            ++$removedCount;
+            $removedCount++;
         }
 
         if ($removedCount === 0) {
@@ -204,7 +204,7 @@ CODE_SAMPLE,
 
         $note = sprintf(
             '// %s: %s() was removed in Laravel 11 (%s confidence). Doctrine DBAL is no longer required; '
-            . 'migrate to native schema operations.',
+            .'migrate to native schema operations.',
             self::COMMENT_MARKER,
             $methodName,
             $confidence
@@ -326,7 +326,7 @@ CODE_SAMPLE,
         if ($scopeAttribute instanceof Scope) {
             try {
                 $type = $scopeAttribute->getType($methodCall->var);
-                $scopeBased = ! $type->equals(new \PHPStan\Type\MixedType());
+                $scopeBased = ! $type->equals(new MixedType);
             } catch (\Throwable) {
                 $scopeBased = false;
             }

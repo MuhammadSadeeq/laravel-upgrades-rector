@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Support\Compat\CompatFileNotFoundException;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\CompatibilityMatrix;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ComposerCli;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ConstraintPlanner;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\DependencyDecision;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ManifestReader;
-use MuhammadSadeeq\LaravelUpgradesRector\Support\Compat\CompatFileNotFoundException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -97,7 +97,7 @@ HELP
             // stack trace so the user can fix and re-run.
             $style->error(sprintf(
                 "A Composer command failed while applying decisions:\n%s\n\n"
-                . "The manifest may be partially edited — fix the cause and run `deps %d` again.\n",
+                ."The manifest may be partially edited — fix the cause and run `deps %d` again.\n",
                 $this->indent($exception->getMessage()),
                 $targetMajor
             ));
@@ -108,12 +108,12 @@ HELP
 
     private function runDeps(SymfonyStyle $style, string $workingDirectory, int $targetMajor, bool $dryRun): int
     {
-        $reader = new ManifestReader();
+        $reader = new ManifestReader;
         $manifest = $reader->readComposerJson($workingDirectory);
         $lockedPackages = $reader->readLockedPackages($workingDirectory);
 
-        $packageJsonPath = dirname(__DIR__, 4) . '/resources/compat/packages.json';
-        $removalsJsonPath = dirname(__DIR__, 4) . '/resources/compat/removals.json';
+        $packageJsonPath = dirname(__DIR__, 4).'/resources/compat/packages.json';
+        $removalsJsonPath = dirname(__DIR__, 4).'/resources/compat/removals.json';
 
         $planner = new ConstraintPlanner(
             new CompatibilityMatrix($packageJsonPath),
@@ -163,7 +163,7 @@ HELP
         if ($validation->isSuccessful()) {
             $style->success('composer validate --strict passed.');
         } else {
-            $style->error("composer validate --strict failed:\n" . $this->indent($validation->output));
+            $style->error("composer validate --strict failed:\n".$this->indent($validation->output));
         }
 
         $solverResult = $composerCli->updateDryRun();
@@ -171,14 +171,14 @@ HELP
         if ($solverResult->isSuccessful()) {
             $style->success('Dependency solver succeeded (composer update --dry-run -W).');
         } else {
-            $style->error("Dependency solver failed:\n" . $this->indent($this->trimSolverOutput($solverResult->output)));
+            $style->error("Dependency solver failed:\n".$this->indent($this->trimSolverOutput($solverResult->output)));
 
-            $whyNotFramework = $composerCli->whyNot('laravel/framework', '^' . $targetMajor . '.0');
+            $whyNotFramework = $composerCli->whyNot('laravel/framework', '^'.$targetMajor.'.0');
 
             if (! $whyNotFramework->isSuccessful() || trim($whyNotFramework->output) !== '') {
                 $style->warning(
                     "composer why-not laravel/framework ^{$targetMajor}.0:\n"
-                    . $this->indent($this->trimSolverOutput($whyNotFramework->output))
+                    .$this->indent($this->trimSolverOutput($whyNotFramework->output))
                 );
             }
 
@@ -189,8 +189,8 @@ HELP
     }
 
     /**
-     * @param iterable<DependencyDecision> $bumps
-     * @param iterable<DependencyDecision> $removals
+     * @param  iterable<DependencyDecision>  $bumps
+     * @param  iterable<DependencyDecision>  $removals
      */
     private function applyDecisions(ComposerCli $composerCli, iterable $bumps, iterable $removals): void
     {
@@ -217,8 +217,8 @@ HELP
     }
 
     /**
-     * @param iterable<DependencyDecision> $bumps
-     * @param iterable<DependencyDecision> $removals
+     * @param  iterable<DependencyDecision>  $bumps
+     * @param  iterable<DependencyDecision>  $removals
      */
     private function renderPlannedCommands(SymfonyStyle $style, iterable $bumps, iterable $removals): void
     {
@@ -242,7 +242,7 @@ HELP
     }
 
     /**
-     * @param list<DependencyDecision> $decisions
+     * @param  list<DependencyDecision>  $decisions
      */
     private function renderDecisions(SymfonyStyle $style, int $targetMajor, array $decisions): void
     {
@@ -284,7 +284,7 @@ HELP
     {
         $lines = explode("\n", rtrim($text, "\n"));
 
-        return implode("\n", array_map(static fn (string $line): string => '  ' . $line, $lines));
+        return implode("\n", array_map(static fn (string $line): string => '  '.$line, $lines));
     }
 
     private function trimSolverOutput(string $output): string

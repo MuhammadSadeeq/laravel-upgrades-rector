@@ -35,7 +35,8 @@
     },
     "require-dev": {
         "phpstan/phpstan": "^1.10 || ^2.0",
-        "phpunit/phpunit": "^11.0"
+        "phpunit/phpunit": "^11.0",
+        "laravel/pint": "^1.30"
     },
     "autoload": {
         "psr-4": {
@@ -68,6 +69,8 @@
         "test-env-12": "LARAVEL_ENV=12 phpunit --testsuite env-12",
         "test-env-13": "LARAVEL_ENV=13 phpunit --testsuite env-13",
         "test-independent": "phpunit --testsuite independent",
+        "format": "pint",
+        "format-test": "pint --test",
         "analyse": "phpstan analyse --level max"
     },
     "minimum-stability": "stable",

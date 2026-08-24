@@ -77,7 +77,6 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
             return null;
         }
 
-
         return $node;
     }
 
@@ -109,6 +108,7 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
 
             if (in_array($newClassName, ['self', 'static'], true) || ($className !== null && $newClassName === $className)) {
                 $hasNestedInstantiation = true;
+
                 return NodeTraverser::DONT_TRAVERSE_CHILDREN;
             }
 
@@ -200,6 +200,7 @@ final class UpdateEloquentBehaviorChangesRector extends AbstractRector
             foreach ($node->uses as $use) {
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
+
                     return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }

@@ -15,8 +15,8 @@ final class ConstraintPlannerTest extends TestCase
 
     protected function setUp(): void
     {
-        $packageJsonPath = dirname(__DIR__, 3) . '/resources/compat/packages.json';
-        $removalsJsonPath = dirname(__DIR__, 3) . '/resources/compat/removals.json';
+        $packageJsonPath = dirname(__DIR__, 3).'/resources/compat/packages.json';
+        $removalsJsonPath = dirname(__DIR__, 3).'/resources/compat/removals.json';
 
         $this->planner = new ConstraintPlanner(
             new CompatibilityMatrix($packageJsonPath),
@@ -24,7 +24,7 @@ final class ConstraintPlannerTest extends TestCase
         );
     }
 
-    public function testFrameworkBelowTargetIsBumped(): void
+    public function test_framework_below_target_is_bumped(): void
     {
         $decision = $this->decisionFor('laravel/framework', '^10.10', 11);
 
@@ -32,7 +32,7 @@ final class ConstraintPlannerTest extends TestCase
         self::assertSame('^11.0.0', $decision->proposed);
     }
 
-    public function testFrameworkAlreadyOnTargetIsKept(): void
+    public function test_framework_already_on_target_is_kept(): void
     {
         $decision = $this->decisionFor('laravel/framework', '^11.31', 11);
 
@@ -40,7 +40,7 @@ final class ConstraintPlannerTest extends TestCase
         self::assertStringContainsString('already compatible', $decision->reason);
     }
 
-    public function testConstraintAdmittingTargetMinimumIsNotFlattened(): void
+    public function test_constraint_admitting_target_minimum_is_not_flattened(): void
     {
         // The old regex-based updater destroyed constraints like "^10.0 || ^11.0";
         // the semver planner keeps any constraint admitting versions for the target.
@@ -49,14 +49,14 @@ final class ConstraintPlannerTest extends TestCase
         self::assertSame(DependencyDecision::ACTION_KEEP, $decision->action);
     }
 
-    public function testConstraintStricterThanTheMatrixMinimumIsNeverLowered(): void
+    public function test_constraint_stricter_than_the_matrix_minimum_is_never_lowered(): void
     {
         $decision = $this->decisionFor('laravel/framework', '^11.31', 11);
 
         self::assertSame(DependencyDecision::ACTION_KEEP, $decision->action);
     }
 
-    public function testConstraintBelowTargetIsBumpedEvenWhenDisjunct(): void
+    public function test_constraint_below_target_is_bumped_even_when_disjunct(): void
     {
         $decision = $this->decisionFor('laravel/framework', '^10.0 || ^10.2', 11);
 
@@ -64,7 +64,7 @@ final class ConstraintPlannerTest extends TestCase
         self::assertSame('^11.0.0', $decision->proposed);
     }
 
-    public function testPhpFloorBelowTargetIsBumpedEvenThoughItAdmitsTheFloor(): void
+    public function test_php_floor_below_target_is_bumped_even_though_it_admits_the_floor(): void
     {
         // ^8.1 admits 8.2.0 but also allows running on 8.1, where Laravel 11 breaks.
         $decision = $this->decisionFor('php', '^8.1', 11);
@@ -73,13 +73,13 @@ final class ConstraintPlannerTest extends TestCase
         self::assertSame('^8.2.0', $decision->proposed);
     }
 
-    public function testPhpFloorAtOrAboveTargetIsKept(): void
+    public function test_php_floor_at_or_above_target_is_kept(): void
     {
         self::assertSame(DependencyDecision::ACTION_KEEP, $this->decisionFor('php', '^8.2', 11)->action);
         self::assertSame(DependencyDecision::ACTION_KEEP, $this->decisionFor('php', '>=8.3', 13)->action);
     }
 
-    public function testUnknownPackageIsFlaggedInsteadOfGuessed(): void
+    public function test_unknown_package_is_flagged_instead_of_guessed(): void
     {
         $decision = $this->decisionFor('acme/unheard-of-package', '^1.0', 11);
 
@@ -87,7 +87,7 @@ final class ConstraintPlannerTest extends TestCase
         self::assertNull($decision->proposed);
     }
 
-    public function testRequireDevPackageIsBumpedInSection(): void
+    public function test_require_dev_package_is_bumped_in_section(): void
     {
         $manifest = [
             'require' => ['laravel/framework' => '^10.10'],
@@ -102,7 +102,7 @@ final class ConstraintPlannerTest extends TestCase
         self::assertSame('^3.0.0', $pest->proposed);
     }
 
-    public function testRemovalOnlyWhenNoLockedPackageRequiresIt(): void
+    public function test_removal_only_when_no_locked_package_requires_it(): void
     {
         $manifest = ['require' => ['doctrine/dbal' => '^3.6']];
         $lockedWithoutDependent = [
@@ -124,7 +124,7 @@ final class ConstraintPlannerTest extends TestCase
         self::assertStringContainsString('acme/legacy', $used['doctrine/dbal']->reason);
     }
 
-    public function testRemovalSkipsTransitiveDependencies(): void
+    public function test_removal_skips_transitive_dependencies(): void
     {
         $manifest = ['require' => ['laravel/framework' => '^10.10']];
 
@@ -134,7 +134,7 @@ final class ConstraintPlannerTest extends TestCase
     }
 
     /**
-     * @param list<DependencyDecision> $decisions
+     * @param  list<DependencyDecision>  $decisions
      * @return array<string, DependencyDecision>
      */
     private function byName(array $decisions): array

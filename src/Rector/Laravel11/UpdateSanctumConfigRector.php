@@ -74,11 +74,13 @@ final class UpdateSanctumConfigRector extends AbstractRector
         foreach ($middlewareArray->items as $item) {
             if (! $item instanceof ArrayItem) {
                 $updatedItems[] = $item;
+
                 continue;
             }
 
             if (! $item->key instanceof String_) {
                 $updatedItems[] = $item;
+
                 continue;
             }
 
@@ -89,6 +91,7 @@ final class UpdateSanctumConfigRector extends AbstractRector
                 && isset($existingMiddlewareKeys[self::CURRENT_VERIFY_CSRF_TOKEN_KEY])
             ) {
                 $changed = true;
+
                 continue;
             }
 
@@ -100,6 +103,7 @@ final class UpdateSanctumConfigRector extends AbstractRector
 
             if (! isset($this->middlewareMap[$key])) {
                 $updatedItems[] = $item;
+
                 continue;
             }
 
@@ -108,6 +112,7 @@ final class UpdateSanctumConfigRector extends AbstractRector
 
                 if ($className === null) {
                     $updatedItems[] = $item;
+
                     continue;
                 }
 
@@ -122,6 +127,7 @@ final class UpdateSanctumConfigRector extends AbstractRector
 
                 if (in_array($rawClassName, [ltrim($mapping['fqcn'], '\\'), ltrim($className, '\\')], true)) {
                     $updatedItems[] = $item;
+
                     continue;
                 }
 
@@ -133,18 +139,21 @@ final class UpdateSanctumConfigRector extends AbstractRector
                 if (! in_array($rawClassName, $oldDefaults, true)
                     && ! in_array(ltrim($className, '\\'), $oldDefaults, true)) {
                     $updatedItems[] = $item;
+
                     continue;
                 }
 
                 $item->value = new ClassConstFetch(new FullyQualified($mapping['fqcn']), 'class');
                 $changed = true;
                 $updatedItems[] = $item;
+
                 continue;
             }
 
             // Only replace known old default string values
             if (! $item->value instanceof String_) {
                 $updatedItems[] = $item;
+
                 continue;
             }
 
@@ -154,6 +163,7 @@ final class UpdateSanctumConfigRector extends AbstractRector
             // Only replace if it matches a known old default value
             if (! in_array($currentValue, $mapping['old_defaults'], true)) {
                 $updatedItems[] = $item;
+
                 continue;
             }
 

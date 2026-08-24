@@ -10,7 +10,6 @@ use PhpParser\Node\ArrayItem;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Return_;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -81,7 +80,7 @@ final class UpdateCacheConfigurationRector extends AbstractRector
                     continue;
                 }
 
-                $newComments[] = new Comment('// ' . $commentText);
+                $newComments[] = new Comment('// '.$commentText);
             }
 
             if ($newComments === []) {
@@ -188,19 +187,19 @@ final class UpdateCacheConfigurationRector extends AbstractRector
 
     private function matchesConfigFile(string $filePath, string $configName): bool
     {
-        if (str_ends_with($filePath, DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . $configName . '.php')) {
+        if (str_ends_with($filePath, DIRECTORY_SEPARATOR.'config'.DIRECTORY_SEPARATOR.$configName.'.php')) {
             return true;
         }
 
-        if (! str_contains($filePath, DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR)) {
+        if (! str_contains($filePath, DIRECTORY_SEPARATOR.'tests'.DIRECTORY_SEPARATOR)) {
             return false;
         }
 
         $fixtureBaseName = basename($filePath);
 
-        return $fixtureBaseName === $configName . '.php.inc'
-            || $fixtureBaseName === $configName . '.php'
-            || str_starts_with($fixtureBaseName, $configName . '_');
+        return $fixtureBaseName === $configName.'.php.inc'
+            || $fixtureBaseName === $configName.'.php'
+            || str_starts_with($fixtureBaseName, $configName.'_');
     }
 
     public function getRuleDefinition(): RuleDefinition

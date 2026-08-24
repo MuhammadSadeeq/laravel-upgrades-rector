@@ -7,10 +7,10 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Support;
 use PhpParser\Parser;
 use PhpParser\ParserFactory;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
-use ReflectionNamedType;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionClass;
+use ReflectionNamedType;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -26,10 +26,10 @@ final class RuleSamplesParseTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->parser = (new ParserFactory())->createForNewestSupportedVersion();
+        $this->parser = (new ParserFactory)->createForNewestSupportedVersion();
     }
 
-    public function testEveryRuleCodeSampleParsesAsPhp(): void
+    public function test_every_rule_code_sample_parses_as_php(): void
     {
         $ruleFiles = $this->findRuleFiles();
         self::assertGreaterThan(20, count($ruleFiles), 'No rule files discovered — glob is broken.');
@@ -70,7 +70,7 @@ final class RuleSamplesParseTest extends TestCase
             }
 
             foreach ($this->extractSamples($definition) as $index => $code) {
-                ++$sampleCount;
+                $sampleCount++;
 
                 if ($this->parses($code)) {
                     continue;
@@ -112,7 +112,7 @@ final class RuleSamplesParseTest extends TestCase
             return false;
         }
 
-        $toLint = str_starts_with($trimmed, '<?php') ? $code : "<?php\n" . $code;
+        $toLint = str_starts_with($trimmed, '<?php') ? $code : "<?php\n".$code;
 
         try {
             $this->parser->parse($toLint);
@@ -130,7 +130,7 @@ final class RuleSamplesParseTest extends TestCase
     {
         $files = [];
         $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator(__DIR__ . '/../../src/Rector')
+            new RecursiveDirectoryIterator(__DIR__.'/../../src/Rector')
         );
 
         foreach ($iterator as $file) {
@@ -154,11 +154,11 @@ final class RuleSamplesParseTest extends TestCase
             return null;
         }
 
-        return $ns[1] . '\\' . $cls[1];
+        return $ns[1].'\\'.$cls[1];
     }
 
     /**
-     * @param ReflectionClass<object> $reflection
+     * @param  ReflectionClass<object>  $reflection
      */
     private function instantiate(ReflectionClass $reflection): object
     {

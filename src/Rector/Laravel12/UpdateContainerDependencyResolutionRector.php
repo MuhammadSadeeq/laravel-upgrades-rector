@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Name;
 use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\ClassMethod;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -23,11 +22,11 @@ final class UpdateContainerDependencyResolutionRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof ClassMethod) {
+        if (! $node instanceof ClassMethod) {
             return null;
         }
 
-        if (!$this->isName($node->name, '__construct')) {
+        if (! $this->isName($node->name, '__construct')) {
             return null;
         }
 
@@ -40,7 +39,7 @@ final class UpdateContainerDependencyResolutionRector extends AbstractRector
             }
         }
 
-        if (!$hasAffectedParams) {
+        if (! $hasAffectedParams) {
             return null;
         }
 

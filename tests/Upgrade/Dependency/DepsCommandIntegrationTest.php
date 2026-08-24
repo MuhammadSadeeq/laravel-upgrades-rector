@@ -32,7 +32,7 @@ final class DepsCommandIntegrationTest extends TestCase
             self::markTestSkipped('No composer binary available on PATH.');
         }
 
-        $this->workspace = sys_get_temp_dir() . '/laravel-upgrades-deps-' . uniqid('', true);
+        $this->workspace = sys_get_temp_dir().'/laravel-upgrades-deps-'.uniqid('', true);
 
         if (! mkdir($this->workspace, 0777, true) && ! is_dir($this->workspace)) {
             self::fail('Could not create the integration workspace.');
@@ -46,7 +46,7 @@ final class DepsCommandIntegrationTest extends TestCase
         }
     }
 
-    public function testDryRunLeavesTheTreeByteIdentical(): void
+    public function test_dry_run_leaves_the_tree_byte_identical(): void
     {
         $this->writeComposerJson($this->sampleManifest());
 
@@ -58,17 +58,17 @@ final class DepsCommandIntegrationTest extends TestCase
         self::assertSame($before, $this->treeChecksums(), 'A dry run must not touch a single file.');
     }
 
-    public function testApplyPreservesFormattingAndOnlyChangesIntendedLines(): void
+    public function test_apply_preserves_formatting_and_only_changes_intended_lines(): void
     {
         $this->writeComposerJson($this->sampleManifest());
 
-        [$exitCode, ] = $this->runDepsCaptured(11, false);
+        [$exitCode] = $this->runDepsCaptured(11, false);
 
         // Exit 0 = solver agreed; exit 3 = solver disagreed with the proposal
         // (network or advisory policy). Both mean the manifest was edited.
         self::assertContains($exitCode, [0, 3], 'The apply run must not crash.');
 
-        $contents = (string) file_get_contents($this->workspace . '/composer.json');
+        $contents = (string) file_get_contents($this->workspace.'/composer.json');
 
         // Indentation and trailing newline preserved.
         self::assertStringContainsString('    "name": "acme/app",', $contents);
@@ -93,7 +93,7 @@ final class DepsCommandIntegrationTest extends TestCase
         self::assertStringNotContainsString('"require": []', $contents);
     }
 
-    public function testRequireAndRemoveThroughComposerKeepFormattingByteForByte(): void
+    public function test_require_and_remove_through_composer_keep_formatting_byte_for_byte(): void
     {
         $manifest = <<<'JSON'
 {
@@ -127,7 +127,7 @@ JSON;
 }
 JSON;
 
-        self::assertSame($expected, rtrim((string) file_get_contents($this->workspace . '/composer.json')));
+        self::assertSame($expected, rtrim((string) file_get_contents($this->workspace.'/composer.json')));
     }
 
     /**
@@ -135,7 +135,7 @@ JSON;
      */
     private function runDepsCaptured(int $targetMajor, bool $dryRun): array
     {
-        $application = new Application();
+        $application = new Application;
         $application->setAutoExit(false);
 
         $arguments = [
@@ -148,7 +148,7 @@ JSON;
             $arguments['--dry-run'] = true;
         }
 
-        $output = new BufferedOutput();
+        $output = new BufferedOutput;
         $exitCode = $application->run(new ArrayInput($arguments), $output);
 
         return [$exitCode, $output->fetch()];
@@ -175,7 +175,7 @@ JSON;
                 continue;
             }
 
-            $relative = str_replace($this->workspace . '/', '', $fileInfo->getPathname());
+            $relative = str_replace($this->workspace.'/', '', $fileInfo->getPathname());
             $checksums[$relative] = md5_file($fileInfo->getPathname()) ?: '';
         }
 
@@ -186,7 +186,7 @@ JSON;
 
     private function writeComposerJson(string $contents): void
     {
-        self::assertNotFalse(file_put_contents($this->workspace . '/composer.json', $contents));
+        self::assertNotFalse(file_put_contents($this->workspace.'/composer.json', $contents));
     }
 
     private function sampleManifest(): string

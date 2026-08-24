@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\NodeTraverser;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -63,7 +62,7 @@ final class ReplaceHasVersion4UuidsRector extends AbstractRector
         }
 
         $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Switch to HasVersion4Uuids if you need the previous ordered UUIDv4 behavior.'),
+            new Comment('// '.self::COMMENT_MARKER.'. Switch to HasVersion4Uuids if you need the previous ordered UUIDv4 behavior.'),
         ], $node->getComments()));
 
         return $node;
@@ -81,6 +80,7 @@ final class ReplaceHasVersion4UuidsRector extends AbstractRector
             foreach ($node->uses as $use) {
                 if ($use->name->toString() === $fullyQualifiedName) {
                     $hasImport = true;
+
                     return NodeTraverser::DONT_TRAVERSE_CHILDREN;
                 }
             }

@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Scalar\String_;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -50,7 +49,7 @@ final class UpdateCachePrefixConfigRector extends AbstractRector
         }
 
         $prefixItem->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. Add it manually if you need the previous behavior.'),
+            new Comment('// '.self::COMMENT_MARKER.'. Add it manually if you need the previous behavior.'),
         ], $prefixItem->getComments()));
 
         return $node;

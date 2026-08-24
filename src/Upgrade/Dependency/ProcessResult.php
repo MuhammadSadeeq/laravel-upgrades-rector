@@ -10,8 +10,7 @@ final class ProcessResult
         public readonly string $command,
         public readonly int $exitCode,
         public readonly string $output,
-    ) {
-    }
+    ) {}
 
     public function isSuccessful(): bool
     {

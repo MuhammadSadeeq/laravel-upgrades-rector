@@ -10,7 +10,6 @@ use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\ArrayItem;
 use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
@@ -34,7 +33,7 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Expression) {
+        if (! $node instanceof Expression) {
             return null;
         }
 
@@ -44,18 +43,18 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
             return null;
         }
 
-        if (!$staticCall->class instanceof Name) {
+        if (! $staticCall->class instanceof Name) {
             return null;
         }
 
         if (
-            !$this->isName($staticCall->class, 'Concurrency') &&
-            !$this->isName($staticCall->class, 'Illuminate\Support\Facades\Concurrency')
+            ! $this->isName($staticCall->class, 'Concurrency') &&
+            ! $this->isName($staticCall->class, 'Illuminate\Support\Facades\Concurrency')
         ) {
             return null;
         }
 
-        if (!$this->isName($staticCall->name, 'run')) {
+        if (! $this->isName($staticCall->name, 'run')) {
             return null;
         }
 

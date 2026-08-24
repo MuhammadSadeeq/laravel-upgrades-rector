@@ -24,8 +24,7 @@ final class DependencyDecision
         public readonly ?string $proposed,
         public readonly string $action,
         public readonly string $reason,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{package: string, section: string, current: string|null, proposed: string|null, action: string, reason: string}

@@ -22,7 +22,7 @@ final class ManifestReader
 
     public function composerJsonPath(string $workingDirectory): string
     {
-        $path = rtrim($workingDirectory, '/') . '/composer.json';
+        $path = rtrim($workingDirectory, '/').'/composer.json';
 
         if (! is_file($path)) {
             throw new CompatFileNotFoundException(sprintf(
@@ -41,7 +41,7 @@ final class ManifestReader
      */
     public function readLockedPackages(string $workingDirectory): array
     {
-        $path = rtrim($workingDirectory, '/') . '/composer.lock';
+        $path = rtrim($workingDirectory, '/').'/composer.lock';
 
         if (! is_file($path)) {
             return [];

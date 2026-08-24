@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\Variable;
@@ -29,8 +30,7 @@ final class UpdateResponseFactoryContractRector extends AbstractRector
 
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
-    ) {
-    }
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -39,11 +39,11 @@ final class UpdateResponseFactoryContractRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Class_) {
+        if (! $node instanceof Class_) {
             return null;
         }
 
-        if (!$this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
+        if (! $this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
             return null;
         }
 
@@ -60,7 +60,7 @@ final class UpdateResponseFactoryContractRector extends AbstractRector
     private function createEventStreamMethod(): ClassMethod
     {
         $method = new ClassMethod(self::METHOD_NAME, [
-            'flags' => Class_::MODIFIER_PUBLIC,
+            'flags' => Modifiers::PUBLIC,
             'params' => [
                 new Param(new Variable('callback'), null, new FullyQualified('Closure')),
                 new Param(new Variable('headers'), new Array_([]), new Identifier('array')),

@@ -23,7 +23,7 @@ final class EnvAutoload
             return null;
         }
 
-        $directory = dirname(__DIR__) . '/env/laravel-' . $laravelEnv . '/vendor';
+        $directory = dirname(__DIR__).'/env/laravel-'.$laravelEnv.'/vendor';
 
         return is_dir($directory) ? $directory : null;
     }

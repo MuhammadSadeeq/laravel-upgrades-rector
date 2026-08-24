@@ -9,7 +9,6 @@ use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
-use PHPStan\Type\ObjectType;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -32,7 +31,7 @@ final class UpdateFloatingPointTypesRector extends AbstractRector
 
     public function __construct()
     {
-        $this->blueprintReceiverResolver = new BlueprintReceiverResolver();
+        $this->blueprintReceiverResolver = new BlueprintReceiverResolver;
     }
 
     public function getNodeTypes(): array
@@ -126,7 +125,7 @@ CODE_SAMPLE,
     {
         $note = sprintf(
             '// %s: precision/scale dropped by Laravel 11; use decimal(\'column\', 8, 2) '
-            . 'for fixed precision or float(\'column\', precision: 24) for a 4-byte FLOAT.',
+            .'for fixed precision or float(\'column\', precision: 24) for a 4-byte FLOAT.',
             self::COMMENT_MARKER
         );
 

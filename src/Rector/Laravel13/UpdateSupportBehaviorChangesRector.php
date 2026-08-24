@@ -14,7 +14,6 @@ use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\Expression;
 use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -48,7 +47,7 @@ final class UpdateSupportBehaviorChangesRector extends AbstractRector
             && $this->hasThisUsingClosure($expr)
             && ! $this->hasComment($node, self::MANAGER_MARKER)
         ) {
-            return $this->comment($node, self::MANAGER_MARKER . '. Capture dependencies with use (...) instead of relying on $this.');
+            return $this->comment($node, self::MANAGER_MARKER.'. Capture dependencies with use (...) instead of relying on $this.');
         }
 
         if ($expr instanceof MethodCall
@@ -56,15 +55,15 @@ final class UpdateSupportBehaviorChangesRector extends AbstractRector
             && $this->isObjectType($expr->var, new ObjectType('Illuminate\\Foundation\\Configuration\\ApplicationBuilder'))
             && ! $this->hasComment($node, self::SCHEDULING_MARKER)
         ) {
-            return $this->comment($node, self::SCHEDULING_MARKER . ' until Schedule is resolved. Review bootstrap logic that relied on immediate registration timing.');
+            return $this->comment($node, self::SCHEDULING_MARKER.' until Schedule is resolved. Review bootstrap logic that relied on immediate registration timing.');
         }
 
         if ($expr instanceof StaticCall && $this->isJsFromCall($expr) && ! $this->hasComment($node, self::JS_MARKER)) {
-            return $this->comment($node, self::JS_MARKER . '. Update assertions that expected escaped Unicode sequences.');
+            return $this->comment($node, self::JS_MARKER.'. Update assertions that expected escaped Unicode sequences.');
         }
 
-        if ($expr instanceof StaticCall && $this->isStrFactoryCall($expr) && str_contains($this->file->getFilePath(), DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR) && ! $this->hasComment($node, self::STR_MARKER)) {
-            return $this->comment($node, self::STR_MARKER . '. Re-register UUID / ULID / random-string factories in each relevant test or setup hook.');
+        if ($expr instanceof StaticCall && $this->isStrFactoryCall($expr) && str_contains($this->file->getFilePath(), DIRECTORY_SEPARATOR.'tests'.DIRECTORY_SEPARATOR) && ! $this->hasComment($node, self::STR_MARKER)) {
+            return $this->comment($node, self::STR_MARKER.'. Re-register UUID / ULID / random-string factories in each relevant test or setup hook.');
         }
 
         return null;
@@ -149,7 +148,7 @@ final class UpdateSupportBehaviorChangesRector extends AbstractRector
     private function comment(Expression $expression, string $commentText): Expression
     {
         $expression->setAttribute('comments', array_merge([
-            new Comment('// ' . $commentText),
+            new Comment('// '.$commentText),
         ], $expression->getComments()));
 
         return $expression;

@@ -9,6 +9,4 @@ use MuhammadSadeeq\LaravelUpgradesRector\Set\LaravelUpgradeSetList as SetList;
 /**
  * @deprecated Use MuhammadSadeeq\LaravelUpgradesRector\Set\LaravelUpgradeSetList instead.
  */
-final class LaravelUpgradeSetList extends SetList
-{
-}
+final class LaravelUpgradeSetList extends SetList {}

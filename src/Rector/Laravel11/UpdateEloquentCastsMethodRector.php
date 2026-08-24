@@ -9,6 +9,7 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PHPStan\Type\ObjectType;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -85,7 +86,7 @@ final class UpdateEloquentCastsMethodRector extends AbstractRector
 
     private function isEloquentModel(Class_ $class): bool
     {
-        if ($this->isObjectType($class, new \PHPStan\Type\ObjectType('Illuminate\\Database\\Eloquent\\Model'))) {
+        if ($this->isObjectType($class, new ObjectType('Illuminate\\Database\\Eloquent\\Model'))) {
             return true;
         }
 

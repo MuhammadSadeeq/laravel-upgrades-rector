@@ -38,7 +38,7 @@ final class GeneratedCodeLoadsTest extends TestCase
         'Laravel13' => '13',
     ];
 
-    public function testMarkedFixtureOutputsLoadAgainstRealFramework(): void
+    public function test_marked_fixture_outputs_load_against_real_framework(): void
     {
         if (EnvAutoload::vendorDirectory() === null) {
             self::markTestSkipped('No LARAVEL_ENV set — the load gate needs a real framework vendor tree.');
@@ -65,13 +65,13 @@ final class GeneratedCodeLoadsTest extends TestCase
         self::assertSame([], $failures, implode("\n\n", $failures));
     }
 
-    public function testGateDetectsNarrowedSignature(): void
+    public function test_gate_detects_narrowed_signature(): void
     {
         if (EnvAutoload::vendorDirectory() === null) {
             self::markTestSkipped('No LARAVEL_ENV set — the load gate needs a real framework vendor tree.');
         }
 
-        $fixture = __DIR__ . '/Fixture/NarrowedSignatureFixture.php.inc';
+        $fixture = __DIR__.'/Fixture/NarrowedSignatureFixture.php.inc';
         self::assertFileExists($fixture);
 
         // The negative fixture narrows parameter types the interface leaves
@@ -83,9 +83,9 @@ final class GeneratedCodeLoadsTest extends TestCase
         self::assertTrue(
             $result['exitCode'] !== 0 || str_contains($result['output'], 'Fatal error'),
             sprintf(
-                "The deliberately incompatible NarrowedSignatureFixture LOADED cleanly "
-                . '(exit code %d) — the load gate cannot detect broken generated code '
-                . "and all positive results are unreliable.\nOutput:\n%s",
+                'The deliberately incompatible NarrowedSignatureFixture LOADED cleanly '
+                .'(exit code %d) — the load gate cannot detect broken generated code '
+                ."and all positive results are unreliable.\nOutput:\n%s",
                 $result['exitCode'],
                 $result['output']
             )
@@ -100,7 +100,7 @@ final class GeneratedCodeLoadsTest extends TestCase
     private function assertAfterHalfLoads(string $fixturePath, string $env): void
     {
         $autoloadPath = dirname(__DIR__, 2)
-            . '/tests/env/laravel-' . $env . '/vendor/autoload.php';
+            .'/tests/env/laravel-'.$env.'/vendor/autoload.php';
 
         if (! is_file($autoloadPath)) {
             self::fail(sprintf('Env vendor autoloader missing: %s', $autoloadPath));
@@ -141,11 +141,11 @@ final class GeneratedCodeLoadsTest extends TestCase
      */
     private function loadAfterHalfInFreshProcess(string $fixturePath, string $code, ?string $autoloadPath = null): array
     {
-        $autoloadPath ??= EnvAutoload::vendorDirectory() . '/autoload.php';
+        $autoloadPath ??= EnvAutoload::vendorDirectory().'/autoload.php';
 
         $hash = md5($fixturePath);
-        $tempFixture = sys_get_temp_dir() . '/load-gate-' . $hash . '.php.inc';
-        $tempLoader = sys_get_temp_dir() . '/load-gate-' . $hash . '-loader.php';
+        $tempFixture = sys_get_temp_dir().'/load-gate-'.$hash.'.php.inc';
+        $tempLoader = sys_get_temp_dir().'/load-gate-'.$hash.'-loader.php';
 
         try {
             file_put_contents($tempFixture, $code);
@@ -178,7 +178,7 @@ final class GeneratedCodeLoadsTest extends TestCase
         $fixtures = [];
 
         foreach (['Laravel11', 'Laravel12', 'Laravel13', 'Carbon3'] as $segment) {
-            foreach (glob(__DIR__ . '/../Rector/' . $segment . '/*/Fixture/*.php.inc') ?: [] as $fixture) {
+            foreach (glob(__DIR__.'/../Rector/'.$segment.'/*/Fixture/*.php.inc') ?: [] as $fixture) {
                 if (str_contains($this->firstLineOf($fixture), self::MARKER)) {
                     $fixtures[] = $fixture;
                 }
@@ -196,7 +196,7 @@ final class GeneratedCodeLoadsTest extends TestCase
 
         self::assertArrayHasKey(1, $halves, sprintf('Fixture "%s" has no "-----" separator.', $fixturePath));
 
-        return ltrim(rtrim($halves[1]) . "\n");
+        return ltrim(rtrim($halves[1])."\n");
     }
 
     private function firstLineOf(string $fixturePath): string
@@ -207,7 +207,7 @@ final class GeneratedCodeLoadsTest extends TestCase
     private function expectedEnvFor(string $fixturePath): string
     {
         foreach (self::ENV_BY_NAMESPACE_SEGMENT as $segment => $env) {
-            if (str_contains($fixturePath, '/Rector/' . $segment . '/')) {
+            if (str_contains($fixturePath, '/Rector/'.$segment.'/')) {
                 return $env;
             }
         }

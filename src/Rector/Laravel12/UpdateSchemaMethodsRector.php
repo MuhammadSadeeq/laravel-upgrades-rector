@@ -7,7 +7,6 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StaticCallExtractor;
 use PhpParser\Node;
-use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
 use Rector\Rector\AbstractRector;
@@ -38,7 +37,7 @@ final class UpdateSchemaMethodsRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Expression) {
+        if (! $node instanceof Expression) {
             return null;
         }
 
@@ -48,19 +47,19 @@ final class UpdateSchemaMethodsRector extends AbstractRector
             return null;
         }
 
-        if (!$staticCall->class instanceof Name) {
+        if (! $staticCall->class instanceof Name) {
             return null;
         }
 
         if (
-            !$this->isName($staticCall->class, 'Schema') &&
-            !$this->isName($staticCall->class, 'Illuminate\Support\Facades\Schema')
+            ! $this->isName($staticCall->class, 'Schema') &&
+            ! $this->isName($staticCall->class, 'Illuminate\Support\Facades\Schema')
         ) {
             return null;
         }
 
         $methodName = $this->getName($staticCall->name);
-        if ($methodName === null || !in_array($methodName, $this->schemaMethodsWithSchemaParam, true)) {
+        if ($methodName === null || ! in_array($methodName, $this->schemaMethodsWithSchemaParam, true)) {
             return null;
         }
 

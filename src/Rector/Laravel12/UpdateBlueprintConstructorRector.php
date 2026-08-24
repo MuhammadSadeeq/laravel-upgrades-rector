@@ -11,7 +11,6 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Return_;
 use PhpParser\NodeTraverser;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -25,7 +24,7 @@ final class UpdateBlueprintConstructorRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Expression && !$node instanceof Return_) {
+        if (! $node instanceof Expression && ! $node instanceof Return_) {
             return null;
         }
 
@@ -83,13 +82,13 @@ final class UpdateBlueprintConstructorRector extends AbstractRector
 
     private function isOutdatedBlueprintConstructor(New_ $newExpr): bool
     {
-        if (!$newExpr->class instanceof Name) {
+        if (! $newExpr->class instanceof Name) {
             return false;
         }
 
         if (
-            !$this->isName($newExpr->class, 'Blueprint') &&
-            !$this->isName($newExpr->class, 'Illuminate\Database\Schema\Blueprint')
+            ! $this->isName($newExpr->class, 'Blueprint') &&
+            ! $this->isName($newExpr->class, 'Illuminate\Database\Schema\Blueprint')
         ) {
             return false;
         }

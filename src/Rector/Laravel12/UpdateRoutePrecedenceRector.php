@@ -11,7 +11,6 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -57,6 +56,7 @@ final class UpdateRoutePrecedenceRector extends AbstractRector
 
         if (! isset($this->seenRouteNames[$routeName])) {
             $this->seenRouteNames[$routeName] = true;
+
             return null;
         }
 
@@ -67,7 +67,7 @@ final class UpdateRoutePrecedenceRector extends AbstractRector
         }
 
         $node->setAttribute('comments', array_merge([
-            new Comment('// ' . self::COMMENT_MARKER . '. This later route no longer wins when names collide.'),
+            new Comment('// '.self::COMMENT_MARKER.'. This later route no longer wins when names collide.'),
         ], $node->getComments()));
 
         return $node;

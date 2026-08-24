@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Rector\Config\RectorConfig;
 use MuhammadSadeeq\LaravelUpgradesRector\Set\LaravelUpgradeSetList;
+use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()->withSets([
     LaravelUpgradeSetList::LARAVEL_11,

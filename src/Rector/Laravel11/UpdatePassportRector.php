@@ -9,7 +9,6 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -60,8 +59,8 @@ final class UpdatePassportRector extends AbstractRector
         }
 
         $newComment = new Comment(
-            '// ' . self::COMMENT_MARKER . ' Password grant disabled by default. '
-            . 'Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations'
+            '// '.self::COMMENT_MARKER.' Password grant disabled by default. '
+            .'Migrations no longer auto-loaded. Run: php artisan vendor:publish --tag=passport-migrations'
         );
         $node->setAttribute('comments', array_merge([$newComment], $existingComments));
 

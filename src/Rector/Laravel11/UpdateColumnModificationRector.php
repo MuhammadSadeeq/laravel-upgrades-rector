@@ -29,23 +29,23 @@ final class UpdateColumnModificationRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Expression) {
+        if (! $node instanceof Expression) {
             return null;
         }
 
-        if (!$node->expr instanceof MethodCall) {
+        if (! $node->expr instanceof MethodCall) {
             return null;
         }
 
-        if (!$this->isName($node->expr->name, 'change')) {
+        if (! $this->isName($node->expr->name, 'change')) {
             return null;
         }
 
-        if (!$this->isInBlueprintMethodChain($node->expr)) {
+        if (! $this->isInBlueprintMethodChain($node->expr)) {
             return null;
         }
 
-        if (!$this->commentInserter->addComment(
+        if (! $this->commentInserter->addComment(
             $node,
             self::COMMENT_MARKER,
             'change() now requires all column modifiers to be explicitly re-specified. Review this migration.'

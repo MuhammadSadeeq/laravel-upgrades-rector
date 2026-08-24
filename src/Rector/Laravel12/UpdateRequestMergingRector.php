@@ -31,15 +31,15 @@ final class UpdateRequestMergingRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Expression) {
+        if (! $node instanceof Expression) {
             return null;
         }
 
-        if (!$node->expr instanceof MethodCall) {
+        if (! $node->expr instanceof MethodCall) {
             return null;
         }
 
-        if (!$this->isName($node->expr->name, 'mergeIfMissing')) {
+        if (! $this->isName($node->expr->name, 'mergeIfMissing')) {
             return null;
         }
 

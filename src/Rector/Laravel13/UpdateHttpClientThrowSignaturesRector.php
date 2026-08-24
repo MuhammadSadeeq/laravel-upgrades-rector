@@ -55,24 +55,24 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Class_) {
+        if (! $node instanceof Class_) {
             return null;
         }
 
-        if (!$this->extendsTargetClass($node)) {
+        if (! $this->extendsTargetClass($node)) {
             return null;
         }
 
         $hasChanges = false;
 
         foreach ($node->stmts as $stmt) {
-            if (!$stmt instanceof ClassMethod) {
+            if (! $stmt instanceof ClassMethod) {
                 continue;
             }
 
             $methodName = $this->getName($stmt->name);
 
-            if ($methodName === null || !isset(self::REQUIRED_PARAMS[$methodName])) {
+            if ($methodName === null || ! isset(self::REQUIRED_PARAMS[$methodName])) {
                 continue;
             }
 
@@ -88,7 +88,7 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
      * Appends missing trailing parameters by name. Returns false when nothing
      * is missing or when the signature cannot be safely extended.
      *
-     * @param list<string> $requiredNames
+     * @param  list<string>  $requiredNames
      */
     private function appendMissingParams(ClassMethod $method, array $requiredNames): bool
     {
@@ -132,7 +132,7 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
     }
 
     /**
-     * @param list<string> $names
+     * @param  list<string>  $names
      */
     private function addTrailingParams(ClassMethod $method, array $names): bool
     {
@@ -160,7 +160,7 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
 
         $nop = TodoNopFactory::create(sprintf(
             '%s Laravel 13 changed this signature to accept a nullable callback; '
-            . 'the override does not match positionally — reconcile it manually.',
+            .'the override does not match positionally — reconcile it manually.',
             self::MARKER
         ));
 
@@ -176,11 +176,11 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
         $expectedArgumentCount = $methodName === 'throw' ? 1 : 2;
 
         $this->traverseNodesWithCallable($method->stmts ?? [], function (Node $node) use ($methodName, $expectedArgumentCount): ?int {
-            if (!$node instanceof StaticCall) {
+            if (! $node instanceof StaticCall) {
                 return null;
             }
 
-            if (!$this->isName($node->class, 'parent') || !$this->isName($node->name, $methodName)) {
+            if (! $this->isName($node->class, 'parent') || ! $this->isName($node->name, $methodName)) {
                 return null;
             }
 
@@ -188,7 +188,7 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
             // matched positionally to the interface parameter names.
             $argumentCount = count($node->args);
 
-            for ($index = $argumentCount; $index < $expectedArgumentCount; ++$index) {
+            for ($index = $argumentCount; $index < $expectedArgumentCount; $index++) {
                 $variableName = self::REQUIRED_PARAMS[$methodName][$index] ?? 'callback';
                 $node->args[] = new Arg(new Variable($variableName));
             }

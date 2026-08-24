@@ -9,6 +9,6 @@ use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
     ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))->withRules([
-    UpdateCacheStoreContractRector::class,
-    UpdateCacheRepositoryContractRector::class,
-]);
+        UpdateCacheStoreContractRector::class,
+        UpdateCacheRepositoryContractRector::class,
+    ]);

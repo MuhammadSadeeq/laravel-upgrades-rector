@@ -19,8 +19,7 @@ final class CompatibilityMatrix
 
     public function __construct(
         private readonly string $packagesJsonPath,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, array<string, mixed>>

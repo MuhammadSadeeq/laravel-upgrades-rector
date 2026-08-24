@@ -12,9 +12,9 @@ use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
     ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))->withRules([
-    CarbonDiffInToSignedFloatRector::class,
-    CarbonRemovedMethodsRector::class,
-    CarbonFormatLocalizedToIsoFormatRector::class,
-    CarbonNamedArgumentTzRector::class,
-    CarbonTimeZoneConstructorRector::class,
-]);
+        CarbonDiffInToSignedFloatRector::class,
+        CarbonRemovedMethodsRector::class,
+        CarbonFormatLocalizedToIsoFormatRector::class,
+        CarbonNamedArgumentTzRector::class,
+        CarbonTimeZoneConstructorRector::class,
+    ]);

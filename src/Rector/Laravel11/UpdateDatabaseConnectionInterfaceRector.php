@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ConstFetch;
@@ -34,8 +35,7 @@ final class UpdateDatabaseConnectionInterfaceRector extends AbstractRector
 
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
-    ) {
-    }
+    ) {}
 
     public function getNodeTypes(): array
     {
@@ -44,11 +44,11 @@ final class UpdateDatabaseConnectionInterfaceRector extends AbstractRector
 
     public function refactor(Node $node): ?Node
     {
-        if (!$node instanceof Class_) {
+        if (! $node instanceof Class_) {
             return null;
         }
 
-        if (!$this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
+        if (! $this->checker->implementsInterface($node, self::INTERFACE_NAME)) {
             return null;
         }
 
@@ -57,7 +57,7 @@ final class UpdateDatabaseConnectionInterfaceRector extends AbstractRector
         }
 
         $method = new ClassMethod(self::METHOD_NAME, [
-            'flags' => Class_::MODIFIER_PUBLIC,
+            'flags' => Modifiers::PUBLIC,
             // The interface declares no return type; adding ": mixed" is
             // covariant-legal and documents the intent from its docblock.
             'returnType' => new Identifier('mixed'),

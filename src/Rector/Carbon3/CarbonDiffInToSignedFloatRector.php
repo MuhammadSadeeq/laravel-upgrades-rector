@@ -7,9 +7,9 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Carbon3;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\Cast\Int_;
+use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
-use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PHPStan\Type\ObjectType;
 use Rector\Rector\AbstractRector;
@@ -229,7 +229,7 @@ CODE_SAMPLE,
      */
     private function literalBoolean(Arg $arg): bool|string
     {
-        if (! $arg->value instanceof \PhpParser\Node\Expr\ConstFetch) {
+        if (! $arg->value instanceof ConstFetch) {
             return self::UNSAFE;
         }
 
