@@ -15,4 +15,6 @@ class LaravelUpgradeSetList
     public const LARAVEL_13 = __DIR__.'/laravel-13.php';
 
     public const UP_TO_LARAVEL_13 = __DIR__.'/up-to-laravel-13.php';
+
+    public const MODERNIZE = __DIR__.'/modernize.php';
 }

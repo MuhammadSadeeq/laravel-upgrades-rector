@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveDoctrineDBALRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveSpatieOnceRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RenameCashierSubscriptionNameToTypeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeTrialRector;
@@ -52,6 +53,7 @@ return RectorConfig::configure()
         // Package Updates (if installed)
         UpdateCashierStripeRector::class,
         UpdateCashierStripeTrialRector::class,
+        RenameCashierSubscriptionNameToTypeRector::class,
     ]);
 
 /*
