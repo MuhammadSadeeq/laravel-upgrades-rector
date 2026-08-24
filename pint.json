@@ -2,6 +2,8 @@
     "preset": "laravel",
     "exclude": [
         "tests/E2E/plants",
-        "tests/env"
+        "tests/env",
+        "resources",
+        "tests/Rector"
     ]
 }

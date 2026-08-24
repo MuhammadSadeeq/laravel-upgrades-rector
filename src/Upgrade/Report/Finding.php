@@ -30,8 +30,7 @@ final class Finding
         public readonly string $guideUrl,
         public readonly bool $autoFixed = false,
         public readonly string $confidence = 'high',
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -54,22 +53,34 @@ final class Finding
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public static function fromArray(array $data): self
     {
+        $id = $data['id'] ?? '';
+        $ruleId = $data['ruleId'] ?? '';
+        $severity = $data['severity'] ?? self::SEVERITY_MEDIUM;
+        $laravelVersion = $data['laravelVersion'] ?? 0;
+        $file = $data['file'] ?? '';
+        $line = $data['line'] ?? 0;
+        $message = $data['message'] ?? '';
+        $action = $data['action'] ?? '';
+        $guideUrl = $data['guideUrl'] ?? '';
+        $autoFixed = $data['autoFixed'] ?? false;
+        $confidence = $data['confidence'] ?? 'high';
+
         return new self(
-            id: (string) ($data['id'] ?? ''),
-            ruleId: (string) ($data['ruleId'] ?? ''),
-            severity: (string) ($data['severity'] ?? self::SEVERITY_MEDIUM),
-            laravelVersion: (int) ($data['laravelVersion'] ?? 0),
-            file: (string) ($data['file'] ?? ''),
-            line: (int) ($data['line'] ?? 0),
-            message: (string) ($data['message'] ?? ''),
-            action: (string) ($data['action'] ?? ''),
-            guideUrl: (string) ($data['guideUrl'] ?? ''),
-            autoFixed: (bool) ($data['autoFixed'] ?? false),
-            confidence: (string) ($data['confidence'] ?? 'high'),
+            id: is_string($id) ? $id : '',
+            ruleId: is_string($ruleId) ? $ruleId : '',
+            severity: is_string($severity) ? $severity : self::SEVERITY_MEDIUM,
+            laravelVersion: is_int($laravelVersion) ? $laravelVersion : 0,
+            file: is_string($file) ? $file : '',
+            line: is_int($line) ? $line : 0,
+            message: is_string($message) ? $message : '',
+            action: is_string($action) ? $action : '',
+            guideUrl: is_string($guideUrl) ? $guideUrl : '',
+            autoFixed: is_bool($autoFixed) ? $autoFixed : false,
+            confidence: is_string($confidence) ? $confidence : 'high',
         );
     }
 }

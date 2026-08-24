@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
+use RectorLaravel\Set\LaravelSetList;
 
 /**
  * Optional code-quality set composing driftingly/rector-laravel's
@@ -14,6 +15,6 @@ use Rector\Config\RectorConfig;
  */
 return RectorConfig::configure()
     ->withSets([
-        \RectorLaravel\Set\LaravelSetList::LARAVEL_CODE_QUALITY,
-        \RectorLaravel\Set\LaravelSetList::LARAVEL_ARRAY_STR_FUNCTION_TO_STATIC_CALL,
+        LaravelSetList::LARAVEL_CODE_QUALITY,
+        LaravelSetList::LARAVEL_ARRAY_STR_FUNCTION_TO_STATIC_CALL,
     ]);

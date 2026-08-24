@@ -7,10 +7,10 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
-use PhpParser\Node\Stmt\ClassMethod;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\ObjectType;
 
 /**
  * Flags every ->change() call on a Blueprint receiver without explicit index
@@ -18,6 +18,9 @@ use PHPStan\Rules\RuleErrorBuilder;
  *
  * Port of the former UpdateColumnModificationRector advisory comment, now
  * as a structured PHPStan rule with file/line/severity metadata.
+ */
+/**
+ * @implements Rule<MethodCall>
  */
 final class ColumnChangeRequiresModifiersRule implements Rule
 {
@@ -38,7 +41,7 @@ final class ColumnChangeRequiresModifiersRule implements Rule
 
         $type = $scope->getType($node->var);
 
-        if (! $type->isInstanceOf('Illuminate\Database\Schema\Blueprint')->yes()) {
+        if (! (new ObjectType('Illuminate\Database\Schema\Blueprint'))->isSuperTypeOf($type)->yes()) {
             return [];
         }
 

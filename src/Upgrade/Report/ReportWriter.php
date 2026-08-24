@@ -11,8 +11,8 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report;
 final class ReportWriter
 {
     /**
-     * @param list<Finding> $findings
-     * @param array{from: string, to: string, php: string, commits: int, duration: string} $project
+     * @param  list<Finding>  $findings
+     * @param  array{from: string, to: string, php: string, commits: int, duration: string}  $project
      */
     public function writeMarkdown(array $findings, array $project, string $targetPath): void
     {
@@ -68,8 +68,8 @@ final class ReportWriter
     }
 
     /**
-     * @param list<Finding> $findings
-     * @param array<string, mixed> $project
+     * @param  list<Finding>  $findings
+     * @param  array<string, mixed>  $project
      */
     public function writeJson(array $findings, array $project, string $targetPath): void
     {
@@ -80,6 +80,6 @@ final class ReportWriter
             'findings' => array_map(static fn (Finding $f): array => $f->toArray(), $findings),
         ];
 
-        file_put_contents($targetPath, json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        file_put_contents($targetPath, json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
     }
 }

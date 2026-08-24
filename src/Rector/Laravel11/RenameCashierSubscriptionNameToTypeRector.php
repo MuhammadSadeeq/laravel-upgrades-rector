@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
+use PHPStan\Analyser\Scope;
 use PHPStan\Type\ObjectType;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
@@ -35,7 +35,7 @@ final class RenameCashierSubscriptionNameToTypeRector extends AbstractRector
 
         $scope = $node->var->getAttribute(AttributeKey::SCOPE);
 
-        if (! $scope instanceof \PHPStan\Analyser\Scope) {
+        if (! $scope instanceof Scope) {
             return null;
         }
 

@@ -83,13 +83,13 @@ final class FindingCollector
     }
 
     /**
-     * @param list<Finding> $findings
+     * @param  list<Finding>  $findings
      */
     public function merge(array $findings): void
     {
         foreach ($findings as $finding) {
             $this->findings[] = $finding;
-            ++$this->nextId;
+            $this->nextId++;
         }
     }
 }
