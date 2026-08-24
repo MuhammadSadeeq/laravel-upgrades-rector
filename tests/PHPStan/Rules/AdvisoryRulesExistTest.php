@@ -30,20 +30,8 @@ final class AdvisoryRulesExistTest extends TestCase
 
             $fqcn = 'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\'.$className;
 
-            self::assertTrue(
-                class_exists($fqcn),
-                $fqcn.' does not autoload.'
-            );
-
-            self::assertTrue(
-                is_a($fqcn, Rule::class, true),
-                $fqcn.' does not implement PHPStan\Rules\Rule.'
-            );
-
-            self::assertTrue(
-                method_exists($fqcn, 'getNodeType'),
-                $fqcn.' missing getNodeType().'
-            );
+            self::assertTrue(class_exists($fqcn), $fqcn.' does not autoload.');
+            self::assertTrue(is_a($fqcn, Rule::class, true), $fqcn.' does not implement Rule.');
         }
     }
 }

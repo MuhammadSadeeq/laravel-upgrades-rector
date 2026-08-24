@@ -16,6 +16,9 @@ use PHPStan\Rules\RuleErrorBuilder;
  * Laravel 11 / Passport 12 removed Passport::routes() — routes are now
  * auto-registered by the service provider.
  */
+/**
+ * @implements Rule<StaticCall>
+ */
 final class PassportRoutesRemovedRule implements Rule
 {
     public function getNodeType(): string
