@@ -1,0 +1,8 @@
+# Rules that must appear in the rector "applied rules" output for 10 -> 11.
+CarbonDiffInToSignedFloatRector
+UpdateSpatialTypesRector
+UpdateFloatingPointTypesRector
+UpdateColumnModificationRector
+UpdateDatabaseConnectionInterfaceRector
+UpdateMailerContractRector
+UpdateSanctumConfigRector

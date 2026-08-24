@@ -1,0 +1,40 @@
+name: E2E Upgrades
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1' # weekly, Monday 03:00 UTC
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - from: 10
+            to: 11
+          - from: 11
+            to: 12
+          - from: 12
+            to: 13
+
+    name: E2E Laravel ${{ matrix.from }} -> ${{ matrix.to }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, sqlite3
+          coverage: none
+
+      - name: Install package dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run end-to-end upgrade (${{ matrix.from }} -> ${{ matrix.to }})
+        run: php bin/e2e ${{ matrix.from }} ${{ matrix.to }}

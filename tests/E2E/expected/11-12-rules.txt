@@ -1,0 +1,6 @@
+# Rules that must appear in the rector "applied rules" output for 11 -> 12.
+ReplaceHasVersion7UuidsRector
+UpdateImageValidationSvgRector
+UpdateRequestMergingRector
+UpdateRoutePrecedenceRector
+CarbonDiffInToSignedFloatRector

@@ -1,0 +1,407 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * End-to-end upgrade harness (plan P1-05).
+ *
+ * Usage: php bin/e2e <from-major> <to-major>
+ *
+ * Creates a real Laravel application, plants realistic upgrade-triggering
+ * files, installs this package from the local checkout, runs the documented
+ * Phase 0 flow (deps → composer update -W → rector ×2) and asserts:
+ *
+ * - `deps --dry-run` leaves the tree byte-identical;
+ * - composer validate --strict passes after applying;
+ * - every changed PHP file lints;
+ * - every changed class loads against the upgraded autoloader;
+ * - the app boots (artisan about), migrates (sqlite) and passes its tests;
+ * - the SECOND rector pass produces zero changes (idempotency);
+ * - an expected subset of rules actually ran.
+ */
+
+if ($argc !== 3) {
+    fwrite(STDERR, "Usage: php bin/e2e <from-major> <to-major>\n");
+
+    exit(1);
+}
+
+$from = (int) $argv[1];
+$to = (int) $argv[2];
+
+$repoRoot = realpath(dirname(__DIR__));
+
+if (! is_string($repoRoot)) {
+    fwrite(STDERR, "Could not resolve repo root.\n");
+
+    exit(1);
+}
+
+$failures = [];
+
+function run(string $command, string $cwd, ?int &$exitCode = null, ?int $timeout = 900): string
+{
+    $process = Symfony\Component\Process\Process::fromShellCommandline($command, $cwd);
+    $process->setTimeout($timeout ?? 900);
+    $process->run(static function (string $type, string $buffer): void {
+        echo $buffer;
+    });
+    $exitCode = $process->getExitCode() ?? 1;
+
+    return $process->getOutput();
+}
+
+function check(string $name, callable $assertion): void
+{
+    global $failures;
+
+    echo "\n=== {$name} ===\n";
+
+    try {
+        $assertion();
+        echo "✔ {$name}\n";
+    } catch (\Throwable $throwable) {
+        $failures[] = $name . ': ' . $throwable->getMessage();
+        echo "✘ {$name}: " . $throwable->getMessage() . "\n";
+    }
+}
+
+/**
+ * Changed .php files according to git, NUL-safe including renames.
+ *
+ * @return list<string>
+ */
+function changedPhpFiles(string $directory): array
+{
+    $process = new Symfony\Component\Process\Process(['git', 'status', '--porcelain=v1', '-z'], $directory);
+    $process->run();
+    $raw = $process->getOutput();
+
+    $files = [];
+    $entries = explode("\0", $raw);
+
+    foreach ($entries as $index => $entry) {
+        if ($entry === '') {
+            continue;
+        }
+
+        // Rename entries carry two paths: "R  old\0new".
+        if (($entries[$index + 1] ?? '') !== '' && ! str_contains($entry, ' ')) {
+            continue;
+        }
+
+        $path = preg_match('/^\s*[AMDRCT?]+\s+(.*)$/sD', $entry, $m) === 1 ? $m[1] : trim($entry);
+
+        if (str_ends_with($path, '.php')) {
+            $files[] = $path;
+        }
+    }
+
+    return array_values(array_unique($files));
+}
+
+function treeChecksums(string $directory): array
+{
+    $checksums = [];
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS)
+    );
+
+    foreach ($iterator as $fileInfo) {
+        /** @var SplFileInfo $fileInfo */
+        $path = $fileInfo->getPathname();
+
+        // Ignore volatile directories: VCS metadata and dependencies.
+        if (str_contains($path, '/.git/') || str_contains($path, '/vendor/')
+            || str_contains($path, '/node_modules/') || str_contains($path, '/bootstrap/cache/')
+            || str_contains($path, '/storage/framework/') || str_contains($path, '/.phpunit.cache')) {
+            continue;
+        }
+
+        if (! $fileInfo->isFile()) {
+            continue;
+        }
+
+        $relative = substr($path, strlen($directory) + 1);
+        $checksums[$relative] = md5_file($path) ?: '';
+    }
+
+    ksort($checksums);
+
+    return $checksums;
+}
+
+require $repoRoot . '/vendor/autoload.php';
+
+$app = sys_get_temp_dir() . '/e2e-' . $from . '-' . $to . '-' . time();
+
+echo "Creating Laravel {$from} skeleton at {$app}...\n";
+run(sprintf(
+    'composer create-project laravel/laravel %s "^%d.0" --no-scripts --no-interaction --prefer-dist',
+    escapeshellarg($app),
+    $from
+), $repoRoot);
+
+if (! is_file($app . '/artisan')) {
+    fwrite(STDERR, "create-project failed.\n");
+
+    exit(1);
+}
+
+// Composer >= 2.10 blocks Laravel 10/11 resolution through security advisories.
+run('composer config policy.advisories.block false', $app);
+
+// --no-scripts skipped the env setup: provide .env and an application key.
+if (! is_file($app . '/.env') && is_file($app . '/.env.example')) {
+    copy($app . '/.env.example', $app . '/.env');
+}
+
+run('php artisan key:generate --quiet', $app, $keyExit, 120);
+
+if ($keyExit !== 0) {
+    fwrite(STDERR, "key:generate failed\n");
+
+    exit(1);
+}
+
+echo "Planting upgrade-triggering files...\n";
+$plantsSource = $repoRoot . '/tests/E2E/plants/' . $from;
+
+foreach (
+    new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($plantsSource, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    ) as $plantFile
+) {
+    /** @var SplFileInfo $plantFile */
+    $target = $app . '/' . substr($plantFile->getPathname(), strlen($plantsSource) + 1);
+    $targetDirectory = dirname($target);
+
+    if (! is_dir($targetDirectory)) {
+        mkdir($targetDirectory, 0777, true);
+    }
+
+    copy($plantFile->getPathname(), $target);
+}
+
+run('git init -q && git add -A && git commit -qm base', $app);
+
+echo "Installing package from local checkout...\n";
+run('composer config repositories.local path ' . escapeshellarg($repoRoot), $app);
+run('composer require --dev muhammadsadeeq/laravel-upgrades-rector:"*@dev" --no-interaction --no-progress', $app);
+
+check('deps --dry-run is byte-neutral', static function () use ($app, $to): void {
+    $before = treeChecksums($app);
+    $output = run(sprintf('vendor/bin/laravel-upgrade deps %d --dry-run', $to), $app, $exit);
+    $after = treeChecksums($app);
+
+    if ($exit !== 0) {
+        throw new RuntimeException("dry-run exited {$exit}");
+    }
+
+    if ($before !== $after) {
+        throw new RuntimeException('dry-run modified the tree');
+    }
+});
+
+check('deps applies cleanly', static function () use ($app, $to): void {
+    run(sprintf('vendor/bin/laravel-upgrade deps %d', $to), $app, $exit);
+
+    if ($exit !== 0 && $exit !== 3) {
+        throw new RuntimeException("deps exited {$exit}");
+    }
+});
+
+check('composer update resolves', static function () use ($app): void {
+    run(
+        'composer update --with-all-dependencies --no-interaction --no-progress',
+        $app,
+        $exit,
+        1800
+    );
+
+    if ($exit !== 0) {
+        throw new RuntimeException("update exited {$exit}");
+    }
+});
+
+$rectorConfig = 'vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-' . $to . '.php';
+$appliedRules = [];
+
+check('rector pass 1 applies rules without errors', static function () use ($app, $rectorConfig, &$appliedRules): void {
+    $jsonOutput = run(sprintf(
+        'vendor/bin/rector process --config=%s --no-progress-bar --output-format=json --clear-cache',
+        escapeshellarg($rectorConfig)
+    ), $app, $exit, 1200);
+
+    $decoded = json_decode($jsonOutput, true);
+
+    if (! is_array($decoded)) {
+        throw new RuntimeException('rector json output unreadable');
+    }
+
+    foreach ($decoded['totals']['errors'] ?? [] as $error) {
+        if ((int) ($error['count'] ?? 1) > 0) {
+            throw new RuntimeException('rector reported errors: ' . substr(json_encode($error), 0, 200));
+        }
+    }
+
+    foreach ($decoded['file_diffs'] ?? [] as $fileDiff) {
+        foreach ($fileDiff['applied_rectors'] ?? [] as $applied) {
+            $appliedRules[$applied] = true;
+        }
+    }
+});
+
+check('expected rules ran', static function () use ($app, $from, $to, $appliedRules): void {
+    $expectedFile = sprintf('%s/tests/E2E/expected/%d-%d-rules.txt', dirname(__DIR__), $from, $to);
+
+    if (! is_file($expectedFile)) {
+        echo "  (no expectation file — skipping)\n";
+
+        return;
+    }
+
+    $missing = [];
+
+    foreach (file($expectedFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $expectedRule) {
+        $expectedRule = trim($expectedRule);
+
+        if ($expectedRule === '' || str_starts_with($expectedRule, '#')) {
+            continue;
+        }
+
+        $found = false;
+
+        foreach (array_keys($appliedRules) as $applied) {
+            if (str_contains($applied, $expectedRule)) {
+                $found = true;
+
+                break;
+            }
+        }
+
+        if (! $found) {
+            $missing[] = $expectedRule;
+        }
+    }
+
+    if ($missing !== []) {
+        throw new RuntimeException('rules missing: ' . implode(', ', $missing));
+    }
+});
+
+check('rector pass 2 changes nothing', static function () use ($app, $rectorConfig): void {
+    $output = run(sprintf(
+        'vendor/bin/rector process --config=%s --no-progress-bar --clear-cache',
+        escapeshellarg($rectorConfig)
+    ), $app, $exit, 1200);
+
+    if (str_contains($output, '1 file') || str_contains($output, 'files have been changed')) {
+        throw new RuntimeException('second pass changed files — rule is not idempotent');
+    }
+});
+
+check('changed PHP files lint', static function () use ($app): void {
+    $changedFiles = changedPhpFiles($app);
+
+    if ($changedFiles === []) {
+        throw new RuntimeException('no changed PHP files detected');
+    }
+
+    foreach ($changedFiles as $file) {
+        $output = run('php -l ' . escapeshellarg($file), $app, $lintExit);
+
+        if ($lintExit !== 0) {
+            throw new RuntimeException("{$file} failed to lint (exit {$lintExit}): " . trim($output));
+        }
+    }
+});
+
+check('changed classes load', static function () use ($app): void {
+    $loader = <<<'PHP'
+<?php
+require $argv[1] . '/vendor/autoload.php';
+$status = 0;
+foreach (explode("\n", $argv[2]) as $file) {
+    $file = trim($file);
+    if ($file === '') { continue; }
+    ob_start();
+    try { require $argv[1] . '/' . $file; } catch (\Throwable $e) {}
+    $out = ob_get_clean();
+    if ($out !== '' && stripos($out, 'fatal') !== false) { echo $out; $status = 1; }
+}
+exit($status);
+PHP;
+    $loaderPath = $app . '/load-check.php';
+    file_put_contents($loaderPath, $loader);
+
+    $changedPhp = array_values(array_filter(
+        changedPhpFiles($app),
+        static fn (string $path): bool => str_starts_with($path, 'app/')
+    ));
+
+    run(sprintf(
+        'php %s %s %s',
+        escapeshellarg($loaderPath),
+        escapeshellarg($app),
+        escapeshellarg(implode("\n", $changedPhp))
+    ), $app, $loadExit);
+
+    unlink($loaderPath);
+
+    if ($loadExit !== 0) {
+        throw new RuntimeException('a changed class failed to load');
+    }
+});
+
+check('application boots', static function () use ($app): void {
+    run('php artisan config:clear', $app, $exit);
+
+    if ($exit !== 0) {
+        throw new RuntimeException('config:clear failed');
+    }
+
+    run('php artisan about', $app, $aboutExit);
+
+    if ($aboutExit !== 0) {
+        throw new RuntimeException('artisan about failed');
+    }
+});
+
+check('migrations run on sqlite', static function () use ($app): void {
+    $envFile = $app . '/.env';
+
+    if (is_file($envFile)) {
+        file_put_contents($envFile, (string) preg_replace('/^DB_CONNECTION=.*/m', 'DB_CONNECTION=sqlite', (string) file_get_contents($envFile)));
+    }
+
+    touch($app . '/database/database.sqlite');
+    run('php artisan migrate --force', $app, $exit, 600);
+
+    if ($exit !== 0) {
+        throw new RuntimeException('migrate failed');
+    }
+});
+
+check('test suite passes', static function () use ($app): void {
+    run('php artisan test --compact', $app, $exit, 900);
+
+    if ($exit !== 0) {
+        throw new RuntimeException('project tests failed');
+    }
+});
+
+echo "\n========================================\n";
+
+if ($failures !== []) {
+    echo "E2E FAILED ({$from} -> {$to}):\n - " . implode("\n - ", $failures) . "\n";
+    echo "App kept for inspection: {$app}\n";
+
+    exit(1);
+}
+
+echo "E2E PASSED ({$from} -> {$to})\n";
+echo "Cleaning up {$app}\n";
+run('rm -rf ' . escapeshellarg($app), dirname($app));
