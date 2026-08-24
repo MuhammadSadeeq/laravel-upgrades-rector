@@ -17,7 +17,7 @@ final class ContractSpecLoader
      */
     public static function forMajor(int $major): array
     {
-        $file = dirname(__DIR__, 3) . '/resources/contracts/laravel-' . $major . '.php';
+        $file = dirname(__DIR__, 3).'/resources/contracts/laravel-'.$major.'.php';
 
         if (! is_file($file)) {
             throw new RuntimeException(sprintf(

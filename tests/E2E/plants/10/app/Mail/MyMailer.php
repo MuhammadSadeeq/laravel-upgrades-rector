@@ -16,10 +16,7 @@ class MyMailer implements MailerContract
         return $this;
     }
 
-    public function raw($text, $callback)
-    {
-        return;
-    }
+    public function raw($text, $callback) {}
 
     public function send($view, array $data = [], $callback = null)
     {

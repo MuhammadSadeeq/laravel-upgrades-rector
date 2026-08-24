@@ -28,6 +28,18 @@ final class InterfaceImplementationChecker
         if ($scope instanceof Scope) {
             $classReflection = $scope->getClassReflection();
 
+            if (getenv('II_DEBUG') === '1') {
+                $native = $classReflection->getNativeReflection();
+                $implList = array_map(static fn ($i): string => $i->getName(), $native->getInterfaces());
+                @file_put_contents('/tmp/ii-debug.log', sprintf(
+                    "[implements] fqcn=%s native=%s implList=%s is()=%s\n",
+                    $classReflection->getName(),
+                    var_export($native->implementsInterface($interfaceFqcn), true),
+                    implode(',', $implList),
+                    var_export($classReflection->is($interfaceFqcn), true)
+                ), FILE_APPEND);
+            }
+
             if ($classReflection instanceof ClassReflection && $classReflection->is($interfaceFqcn)) {
                 return true;
             }
@@ -38,6 +50,16 @@ final class InterfaceImplementationChecker
         // unrelated classes.
         foreach ($node->implements as $implement) {
             $resolved = $this->resolveName($scope, $implement);
+
+            if (getenv('II_DEBUG') === '1') {
+                @file_put_contents('/tmp/ii-debug.log', sprintf(
+                    "[fallback] impl=%s resolved=%s fqcn=%s eq=%d\n",
+                    $implement->toString(),
+                    var_export($resolved, true),
+                    var_export($interfaceFqcn, true),
+                    var_export($resolved === $interfaceFqcn, true)
+                ), FILE_APPEND);
+            }
 
             if ($resolved === $interfaceFqcn) {
                 return true;
@@ -68,11 +90,45 @@ final class InterfaceImplementationChecker
 
         $classReflection = $scope->getClassReflection();
 
-        if ($classReflection instanceof ClassReflection && $this->hasMethodInReflection(
-            $classReflection,
-            $methodName
-        )) {
-            return true;
+        if (! $classReflection instanceof ClassReflection || ! $classReflection->hasMethod($methodName)) {
+            return false;
+        }
+
+        // Concrete providers win over interface declarations: both PHP and
+        // PHPStan resolve ::getMethod() to the interface declaration even when
+        // a parent class or trait provides a body, so the hierarchy must be
+        // walked explicitly.
+        //
+        // The walk starts at PARENTS on purpose: Rector's kernel caches
+        // PHPStan reflections by class name per process, and multiple fixtures
+        // reuse one class name — the analyzed class's own truth is the local
+        // AST scan above.
+        // Traits used by the analysed class itself count as providers (the
+        // stock User model relies on Illuminate\Auth\Authenticatable); they
+        // are safe to consult here because trait names differ per fixture.
+        foreach ($classReflection->getTraits() as $selfTrait) {
+            if ($selfTrait->hasNativeMethod($methodName)) {
+                return true;
+            }
+        }
+
+        $parent = $classReflection->getParentClass();
+
+        while ($parent instanceof ClassReflection) {
+            if (! $parent->isInterface()
+                && $parent->hasNativeMethod($methodName)
+                && ! $parent->getNativeMethod($methodName)->isAbstract()
+            ) {
+                return true;
+            }
+
+            foreach ($parent->getTraits() as $traitReflection) {
+                if ($traitReflection->hasNativeMethod($methodName)) {
+                    return true;
+                }
+            }
+
+            $parent = $parent->getParentClass();
         }
 
         // Last resort for parents PHPStan could not reflect (e.g. classes
@@ -80,28 +136,6 @@ final class InterfaceImplementationChecker
         // extended class and inspect it. Only the parent FQCN is touched —
         // never the analysed user class itself.
         return $this->hasMethodOnAutoloadableParent($node, $methodName, $scope);
-    }
-
-    private function hasMethodInReflection(ClassReflection $classReflection, string $methodName): bool
-    {
-        // Concrete providers win over interface declarations: both PHP and
-        // PHPStan resolve ::getMethod() to the interface declaration even when
-        // a parent class or trait provides a body, so the hierarchy must be
-        // checked explicitly.
-        $current = $classReflection;
-
-        while ($current instanceof ClassReflection) {
-            if (! $current->isInterface()
-                && $current->hasNativeMethod($methodName)
-                && ! $current->getNativeMethod($methodName)->isAbstract()
-            ) {
-                return true;
-            }
-
-            $current = $current->getParentClass();
-        }
-
-        return false;
     }
 
     private function hasMethodOnAutoloadableParent(Class_ $node, string $methodName, ?Scope $scope): bool

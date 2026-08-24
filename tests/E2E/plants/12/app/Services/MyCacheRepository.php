@@ -3,10 +3,11 @@
 namespace App\Services;
 
 use Closure;
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Contracts\Cache\Repository;
 use Psr\SimpleCache\CacheInterface;
 
-class MyCacheRepository implements Repository, CacheInterface
+class MyCacheRepository implements CacheInterface, Repository
 {
     public function get($key, $default = null): mixed
     {
@@ -100,6 +101,6 @@ class MyCacheRepository implements Repository, CacheInterface
 
     public function getStore()
     {
-        return new \Illuminate\Cache\ArrayStore();
+        return new ArrayStore;
     }
 }

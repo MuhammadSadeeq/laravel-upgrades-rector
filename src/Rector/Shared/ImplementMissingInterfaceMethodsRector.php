@@ -6,10 +6,13 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\TodoNopFactory;
+use PhpParser\Error;
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Namespace_;
+use PhpParser\ParserFactory;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ClassReflection;
 use Rector\Contract\Rector\ConfigurableRectorInterface;
@@ -43,11 +46,10 @@ final class ImplementMissingInterfaceMethodsRector extends AbstractRector implem
 
     public function __construct(
         private readonly InterfaceImplementationChecker $interfaceImplementationChecker,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param mixed[] $configuration list of ContractMethodSpec instances
+     * @param  mixed[]  $configuration  list of ContractMethodSpec instances
      */
     public function configure(array $configuration): void
     {
@@ -171,13 +173,13 @@ CODE_SAMPLE,
     private function parseMethod(string $definition): ClassMethod
     {
         $stub = "<?php\n\nnamespace LaravelUpgradesRector\\ContractSpec;\n\nclass __Spec__\n{\n    "
-            . $definition . "\n}\n";
+            .$definition."\n}\n";
 
-        $parser = (new \PhpParser\ParserFactory())->createForNewestSupportedVersion();
+        $parser = (new ParserFactory)->createForNewestSupportedVersion();
 
         try {
             $ast = $parser->parse($stub);
-        } catch (\PhpParser\Error $error) {
+        } catch (Error $error) {
             throw new \InvalidArgumentException(sprintf(
                 'Contract definition does not parse: %s',
                 $error->getMessage()
@@ -186,7 +188,7 @@ CODE_SAMPLE,
 
         $class = $ast[0] ?? null;
 
-        if ($class instanceof \PhpParser\Node\Stmt\Namespace_) {
+        if ($class instanceof Namespace_) {
             foreach ($class->stmts as $stmt) {
                 if ($stmt instanceof Class_) {
                     $class = $stmt;

@@ -23,7 +23,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ImplementMissingInterface
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withSets([__DIR__ . '/carbon-3.php'])
+    ->withSets([__DIR__.'/carbon-3.php'])
     ->withConfiguredRule(ImplementMissingInterfaceMethodsRector::class, [
         11,
         ...ContractSpecLoader::forMajor(11),

@@ -15,7 +15,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared;
 final class ContractMethodSpec
 {
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public static function fromArray(array $data): self
     {
@@ -51,6 +51,5 @@ final class ContractMethodSpec
         public readonly string $todo,
         public readonly ?string $definitionEloquent,
         public readonly ?string $todoEloquent,
-    ) {
-    }
+    ) {}
 }
