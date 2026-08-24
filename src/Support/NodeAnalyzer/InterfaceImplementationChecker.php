@@ -28,18 +28,6 @@ final class InterfaceImplementationChecker
         if ($scope instanceof Scope) {
             $classReflection = $scope->getClassReflection();
 
-            if (getenv('II_DEBUG') === '1') {
-                $native = $classReflection->getNativeReflection();
-                $implList = array_map(static fn ($i): string => $i->getName(), $native->getInterfaces());
-                @file_put_contents('/tmp/ii-debug.log', sprintf(
-                    "[implements] fqcn=%s native=%s implList=%s is()=%s\n",
-                    $classReflection->getName(),
-                    var_export($native->implementsInterface($interfaceFqcn), true),
-                    implode(',', $implList),
-                    var_export($classReflection->is($interfaceFqcn), true)
-                ), FILE_APPEND);
-            }
-
             if ($classReflection instanceof ClassReflection && $classReflection->is($interfaceFqcn)) {
                 return true;
             }

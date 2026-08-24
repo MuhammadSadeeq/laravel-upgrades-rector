@@ -72,11 +72,17 @@ class MyConnection implements ConnectionInterface
         return $callback($this);
     }
 
-    public function beginTransaction() {}
+    public function beginTransaction()
+    {
+    }
 
-    public function rollBack() {}
+    public function rollBack()
+    {
+    }
 
-    public function commit() {}
+    public function commit()
+    {
+    }
 
     public function transactionLevel()
     {
