@@ -5,23 +5,23 @@ declare(strict_types=1);
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameJobAttemptedEventPropertyRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameQueueBusyEventPropertyRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameValidateCsrfTokensMethodRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateBusDispatcherContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheRepositoryContractRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheStoreContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateContainerCallNullableDefaultsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateDatabaseQueryBehaviorRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateEloquentBehaviorChangesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateHttpClientThrowSignaturesRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateMustVerifyEmailContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdatePaginationViewNamesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdatePasswordResetSubjectRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateQueueContractMethodsRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateResponseFactoryContractRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ContractSpecLoader;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ImplementMissingInterfaceMethodsRector;
 use Rector\Config\RectorConfig;
 use Rector\Renaming\Rector\Name\RenameClassRector;
 
 return RectorConfig::configure()
     ->withImportNames()
+    ->withConfiguredRule(ImplementMissingInterfaceMethodsRector::class, [
+        13,
+        ...ContractSpecLoader::forMajor(13),
+    ])
     ->withConfiguredRule(RenameClassRector::class, [
         // Laravel 13 renamed the CSRF middleware; both legacy aliases are
         // deprecated subclasses of the new class.
@@ -30,12 +30,6 @@ return RectorConfig::configure()
     ])
     ->withRules([
         RenameValidateCsrfTokensMethodRector::class,
-        UpdateCacheRepositoryContractRector::class,
-        UpdateCacheStoreContractRector::class,
-        UpdateBusDispatcherContractRector::class,
-        UpdateResponseFactoryContractRector::class,
-        UpdateMustVerifyEmailContractRector::class,
-        UpdateQueueContractMethodsRector::class,
         UpdateContainerCallNullableDefaultsRector::class,
         UpdateDatabaseQueryBehaviorRector::class,
         UpdateEloquentBehaviorChangesRector::class,
@@ -54,6 +48,5 @@ return RectorConfig::configure()
  * - UpdateCacheConfigurationRector       → wrong session-cookie guidance; all fixtures were no-ops
  * - UpdateNotificationBehaviorRector     → targeted the cohort that is already safe
  * - UpdateRoutingDomainPrecedenceRector  → stateful, same-file only; route analysis moves to verification
- * - UpdateSupportBehaviorChangesRector   → withSchedule branch unreachable, Str branch never scanned tests,
- *                                          missed facade ::extend; replaced by four focused advisory rules
+ * - UpdateSupportBehaviorChangesRector   → withSchedule branch unreachable, Str branch dead, misses facade ::extend
  */

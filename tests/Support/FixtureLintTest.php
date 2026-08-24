@@ -120,7 +120,8 @@ final class FixtureLintTest extends TestCase
         }
 
         $hasSeparator = str_contains($contents, '-----');
-        $isSkipNamed = str_starts_with($name, 'skip_');
+        // Suite convention allows a rule prefix: <rule>_skip_*.php.inc
+        $isSkipNamed = str_starts_with($name, 'skip_') || str_contains($name, '_skip_');
 
         if (! $hasSeparator) {
             if (! $isSkipNamed) {

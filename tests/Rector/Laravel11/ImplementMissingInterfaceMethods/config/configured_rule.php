@@ -10,6 +10,6 @@ use Rector\Config\RectorConfig;
 return RectorConfig::configure()
     ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))
     ->withConfiguredRule(ImplementMissingInterfaceMethodsRector::class, [
-        13,
-        ...ContractSpecLoader::forMajor(13),
+        11,
+        ...ContractSpecLoader::forMajor(11),
     ]);

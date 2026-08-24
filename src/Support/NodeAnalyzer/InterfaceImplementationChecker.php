@@ -37,7 +37,9 @@ final class InterfaceImplementationChecker
         // (which honours use-statements). A short-name guess would match
         // unrelated classes.
         foreach ($node->implements as $implement) {
-            if ($this->resolveName($scope, $implement) === $interfaceFqcn) {
+            $resolved = $this->resolveName($scope, $implement);
+
+            if ($resolved === $interfaceFqcn) {
                 return true;
             }
         }

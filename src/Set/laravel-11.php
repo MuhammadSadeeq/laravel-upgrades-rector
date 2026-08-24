@@ -4,29 +4,30 @@ declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveDoctrineDBALRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveSpatieOnceRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticatableContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateBatchRepositoryInterfaceRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeTrialRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateColumnModificationRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateDatabaseConnectionInterfaceRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEloquentCastsMethodRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEmailVerificationSetupRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEnumerableContractRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEnumerableDumpSignatureRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateFloatingPointTypesRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateMailerContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdatePasswordRehashingRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdatePublishedServiceProviderRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateRateLimitingRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSanctumConfigRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSchemaGetColumnTypeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSpatialTypesRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateUserProviderContractRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ContractSpecLoader;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ImplementMissingInterfaceMethodsRector;
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withSets([__DIR__.'/carbon-3.php'])
+    ->withSets([__DIR__ . '/carbon-3.php'])
+    ->withConfiguredRule(ImplementMissingInterfaceMethodsRector::class, [
+        11,
+        ...ContractSpecLoader::forMajor(11),
+    ])
     ->withRules([
         // High Impact Changes
         UpdateFloatingPointTypesRector::class,
@@ -42,12 +43,7 @@ return RectorConfig::configure()
         RemoveDoctrineDBALRector::class,
         UpdateEloquentCastsMethodRector::class,
         UpdateSpatialTypesRector::class,
-        UpdateEnumerableContractRector::class,
-        UpdateUserProviderContractRector::class,
-        UpdateAuthenticatableContractRector::class,
-        UpdateDatabaseConnectionInterfaceRector::class,
-        UpdateMailerContractRector::class,
-        UpdateBatchRepositoryInterfaceRector::class,
+        UpdateEnumerableDumpSignatureRector::class,
         UpdateAuthenticationExceptionRedirectToRector::class,
         UpdateEmailVerificationSetupRector::class,
         UpdateSchemaGetColumnTypeRector::class,
