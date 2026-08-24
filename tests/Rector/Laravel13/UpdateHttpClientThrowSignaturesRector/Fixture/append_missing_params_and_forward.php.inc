@@ -1,4 +1,4 @@
-<?php
+<?php // @loads
 
 namespace App\Http;
 
@@ -19,7 +19,7 @@ class CustomResponse extends Response
 
 ?>
 -----
-<?php
+<?php // @loads
 
 namespace App\Http;
 

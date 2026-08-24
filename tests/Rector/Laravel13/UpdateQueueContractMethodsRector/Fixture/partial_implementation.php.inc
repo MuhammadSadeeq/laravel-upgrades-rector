@@ -1,4 +1,4 @@
-<?php
+<?php // @loads
 
 namespace App\Queue;
 
@@ -6,20 +6,60 @@ use Illuminate\Contracts\Queue\Queue;
 
 class CustomQueue implements Queue
 {
-    public function pendingSize(?string $queue = null): int
+    public function pendingSize($queue = null): int
     {
         return $this->connection->llen($queue);
     }
 
-    public function delayedSize(?string $queue = null): int
+    public function delayedSize($queue = null): int
     {
         return $this->connection->zcard($queue);
+    }
+
+    public function size($queue = null)
+    {
+    }
+
+    public function push($job, $data = '', $queue = null)
+    {
+    }
+
+    public function pushOn($queue, $job, $data = '')
+    {
+    }
+
+    public function pushRaw($payload, $queue = null, array $options = [])
+    {
+    }
+
+    public function later($delay, $job, $data = '', $queue = null)
+    {
+    }
+
+    public function laterOn($queue, $delay, $job, $data = '')
+    {
+    }
+
+    public function bulk($jobs, $data = '', $queue = null)
+    {
+    }
+
+    public function pop($queue = null)
+    {
+    }
+
+    public function getConnectionName()
+    {
+    }
+
+    public function setConnectionName($name)
+    {
     }
 }
 
 ?>
 -----
-<?php
+<?php // @loads
 
 namespace App\Queue;
 
@@ -27,14 +67,54 @@ use Illuminate\Contracts\Queue\Queue;
 
 class CustomQueue implements Queue
 {
-    public function pendingSize(?string $queue = null): int
+    public function pendingSize($queue = null): int
     {
         return $this->connection->llen($queue);
     }
 
-    public function delayedSize(?string $queue = null): int
+    public function delayedSize($queue = null): int
     {
         return $this->connection->zcard($queue);
+    }
+
+    public function size($queue = null)
+    {
+    }
+
+    public function push($job, $data = '', $queue = null)
+    {
+    }
+
+    public function pushOn($queue, $job, $data = '')
+    {
+    }
+
+    public function pushRaw($payload, $queue = null, array $options = [])
+    {
+    }
+
+    public function later($delay, $job, $data = '', $queue = null)
+    {
+    }
+
+    public function laterOn($queue, $delay, $job, $data = '')
+    {
+    }
+
+    public function bulk($jobs, $data = '', $queue = null)
+    {
+    }
+
+    public function pop($queue = null)
+    {
+    }
+
+    public function getConnectionName()
+    {
+    }
+
+    public function setConnectionName($name)
+    {
     }
     public function reservedSize($queue = null): int
     {

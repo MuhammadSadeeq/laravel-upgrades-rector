@@ -1,4 +1,4 @@
-<?php
+<?php // @loads
 
 namespace App\Queue;
 
@@ -6,11 +6,50 @@ use Illuminate\Contracts\Queue\Queue;
 
 class CustomQueue implements Queue
 {
+    public function size($queue = null)
+    {
+    }
+
+    public function push($job, $data = '', $queue = null)
+    {
+    }
+
+    public function pushOn($queue, $job, $data = '')
+    {
+    }
+
+    public function pushRaw($payload, $queue = null, array $options = [])
+    {
+    }
+
+    public function later($delay, $job, $data = '', $queue = null)
+    {
+    }
+
+    public function laterOn($queue, $delay, $job, $data = '')
+    {
+    }
+
+    public function bulk($jobs, $data = '', $queue = null)
+    {
+    }
+
+    public function pop($queue = null)
+    {
+    }
+
+    public function getConnectionName()
+    {
+    }
+
+    public function setConnectionName($name)
+    {
+    }
 }
 
 ?>
 -----
-<?php
+<?php // @loads
 
 namespace App\Queue;
 
@@ -18,6 +57,45 @@ use Illuminate\Contracts\Queue\Queue;
 
 class CustomQueue implements Queue
 {
+    public function size($queue = null)
+    {
+    }
+
+    public function push($job, $data = '', $queue = null)
+    {
+    }
+
+    public function pushOn($queue, $job, $data = '')
+    {
+    }
+
+    public function pushRaw($payload, $queue = null, array $options = [])
+    {
+    }
+
+    public function later($delay, $job, $data = '', $queue = null)
+    {
+    }
+
+    public function laterOn($queue, $delay, $job, $data = '')
+    {
+    }
+
+    public function bulk($jobs, $data = '', $queue = null)
+    {
+    }
+
+    public function pop($queue = null)
+    {
+    }
+
+    public function getConnectionName()
+    {
+    }
+
+    public function setConnectionName($name)
+    {
+    }
     public function pendingSize($queue = null): int
     {
         // TODO: Laravel 13 — implement pendingSize() to satisfy the updated contract.

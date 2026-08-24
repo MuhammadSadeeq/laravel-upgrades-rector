@@ -1,4 +1,4 @@
-<?php
+<?php // @loads
 
 namespace App\Auth;
 
@@ -6,11 +6,34 @@ use Illuminate\Contracts\Auth\Authenticatable;
 
 class CustomAuth implements Authenticatable
 {
+    public function getAuthIdentifierName()
+    {
+    }
+
+    public function getAuthIdentifier()
+    {
+    }
+
+    public function getAuthPassword()
+    {
+    }
+
+    public function getRememberToken()
+    {
+    }
+
+    public function setRememberToken($value)
+    {
+    }
+
+    public function getRememberTokenName()
+    {
+    }
 }
 
 ?>
 -----
-<?php
+<?php // @loads
 
 namespace App\Auth;
 
@@ -18,6 +41,29 @@ use Illuminate\Contracts\Auth\Authenticatable;
 
 class CustomAuth implements Authenticatable
 {
+    public function getAuthIdentifierName()
+    {
+    }
+
+    public function getAuthIdentifier()
+    {
+    }
+
+    public function getAuthPassword()
+    {
+    }
+
+    public function getRememberToken()
+    {
+    }
+
+    public function setRememberToken($value)
+    {
+    }
+
+    public function getRememberTokenName()
+    {
+    }
     public function getAuthPasswordName(): string
     {
         // TODO: Laravel 11 — adjust this default when the password credential column is not "password".

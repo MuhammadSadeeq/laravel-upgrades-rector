@@ -1,4 +1,4 @@
-<?php
+<?php // @loads
 
 namespace App\Mail;
 
@@ -6,11 +6,26 @@ use Illuminate\Contracts\Mail\Mailer;
 
 class CustomMailer implements Mailer
 {
+    public function to($users)
+    {
+    }
+
+    public function bcc($users)
+    {
+    }
+
+    public function raw($text, $callback)
+    {
+    }
+
+    public function send($view, array $data = [], $callback = null)
+    {
+    }
 }
 
 ?>
 -----
-<?php
+<?php // @loads
 
 namespace App\Mail;
 
@@ -18,6 +33,21 @@ use Illuminate\Contracts\Mail\Mailer;
 
 class CustomMailer implements Mailer
 {
+    public function to($users)
+    {
+    }
+
+    public function bcc($users)
+    {
+    }
+
+    public function raw($text, $callback)
+    {
+    }
+
+    public function send($view, array $data = [], $callback = null)
+    {
+    }
     public function sendNow($mailable, array $data = [], $callback = null): ?\Illuminate\Mail\SentMessage
     {
         // TODO: Laravel 11 — implement sendNow() to satisfy the updated contract.
