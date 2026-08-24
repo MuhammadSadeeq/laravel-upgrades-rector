@@ -1,0 +1,10 @@
+# Advisory rules for Laravel 12 → 13 upgrades.
+# Usage: vendor/bin/phpstan analyse -c vendor/muhammadsadeeq/laravel-upgrades-rector/resources/phpstan/upgrade-13.neon app/
+parameters:
+    level: 0
+    reportUnmatchedIgnoredErrors: false
+
+services:
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ColumnChangeRequiresModifiersRule
+        tags: [phpstan.rules.rule]
