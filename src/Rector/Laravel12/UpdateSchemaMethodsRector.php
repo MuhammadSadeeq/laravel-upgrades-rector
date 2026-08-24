@@ -7,6 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StatementCallFinder;
 use PhpParser\Node;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Expression;
 use Rector\Rector\AbstractRector;
@@ -49,7 +50,7 @@ final class UpdateSchemaMethodsRector extends AbstractRector
             }
         }
 
-        if (! isset($staticCall) || ! $staticCall instanceof StaticCall) {
+        if (! isset($staticCall)) {
             return null;
         }
 

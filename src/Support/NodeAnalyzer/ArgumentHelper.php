@@ -16,7 +16,7 @@ use PhpParser\Node\Expr\StaticCall;
 final class ArgumentHelper
 {
     /**
-     * @param MethodCall|StaticCall $call
+     * @param  MethodCall|StaticCall  $call
      */
     public function hasNamedArguments($call): bool
     {
@@ -33,9 +33,6 @@ final class ArgumentHelper
         return false;
     }
 
-    /**
-     * @param MethodCall|StaticCall $call
-     */
     public function hasUnpack(MethodCall|StaticCall $call): bool
     {
         foreach ($call->getArgs() as $arg) {
@@ -49,8 +46,6 @@ final class ArgumentHelper
 
     /**
      * Positional argument by index, or named argument by name.
-     *
-     * @param MethodCall|StaticCall $call
      */
     public function argByNameOrPosition(MethodCall|StaticCall $call, ?int $index, ?string $name = null): ?Arg
     {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class Post extends Model
 {
@@ -18,7 +19,7 @@ class Post extends Model
         return $this->created_at->diffInDays(now());
     }
 
-    public function hoursUntil(\Illuminate\Support\Carbon $then): float
+    public function hoursUntil(Carbon $then): float
     {
         return $this->created_at->diffInHours($then, false);
     }

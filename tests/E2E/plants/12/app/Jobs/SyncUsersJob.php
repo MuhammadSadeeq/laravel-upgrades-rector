@@ -16,8 +16,7 @@ class SyncUsersJob implements ShouldQueue
 
     public function __construct(
         public readonly Collection $users,
-    ) {
-    }
+    ) {}
 
     public function handle(): void
     {

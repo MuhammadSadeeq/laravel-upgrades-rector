@@ -100,7 +100,10 @@ PHP);
      */
     private function parse(string $code): array
     {
-        return $this->parser->parse($code) ?? [];
+        /** @var list<Stmt> $parsed */
+        $parsed = $this->parser->parse($code) ?? [];
+
+        return $parsed;
     }
 
     private function firstStatement(string $code): Expression

@@ -10,6 +10,7 @@ use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\ArrayItem;
 use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Expression;
@@ -37,6 +38,8 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
             return null;
         }
 
+        $staticCall = null;
+
         foreach ($this->statementCallFinder->find($node) as $candidate) {
             if ($candidate instanceof StaticCall) {
                 $staticCall = $candidate;
@@ -45,7 +48,7 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
             }
         }
 
-        if (! isset($staticCall) || ! $staticCall instanceof StaticCall) {
+        if (! $staticCall instanceof StaticCall) {
             return null;
         }
 

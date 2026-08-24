@@ -32,33 +32,7 @@ final class StatementCallFinder
     }
 
     /**
-     * First matching call of the given kind inside the statement.
-     */
-    public function findFirst(Node $statement, string $methodOrClassName, bool $isStaticName = false): MethodCall|StaticCall|New_|null
-    {
-        foreach ($this->find($statement) as $call) {
-            if ($call instanceof New_) {
-                if (! $isStaticName && $call->class instanceof Node\Name && $this->namesMatch($call->class, $methodOrClassName)) {
-                    return $call;
-                }
-
-                continue;
-            }
-
-            if ($call instanceof StaticCall && $isStaticName) {
-                if ($call->class instanceof Node\Name && $this->namesMatch($call->class, $methodOrClassName)) {
-                    return $call;
-                }
-
-                continue;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param list<MethodCall|StaticCall|New_> $out
+     * @param  list<MethodCall|StaticCall|New_>  $out
      */
     private function collect(Node $node, array &$out): void
     {
@@ -83,20 +57,5 @@ final class StatementCallFinder
                 $this->collect($child, $out);
             }
         }
-    }
-
-    private function namesMatch(Node\Name $name, string $expected): bool
-    {
-        $resolved = $name->getAttribute(\Rector\NodeTypeResolver\Node\AttributeKey::RESOLVED_NAME);
-
-        if ($resolved instanceof Node\Name) {
-            return strcasecmp(ltrim($resolved->toString(), '\\'), ltrim($expected, '\\')) === 0;
-        }
-
-        // Unresolved short names only match when identical; guessing across
-        // namespaces is a rule-standard violation (#1).
-        return strcasecmp($name->toString(), ltrim($expected, '\\')) === 0
-            || strcasecmp($name->toString(), substr($expected, (int) strrpos($expected, '\\') + 1)) === 0
-            && $name->isFullyQualified();
     }
 }
