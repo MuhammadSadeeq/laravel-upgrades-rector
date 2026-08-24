@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdatePassportRector;
+
 use Laravel\Passport\Passport;
 
 class PassportSetup
@@ -13,6 +15,8 @@ class PassportSetup
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdatePassportRector;
 
 use Laravel\Passport\Passport;
 

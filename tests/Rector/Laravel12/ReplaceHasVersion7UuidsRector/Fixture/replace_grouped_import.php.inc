@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\ReplaceHasVersion7UuidsRector;
+
 use Illuminate\Database\Eloquent\Model, Illuminate\Database\Eloquent\Concerns\HasVersion7Uuids;
 
 class AuditEvent extends Model
@@ -10,6 +12,8 @@ class AuditEvent extends Model
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\ReplaceHasVersion7UuidsRector;
 
 use Illuminate\Database\Eloquent\Model, Illuminate\Database\Eloquent\Concerns\HasUuids;
 

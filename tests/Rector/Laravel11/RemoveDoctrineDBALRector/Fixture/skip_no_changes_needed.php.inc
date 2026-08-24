@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
+
 use Illuminate\Support\Facades\Schema;
 
 class NoChangesExample

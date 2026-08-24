@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateColumnModificationRector;
+
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -15,6 +17,8 @@ Schema::table('products', function (Blueprint $table) {
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateColumnModificationRector;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCashierStripeTrialRector;
+
 class OtherService
 {
     public function handleOtherCancellations()

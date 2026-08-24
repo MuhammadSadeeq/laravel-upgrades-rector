@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateConcurrencyResultMappingRector;
+
 function testNoChangeNonConcurrencyCalls()
 {
     // Should not change - not Concurrency::run

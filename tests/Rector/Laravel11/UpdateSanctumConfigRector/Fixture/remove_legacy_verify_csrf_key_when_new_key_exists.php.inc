@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateSanctumConfigRector;
+
 return [
     'stateful' => [],
 
@@ -15,6 +17,8 @@ return [
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateSanctumConfigRector;
 
 return [
     'stateful' => [],

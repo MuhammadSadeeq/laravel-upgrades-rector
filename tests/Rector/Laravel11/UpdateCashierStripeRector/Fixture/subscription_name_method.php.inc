@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCashierStripeRector;
+
 use Laravel\Cashier\Cashier;
 
 class Config
@@ -13,6 +15,8 @@ class Config
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateCashierStripeRector;
 
 use Laravel\Cashier\Cashier;
 

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateRequestMergingRector;
+
 use Illuminate\Http\Request;
 
 class UserController
@@ -18,6 +20,8 @@ class UserController
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateRequestMergingRector;
 
 use Illuminate\Http\Request;
 

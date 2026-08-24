@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
+
 use Illuminate\Support\Enumerable;
 use Countable;
 
@@ -21,6 +23,8 @@ class MultiCollection implements Countable, Enumerable
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
 
 use Illuminate\Support\Enumerable;
 use Countable;

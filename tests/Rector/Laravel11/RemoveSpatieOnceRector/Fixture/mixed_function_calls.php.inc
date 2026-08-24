@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\RemoveSpatieOnceRector;
+
 use Spatie\Once\Cache;
 use App\Services\MyService;
 
@@ -14,6 +16,8 @@ class MixedImports
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\RemoveSpatieOnceRector;
 
 use App\Services\MyService;
 

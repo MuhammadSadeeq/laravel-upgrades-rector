@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateSchemaMethodsRector;
+
 class NonSchemaClass
 {
     public function testMethods()

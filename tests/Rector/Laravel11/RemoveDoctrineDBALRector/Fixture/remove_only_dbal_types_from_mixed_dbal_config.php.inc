@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
+
 return [
     'driver' => 'mysql',
     'dbal' => [
@@ -15,6 +17,8 @@ return [
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
 
 return [
     'driver' => 'mysql',

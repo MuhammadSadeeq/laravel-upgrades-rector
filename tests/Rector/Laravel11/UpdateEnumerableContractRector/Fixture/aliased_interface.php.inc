@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
+
 use Illuminate\Support\Enumerable as EnumerableContract;
 
 class LegacyEnumerableCollection implements EnumerableContract
@@ -13,6 +15,8 @@ class LegacyEnumerableCollection implements EnumerableContract
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
 
 use Illuminate\Support\Enumerable as EnumerableContract;
 

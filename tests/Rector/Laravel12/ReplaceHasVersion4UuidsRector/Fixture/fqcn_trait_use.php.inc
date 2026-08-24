@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\ReplaceHasVersion4UuidsRector;
+
 class User
 {
     use \Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -8,6 +10,8 @@ class User
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\ReplaceHasVersion4UuidsRector;
 
 class User
 {

@@ -1,16 +1,15 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateSanctumConfigRector;
+
 return [
     'defaults' => [
         'guard' => 'web',
         'passwords' => 'users',
     ],
 
-    'guards' => [
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'users',
-        ],
+    'middleware' => [
+        'authenticate_session' => 'SomeOtherClass',
     ],
 ];
 

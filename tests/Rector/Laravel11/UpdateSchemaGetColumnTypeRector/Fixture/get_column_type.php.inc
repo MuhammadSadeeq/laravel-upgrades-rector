@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateSchemaGetColumnTypeRector;
+
 use Illuminate\Support\Facades\Schema;
 
 $type = Schema::getColumnType('users', 'amount');
@@ -7,6 +9,8 @@ $type = Schema::getColumnType('users', 'amount');
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateSchemaGetColumnTypeRector;
 
 use Illuminate\Support\Facades\Schema;
 

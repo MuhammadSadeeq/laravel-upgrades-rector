@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
+
 class ApiRateLimiter
 {
     public function basic()
@@ -11,6 +13,8 @@ class ApiRateLimiter
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
 
 class ApiRateLimiter
 {

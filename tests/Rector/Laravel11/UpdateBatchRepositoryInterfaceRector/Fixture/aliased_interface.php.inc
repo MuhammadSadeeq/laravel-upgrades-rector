@@ -1,4 +1,6 @@
-<?php // @loads
+<?php
+
+namespace App\Fixtures\Laravel11\UpdateBatchRepositoryInterfaceRector; // @loads
 
 use Illuminate\Bus\BatchRepository as BatchRepositoryContract;
 use Illuminate\Bus\PendingBatch;
@@ -48,7 +50,9 @@ class LegacyBatchRepository implements BatchRepositoryContract
 
 ?>
 -----
-<?php // @loads
+<?php
+
+namespace App\Fixtures\Laravel11\UpdateBatchRepositoryInterfaceRector; // @loads
 
 use Illuminate\Bus\BatchRepository as BatchRepositoryContract;
 use Illuminate\Bus\PendingBatch;

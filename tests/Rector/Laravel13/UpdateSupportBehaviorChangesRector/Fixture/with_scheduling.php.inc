@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
+
 use Illuminate\Foundation\Configuration\ApplicationBuilder;
 
 function configure(ApplicationBuilder $app)
@@ -11,6 +13,8 @@ function configure(ApplicationBuilder $app)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
 
 use Illuminate\Foundation\Configuration\ApplicationBuilder;
 

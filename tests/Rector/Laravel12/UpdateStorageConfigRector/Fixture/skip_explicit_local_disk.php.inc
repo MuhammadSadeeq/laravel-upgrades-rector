@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateStorageConfigRector;
+
 return [
     'disks' => [
         'local' => [

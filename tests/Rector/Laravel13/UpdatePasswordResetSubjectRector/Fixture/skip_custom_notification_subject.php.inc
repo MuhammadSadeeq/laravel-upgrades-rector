@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdatePasswordResetSubjectRector;
+
 use Illuminate\Notifications\Notification;
 
 class ResetPasswordNotification extends Notification

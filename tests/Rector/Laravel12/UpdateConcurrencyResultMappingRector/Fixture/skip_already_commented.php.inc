@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateConcurrencyResultMappingRector;
+
 function testAlreadyCommented()
 {
     Concurrency::run([

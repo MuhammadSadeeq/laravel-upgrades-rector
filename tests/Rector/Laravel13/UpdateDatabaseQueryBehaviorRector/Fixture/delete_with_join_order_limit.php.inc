@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateDatabaseQueryBehaviorRector;
+
 use Illuminate\Database\Query\Builder;
 
 function deleteRows(Builder $query)
@@ -10,6 +12,8 @@ function deleteRows(Builder $query)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateDatabaseQueryBehaviorRector;
 
 use Illuminate\Database\Query\Builder;
 

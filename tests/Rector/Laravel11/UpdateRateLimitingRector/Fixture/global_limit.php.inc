@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
+
 class RateLimitConfig
 {
     public function configure()
@@ -11,6 +13,8 @@ class RateLimitConfig
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
 
 class RateLimitConfig
 {

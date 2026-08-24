@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateSpatialTypesRector;
+
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -12,6 +14,8 @@ Schema::create('collections', function (Blueprint $table) {
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateSpatialTypesRector;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

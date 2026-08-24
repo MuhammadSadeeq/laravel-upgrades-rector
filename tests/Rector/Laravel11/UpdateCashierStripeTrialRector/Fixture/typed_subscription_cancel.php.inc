@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCashierStripeTrialRector;
+
 use Laravel\Cashier\Subscription;
 
 class SubscriptionManager
@@ -13,6 +15,8 @@ class SubscriptionManager
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateCashierStripeTrialRector;
 
 use Laravel\Cashier\Subscription;
 

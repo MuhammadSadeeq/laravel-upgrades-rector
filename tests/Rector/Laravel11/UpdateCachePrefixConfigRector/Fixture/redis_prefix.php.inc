@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCachePrefixConfigRector;
+
 return [
     'driver' => 'redis',
     'prefix' => 'my-app',
@@ -8,6 +10,8 @@ return [
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateCachePrefixConfigRector;
 
 return [
     'driver' => 'redis',

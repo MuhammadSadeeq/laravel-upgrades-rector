@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateColumnModificationRector;
+
 use Illuminate\Database\Schema\Blueprint;
 
 function updateColumn(Blueprint $blueprint)
@@ -10,6 +12,8 @@ function updateColumn(Blueprint $blueprint)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateColumnModificationRector;
 
 use Illuminate\Database\Schema\Blueprint;
 

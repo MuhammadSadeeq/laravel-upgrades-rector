@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateQueueAfterCommitRector;
+
 return [
     'driver' => 'sync',
     'after_commit' => true,
@@ -8,6 +10,8 @@ return [
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateQueueAfterCommitRector;
 
 return [
     'driver' => 'sync',

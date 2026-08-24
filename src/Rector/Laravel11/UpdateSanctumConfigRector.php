@@ -8,6 +8,7 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\ClassConstFetch;
+use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Scalar\String_;
 use Rector\Rector\AbstractRector;
@@ -112,12 +113,25 @@ final class UpdateSanctumConfigRector extends AbstractRector
 
                 $mapping = $this->middlewareMap[$key];
 
-                if ($className === $mapping['fqcn']) {
+                // Bare FQCN references inside a namespace resolve to a
+                // namespace-prefixed name, so compare the raw written form
+                // as well as the resolved one.
+                $rawClassName = $item->value->class instanceof Name
+                    ? ltrim($item->value->class->toString(), '\\')
+                    : ltrim($className, '\\');
+
+                if (in_array($rawClassName, [ltrim($mapping['fqcn'], '\\'), ltrim($className, '\\')], true)) {
                     $updatedItems[] = $item;
                     continue;
                 }
 
-                if (! in_array($className, $mapping['old_defaults'], true)) {
+                $oldDefaults = array_map(
+                    static fn (string $default): string => ltrim($default, '\\'),
+                    $mapping['old_defaults']
+                );
+
+                if (! in_array($rawClassName, $oldDefaults, true)
+                    && ! in_array(ltrim($className, '\\'), $oldDefaults, true)) {
                     $updatedItems[] = $item;
                     continue;
                 }

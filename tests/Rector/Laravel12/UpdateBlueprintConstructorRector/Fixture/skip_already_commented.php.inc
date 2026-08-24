@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateBlueprintConstructorRector;
+
 use Illuminate\Database\Schema\Blueprint;
 
 function alreadyDone()

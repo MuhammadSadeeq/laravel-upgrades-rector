@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateDatabaseQueryBehaviorRector;
+
 use Illuminate\Database\Query\Builder;
 
 function runUpsert(Builder $query, array $rows)
@@ -10,6 +12,8 @@ function runUpsert(Builder $query, array $rows)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateDatabaseQueryBehaviorRector;
 
 use Illuminate\Database\Query\Builder;
 

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdatePublishedServiceProviderRector;
+
 class PackageServiceProvider extends \Illuminate\Support\ServiceProvider
 {
     public function boot(): void
@@ -13,6 +15,8 @@ class PackageServiceProvider extends \Illuminate\Support\ServiceProvider
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdatePublishedServiceProviderRector;
 
 class PackageServiceProvider extends \Illuminate\Support\ServiceProvider
 {

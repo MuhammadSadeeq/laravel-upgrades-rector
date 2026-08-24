@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
+
 use Illuminate\Cache\RateLimiting\GlobalLimit;
 use Illuminate\Cache\RateLimiting\Limit;
 
@@ -17,6 +19,8 @@ class LegacyRateLimiterPatterns
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
 
 use Illuminate\Cache\RateLimiting\GlobalLimit;
 use Illuminate\Cache\RateLimiting\Limit;

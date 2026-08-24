@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
+
 use Illuminate\Support\Str;
 
 Str::createUuidsUsing(fn () => 'fixed');
@@ -7,6 +9,8 @@ Str::createUuidsUsing(fn () => 'fixed');
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
 
 use Illuminate\Support\Str;
 

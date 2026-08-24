@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
+
 use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 
 function testAllSupportedValues()
@@ -18,6 +20,8 @@ function testAllSupportedValues()
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
 
 use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 

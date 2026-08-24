@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateBlueprintConstructorRector;
+
 use Illuminate\Database\Schema\Blueprint;
 
 function fewerArgs()
@@ -11,6 +13,8 @@ function fewerArgs()
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateBlueprintConstructorRector;
 
 use Illuminate\Database\Schema\Blueprint;
 

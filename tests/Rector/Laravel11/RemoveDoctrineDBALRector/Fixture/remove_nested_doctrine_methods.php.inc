@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
+
 use Illuminate\Database\Schema\Builder;
 
 class LegacyDoctrineUsage
@@ -17,6 +19,8 @@ class LegacyDoctrineUsage
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
 
 use Illuminate\Database\Schema\Builder;
 

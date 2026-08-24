@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateImageValidationSvgRector;
+
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\File;
 
@@ -15,6 +17,8 @@ function validateUpload(array $data)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateImageValidationSvgRector;
 
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\File;

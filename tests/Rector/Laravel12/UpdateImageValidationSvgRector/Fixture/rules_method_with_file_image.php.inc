@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateImageValidationSvgRector;
+
 use Illuminate\Validation\Rules\File;
 
 class UploadRequest
@@ -15,6 +17,8 @@ class UploadRequest
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateImageValidationSvgRector;
 
 use Illuminate\Validation\Rules\File;
 

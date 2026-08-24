@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdatePassportRector;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 

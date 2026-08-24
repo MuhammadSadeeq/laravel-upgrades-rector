@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateEloquentBehaviorChangesRector;
+
 use Illuminate\Database\Eloquent\Model;
 
 class User extends Model
@@ -15,6 +17,8 @@ class User extends Model
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateEloquentBehaviorChangesRector;
 
 use Illuminate\Database\Eloquent\Model;
 

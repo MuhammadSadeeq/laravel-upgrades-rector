@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateRequestMergingRector;
+
 use Illuminate\Http\Request;
 
 class RequestController

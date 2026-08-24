@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
+
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
 
 class ThrottleJob extends ThrottlesExceptions
@@ -13,6 +15,8 @@ class ThrottleJob extends ThrottlesExceptions
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
 
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
 

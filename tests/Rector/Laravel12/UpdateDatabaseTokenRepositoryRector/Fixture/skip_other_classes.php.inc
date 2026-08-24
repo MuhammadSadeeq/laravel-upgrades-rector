@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
+
 class SomeOtherClass
 {
     public function test()

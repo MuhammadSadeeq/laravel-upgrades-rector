@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateTelescopeRector;
+
 class TestController
 {
     public function show()

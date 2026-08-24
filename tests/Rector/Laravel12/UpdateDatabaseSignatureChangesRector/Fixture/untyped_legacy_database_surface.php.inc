@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseSignatureChangesRector;
+
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 
 function legacyDatabaseSurface($connection, $blueprint)
@@ -13,6 +15,8 @@ function legacyDatabaseSurface($connection, $blueprint)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateDatabaseSignatureChangesRector;
 
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 

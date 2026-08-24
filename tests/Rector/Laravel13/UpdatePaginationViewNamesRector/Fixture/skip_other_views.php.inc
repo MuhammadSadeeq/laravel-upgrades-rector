@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdatePaginationViewNamesRector;
+
 class OtherViewExample
 {
     public function render()

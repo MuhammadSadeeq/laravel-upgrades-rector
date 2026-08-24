@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCashierStripeRector;
+
 use Laravel\Cashier\Billable;
 
 class BillableUser
@@ -18,6 +20,8 @@ class BillableUser
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateCashierStripeRector;
 
 use Laravel\Cashier\Billable;
 

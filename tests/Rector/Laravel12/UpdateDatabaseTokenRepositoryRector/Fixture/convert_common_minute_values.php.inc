@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
+
 use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 
 class AuthServiceProvider
@@ -17,6 +19,8 @@ class AuthServiceProvider
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
 
 use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdatePasswordRehashingRector;
+
 use Illuminate\Foundation\Auth\User;
 
 class Admin extends User
@@ -13,6 +15,8 @@ class Admin extends User
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdatePasswordRehashingRector;
 
 use Illuminate\Foundation\Auth\User;
 

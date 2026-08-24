@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateImageValidationSvgRector;
+
 function store(Request $request)
 {
     $request->validate([
@@ -10,6 +12,8 @@ function store(Request $request)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateImageValidationSvgRector;
 
 function store(Request $request)
 {

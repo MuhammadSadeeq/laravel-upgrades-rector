@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseSignatureChangesRector;
+
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 
 function configureGrammar($connection)
@@ -11,6 +13,8 @@ function configureGrammar($connection)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateDatabaseSignatureChangesRector;
 
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 

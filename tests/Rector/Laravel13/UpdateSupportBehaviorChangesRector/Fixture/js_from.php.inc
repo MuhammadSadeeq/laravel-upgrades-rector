@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
+
 use Illuminate\Support\Js;
 
 function renderJs(mixed $payload)
@@ -10,6 +12,8 @@ function renderJs(mixed $payload)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
 
 use Illuminate\Support\Js;
 

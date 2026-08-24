@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCashierStripeMigrationRector;
+
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
@@ -17,6 +19,8 @@ class MixedMigrationOperations extends Migration
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateCashierStripeMigrationRector;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;

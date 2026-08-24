@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
+
 use Illuminate\Support\Manager;
 
 function registerDriver(Manager $manager)
@@ -12,6 +14,8 @@ function registerDriver(Manager $manager)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
 
 use Illuminate\Support\Manager;
 

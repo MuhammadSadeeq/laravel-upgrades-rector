@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
+
 return [
     'default' => env('DB_CONNECTION', 'mysql'),
     'connections' => [
@@ -17,6 +19,8 @@ return [
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
 
 return [
     'default' => env('DB_CONNECTION', 'mysql'),

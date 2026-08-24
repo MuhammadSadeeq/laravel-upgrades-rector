@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateEloquentBehaviorChangesRector;
+
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -11,6 +13,8 @@ class SyncUsersJob implements ShouldQueue
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateEloquentBehaviorChangesRector;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;

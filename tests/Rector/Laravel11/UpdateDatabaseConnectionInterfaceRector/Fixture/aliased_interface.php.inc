@@ -1,4 +1,6 @@
-<?php // @loads
+<?php
+
+namespace App\Fixtures\Laravel11\UpdateDatabaseConnectionInterfaceRector; // @loads
 
 use Illuminate\Database\ConnectionInterface as ConnectionContract;
 
@@ -83,7 +85,9 @@ class LegacyConnection implements ConnectionContract
 
 ?>
 -----
-<?php // @loads
+<?php
+
+namespace App\Fixtures\Laravel11\UpdateDatabaseConnectionInterfaceRector; // @loads
 
 use Illuminate\Database\ConnectionInterface as ConnectionContract;
 

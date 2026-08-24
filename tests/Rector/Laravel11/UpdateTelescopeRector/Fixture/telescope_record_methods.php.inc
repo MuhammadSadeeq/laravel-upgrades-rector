@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateTelescopeRector;
+
 use Laravel\Telescope\Telescope;
 
 class AppServiceProvider
@@ -14,6 +16,8 @@ class AppServiceProvider
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateTelescopeRector;
 
 use Laravel\Telescope\Telescope;
 

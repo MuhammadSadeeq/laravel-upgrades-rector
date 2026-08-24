@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCashierStripeMigrationRector;
+
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
@@ -16,6 +18,8 @@ class UpdateSubscriptionsTable extends Migration
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateCashierStripeMigrationRector;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;

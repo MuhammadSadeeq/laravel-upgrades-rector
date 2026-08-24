@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
+
 use Doctrine\DBAL\Types\Type;
 use Illuminate\Support\Facades\Schema;
 
@@ -14,6 +16,8 @@ class Example
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\RemoveDoctrineDBALRector;
 
 use Illuminate\Support\Facades\Schema;
 

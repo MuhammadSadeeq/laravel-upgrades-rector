@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
+
 use Illuminate\Support\Enumerable;
 
 class AdvancedCollection implements Enumerable

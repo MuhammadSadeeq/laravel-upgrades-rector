@@ -10,7 +10,16 @@ foreach ($fixtureDirs as $dir) {
         $contents = (string) file_get_contents($fixture);
         $hasSeparator = str_contains($contents, '-----');
         $before = $hasSeparator ? explode('-----', $contents)[0] : $contents;
-        $tmp = sys_get_temp_dir() . '/regen-' . md5($fixture) . '.php';
+        // Keep the fixture's basename: some rules key their behaviour on the
+        // processed file's path/name (e.g. config-file matching, which also
+        // requires a "/tests/" segment).
+        $base = basename($fixture, '.php.inc');
+        $tmpDir = sys_get_temp_dir() . '/tests/fixture-regen/' . md5($fixture);
+        if (! is_dir($tmpDir)) {
+            mkdir($tmpDir, 0777, true);
+        }
+
+        $tmp = $tmpDir . '/' . $base . '.php';
         file_put_contents($tmp, rtrim($before) . "\n");
         $sharedConfig = dirname(dirname(dirname($fixture))) . '/config/configured_rule.php';
         $localConfig = dirname(dirname($fixture)) . '/config/configured_rule.php';

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseSignatureChangesRector;
+
 use Illuminate\Database\Connection;
 use Illuminate\Database\Grammar;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,6 +17,8 @@ function inspect(Connection $connection, Blueprint $blueprint, Grammar $grammar)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateDatabaseSignatureChangesRector;
 
 use Illuminate\Database\Connection;
 use Illuminate\Database\Grammar;

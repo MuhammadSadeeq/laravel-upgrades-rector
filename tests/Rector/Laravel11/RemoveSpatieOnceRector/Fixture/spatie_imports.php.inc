@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\RemoveSpatieOnceRector;
+
 use Spatie\Once\Cache;
 use Spatie\Once\OnceService;
 
@@ -14,6 +16,8 @@ class ImportExample
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\RemoveSpatieOnceRector;
 
 class ImportExample
 {

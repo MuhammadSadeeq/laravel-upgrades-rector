@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
+
 class JobWithThrottle
 {
     public function middleware()
@@ -13,6 +15,8 @@ class JobWithThrottle
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateRateLimitingRector;
 
 class JobWithThrottle
 {

@@ -1,5 +1,9 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
+
+use Illuminate\Auth\Passwords\DatabaseTokenRepository;
+
 function createTokenRepository()
 {
     $repo = new DatabaseTokenRepository(
@@ -14,6 +18,10 @@ function createTokenRepository()
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
+
+use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 
 function createTokenRepository()
 {

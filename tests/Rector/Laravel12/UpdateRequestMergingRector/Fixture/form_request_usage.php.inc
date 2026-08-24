@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateRequestMergingRector;
+
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateUserRequest extends FormRequest
@@ -29,6 +31,8 @@ class CreateUserRequest extends FormRequest
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateRequestMergingRector;
 
 use Illuminate\Foundation\Http\FormRequest;
 

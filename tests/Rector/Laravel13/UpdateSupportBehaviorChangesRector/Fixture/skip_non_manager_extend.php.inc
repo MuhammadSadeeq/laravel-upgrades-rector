@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateSupportBehaviorChangesRector;
+
 class CustomRegistry
 {
     public function extend(string $driver, Closure $callback): void

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateSchemaMethodsRector;
+
 use Illuminate\Support\Facades\Schema;
 
 class SchemaOperations

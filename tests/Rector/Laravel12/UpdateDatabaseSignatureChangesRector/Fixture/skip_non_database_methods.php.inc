@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseSignatureChangesRector;
+
 class CustomService
 {
     public function setConnection($connection) {}

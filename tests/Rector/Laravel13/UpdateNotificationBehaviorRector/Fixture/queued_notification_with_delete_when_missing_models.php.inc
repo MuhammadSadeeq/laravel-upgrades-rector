@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateNotificationBehaviorRector;
+
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
@@ -12,6 +14,8 @@ class InvoiceNotification extends Notification implements ShouldQueue
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateNotificationBehaviorRector;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;

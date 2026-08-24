@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdatePasswordResetSubjectRector;
+
 use Illuminate\Notifications\Notification;
 
 class ResetPasswordNotification extends Notification
@@ -13,6 +15,8 @@ class ResetPasswordNotification extends Notification
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdatePasswordResetSubjectRector;
 
 use Illuminate\Notifications\Notification;
 

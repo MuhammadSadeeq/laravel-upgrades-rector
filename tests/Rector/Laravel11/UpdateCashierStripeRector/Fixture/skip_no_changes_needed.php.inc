@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateCashierStripeRector;
+
 class RegularClass
 {
     public function regularMethod()

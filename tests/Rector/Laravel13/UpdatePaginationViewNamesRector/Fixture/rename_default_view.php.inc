@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdatePaginationViewNamesRector;
+
 class PaginationExample
 {
     public function render()
@@ -12,6 +14,8 @@ class PaginationExample
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdatePaginationViewNamesRector;
 
 class PaginationExample
 {

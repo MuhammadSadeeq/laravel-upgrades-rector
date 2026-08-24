@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
+
 use Illuminate\Auth\AuthenticationException;
 
 function handle(AuthenticationException $exception): string
@@ -12,6 +14,8 @@ function handle(AuthenticationException $exception): string
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
 
 use Illuminate\Auth\AuthenticationException;
 

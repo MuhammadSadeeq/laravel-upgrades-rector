@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
+
 use Illuminate\Support\Enumerable;
 
 class ParameterizedCollection implements Enumerable
@@ -18,6 +20,8 @@ class ParameterizedCollection implements Enumerable
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
 
 use Illuminate\Support\Enumerable;
 

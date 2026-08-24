@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
+
 use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 
 function testUncommonMinuteValues()
@@ -14,6 +16,8 @@ function testUncommonMinuteValues()
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel12\UpdateDatabaseTokenRepositoryRector;
 
 use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
+
 use Illuminate\Support\Enumerable;
 
 class CustomCollection implements Enumerable
@@ -18,6 +20,8 @@ class CustomCollection implements Enumerable
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateEnumerableContractRector;
 
 use Illuminate\Support\Enumerable;
 

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateColumnModificationRector;
+
 class SomeOtherClass
 {
     public function processData()

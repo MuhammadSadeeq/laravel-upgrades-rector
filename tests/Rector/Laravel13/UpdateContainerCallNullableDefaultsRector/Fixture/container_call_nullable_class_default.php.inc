@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel13\UpdateContainerCallNullableDefaultsRector;
+
 use Carbon\Carbon;
 use Illuminate\Container\Container;
 
@@ -13,6 +15,8 @@ function resolveDate(Container $container)
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel13\UpdateContainerCallNullableDefaultsRector;
 
 use Carbon\Carbon;
 use Illuminate\Container\Container;

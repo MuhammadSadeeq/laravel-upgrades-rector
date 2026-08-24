@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Fixtures\Laravel11\UpdateEloquentCastsMethodRector;
+
 use Illuminate\Database\Eloquent\Model;
 
 class LegacyCastsMethodUsage extends Model
@@ -13,6 +15,8 @@ class LegacyCastsMethodUsage extends Model
 ?>
 -----
 <?php
+
+namespace App\Fixtures\Laravel11\UpdateEloquentCastsMethodRector;
 
 use Illuminate\Database\Eloquent\Model;
 
