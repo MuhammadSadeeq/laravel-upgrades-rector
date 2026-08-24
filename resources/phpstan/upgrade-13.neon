@@ -1,5 +1,4 @@
-# Advisory rules for Laravel 12 → 13 upgrades.
-# Usage: vendor/bin/phpstan analyse -c vendor/muhammadsadeeq/laravel-upgrades-rector/resources/phpstan/upgrade-13.neon app/
+# Advisory rules for Laravel upgrade to 13.
 parameters:
     level: 0
     reportUnmatchedIgnoredErrors: false
@@ -7,4 +6,10 @@ parameters:
 services:
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ColumnChangeRequiresModifiersRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\HasUuidsNowV7Rule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PassportRoutesRemovedRule
         tags: [phpstan.rules.rule]
