@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
-use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StaticCallExtractor;
+use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\StatementCallFinder;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\ArrayItem;
@@ -22,7 +22,7 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
     private const COMMENT_MARKER = '@laravel-upgrade concurrency-keyed-results';
 
     public function __construct(
-        private readonly StaticCallExtractor $staticCallExtractor,
+        private readonly StatementCallFinder $statementCallFinder,
         private readonly CommentInserter $commentInserter,
     ) {}
 
@@ -37,9 +37,15 @@ final class UpdateConcurrencyResultMappingRector extends AbstractRector
             return null;
         }
 
-        $staticCall = $this->staticCallExtractor->extract($node);
+        foreach ($this->statementCallFinder->find($node) as $candidate) {
+            if ($candidate instanceof StaticCall) {
+                $staticCall = $candidate;
 
-        if ($staticCall === null) {
+                break;
+            }
+        }
+
+        if (! isset($staticCall) || ! $staticCall instanceof StaticCall) {
             return null;
         }
 
