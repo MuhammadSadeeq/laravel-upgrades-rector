@@ -84,7 +84,11 @@ final class CodeStyleGatesTest extends TestCase
 
         foreach (['test-env-11' => 'LARAVEL_ENV=11', 'test-env-12' => 'LARAVEL_ENV=12', 'test-env-13' => 'LARAVEL_ENV=13'] as $script => $needle) {
             self::assertArrayHasKey($script, $scripts);
-            self::assertStringContainsString($needle, (string) $scripts[$script]);
+
+            $commands = is_array($scripts[$script]) ? implode(' && ', $scripts[$script]) : (string) $scripts[$script];
+
+            self::assertStringContainsString($needle, $commands);
+            self::assertStringContainsString('GeneratedCodeLoadsTest', $commands);
         }
     }
 

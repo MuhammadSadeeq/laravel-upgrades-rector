@@ -65,9 +65,18 @@
             "@test-env-13",
             "@test-independent"
         ],
-        "test-env-11": "LARAVEL_ENV=11 phpunit --testsuite env-11",
-        "test-env-12": "LARAVEL_ENV=12 phpunit --testsuite env-12",
-        "test-env-13": "LARAVEL_ENV=13 phpunit --testsuite env-13",
+        "test-env-11": [
+            "LARAVEL_ENV=11 phpunit --testsuite env-11",
+            "LARAVEL_ENV=11 phpunit tests/Support/GeneratedCodeLoadsTest.php"
+        ],
+        "test-env-12": [
+            "LARAVEL_ENV=12 phpunit --testsuite env-12",
+            "LARAVEL_ENV=12 phpunit tests/Support/GeneratedCodeLoadsTest.php"
+        ],
+        "test-env-13": [
+            "LARAVEL_ENV=13 phpunit --testsuite env-13",
+            "LARAVEL_ENV=13 phpunit tests/Support/GeneratedCodeLoadsTest.php"
+        ],
         "test-independent": "phpunit --testsuite independent",
         "format": "pint",
         "format-test": "pint --test",

@@ -6,6 +6,7 @@ parameters:
 
     excludePaths:
         - tests/env
+        - tests/E2E/plants
 
     # Rector bundles its own PhpParser version which may differ from
     # the one PHPStan sees (especially with composer's --prefer-lowest in CI).
