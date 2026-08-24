@@ -7,9 +7,11 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Carbon3\CarbonFormatLocalizedToI
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Carbon3\CarbonNamedArgumentTzRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Carbon3\CarbonRemovedMethodsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Carbon3\CarbonTimeZoneConstructorRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\EnvAutoload;
 use Rector\Config\RectorConfig;
 
-return RectorConfig::configure()->withRules([
+return RectorConfig::configure()
+    ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))->withRules([
     CarbonDiffInToSignedFloatRector::class,
     CarbonRemovedMethodsRector::class,
     CarbonFormatLocalizedToIsoFormatRector::class,

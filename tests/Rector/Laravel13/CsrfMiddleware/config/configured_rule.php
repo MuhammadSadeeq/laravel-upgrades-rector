@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameValidateCsrfTokensMethodRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\EnvAutoload;
 use Rector\Config\RectorConfig;
 use Rector\Renaming\Rector\Name\RenameClassRector;
 
 return RectorConfig::configure()
+    ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))
     ->withImportNames()
     ->withConfiguredRule(RenameClassRector::class, [
         'Illuminate\Foundation\Http\Middleware\VerifyCsrfToken' => 'Illuminate\Foundation\Http\Middleware\PreventRequestForgery',

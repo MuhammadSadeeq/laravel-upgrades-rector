@@ -22,8 +22,27 @@ abstract class AbstractUpgradeRectorTestCase extends AbstractRectorTestCase
 {
     private const IDEMPOTENCY_SKIP_MARKER = '@not-idempotent-by-design';
 
+    /**
+     * Suite namespace segment => LARAVEL_ENV value expected by its fixtures.
+     *
+     * @var array<string, string>
+     */
+    private const ENV_BY_NAMESPACE_SEGMENT = [
+        'Laravel11' => '11',
+        'Laravel12' => '12',
+        'Carbon3' => '12',
+        'Laravel13' => '13',
+    ];
+
     protected function doTestFile(string $fixtureFilePath, bool $includeFixtureDirectoryAsSource = false): void
     {
+        if (! $this->activeEnvironmentMatches($fixtureFilePath)) {
+            self::markTestSkipped(sprintf(
+                'Fixture "%s" needs a different LARAVEL_ENV.',
+                basename($fixtureFilePath)
+            ));
+        }
+
         try {
             parent::doTestFile($fixtureFilePath, $includeFixtureDirectoryAsSource);
         } catch (\Throwable $throwable) {
@@ -99,5 +118,31 @@ abstract class AbstractUpgradeRectorTestCase extends AbstractRectorTestCase
         $firstLine = (string) strtok((string) file_get_contents($fixtureFilePath), "\n");
 
         return str_contains($firstLine, self::IDEMPOTENCY_SKIP_MARKER);
+    }
+
+    /**
+     * Rule fixtures assert against the behaviour of ONE real framework
+     * version, so a suite only runs under its matching LARAVEL_ENV.
+     */
+    private function activeEnvironmentMatches(string $fixtureFilePath): bool
+    {
+        $active = getenv('LARAVEL_ENV');
+
+        if (! is_string($active) || $active === '') {
+            return false;
+        }
+
+        $expected = null;
+
+        foreach (self::ENV_BY_NAMESPACE_SEGMENT as $segment => $env) {
+            if (str_contains($fixtureFilePath, '/Rector/' . $segment . '/')) {
+                $expected = $env;
+
+                break;
+            }
+        }
+
+        // Environment-independent suites always run.
+        return $expected === null || $expected === $active;
     }
 }

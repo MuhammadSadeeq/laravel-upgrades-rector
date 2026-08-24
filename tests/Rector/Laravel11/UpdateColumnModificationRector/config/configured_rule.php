@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\EnvAutoload;
 use Rector\Config\RectorConfig;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateColumnModificationRector;
 
-return RectorConfig::configure()->withRules([UpdateColumnModificationRector::class]);
+return RectorConfig::configure()
+    ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))->withRules([UpdateColumnModificationRector::class]);

@@ -1,0 +1,11 @@
+{
+    "name": "laravel-upgrades-rector/env-laravel-12",
+    "description": "Real Laravel 12 dependency tree used by the rule test suite (replaces type stubs)",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^12.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0"
+    }
+}

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheRepositoryContractRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateCacheStoreContractRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\EnvAutoload;
 use Rector\Config\RectorConfig;
 
-return RectorConfig::configure()->withRules([
+return RectorConfig::configure()
+    ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))->withRules([
     UpdateCacheStoreContractRector::class,
     UpdateCacheRepositoryContractRector::class,
 ]);

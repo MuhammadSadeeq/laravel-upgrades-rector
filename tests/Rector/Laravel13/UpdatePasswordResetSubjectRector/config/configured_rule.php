@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdatePasswordResetSubjectRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\EnvAutoload;
 use Rector\Config\RectorConfig;
 
-return RectorConfig::configure()->withRules([UpdatePasswordResetSubjectRector::class]);
+return RectorConfig::configure()
+    ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))->withRules([UpdatePasswordResetSubjectRector::class]);

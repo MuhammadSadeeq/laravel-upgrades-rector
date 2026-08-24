@@ -1,0 +1,8 @@
+{
+    "name": "laravel-upgrades-rector/env-laravel-13",
+    "description": "Real Laravel 13 dependency tree used by the rule test suite (replaces type stubs)",
+    "require": {
+        "php": "^8.3",
+        "laravel/framework": "^13.0"
+    }
+}

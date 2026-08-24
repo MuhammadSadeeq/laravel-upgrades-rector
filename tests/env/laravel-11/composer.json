@@ -1,0 +1,24 @@
+{
+    "name": "laravel-upgrades-rector/env-laravel-11",
+    "description": "Real Laravel 11 dependency tree used by the rule test suite (replaces type stubs)",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0",
+        "laravel/sanctum": "^4.0",
+        "laravel/passport": "^12.0",
+        "laravel/cashier": "^15.0",
+        "laravel/telescope": "^5.0",
+        "doctrine/dbal": "^3.0",
+        "spatie/once": "^3.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^2.9"
+    },
+    "config": {
+        "policy": {
+            "advisories": {
+                "block": false
+            }
+        }
+    }
+}

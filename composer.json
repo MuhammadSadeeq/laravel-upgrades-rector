@@ -47,12 +47,7 @@
     ],
     "autoload-dev": {
         "psr-4": {
-            "MuhammadSadeeq\\LaravelUpgradesRector\\Tests\\": "tests/",
-            "Carbon\\": "stubs/Carbon/",
-            "Illuminate\\": "stubs/Illuminate/",
-            "Doctrine\\": "stubs/Doctrine/",
-            "Laravel\\": "stubs/Laravel/",
-            "Spatie\\": "stubs/Spatie/"
+            "MuhammadSadeeq\\LaravelUpgradesRector\\Tests\\": "tests/"
         }
     },
     "extra": {
@@ -63,7 +58,16 @@
         }
     },
     "scripts": {
-        "test": "phpunit",
+        "test": [
+            "@test-env-11",
+            "@test-env-12",
+            "@test-env-13",
+            "@test-independent"
+        ],
+        "test-env-11": "LARAVEL_ENV=11 phpunit --testsuite env-11",
+        "test-env-12": "LARAVEL_ENV=12 phpunit --testsuite env-12",
+        "test-env-13": "LARAVEL_ENV=13 phpunit --testsuite env-13",
+        "test-independent": "phpunit --testsuite independent",
         "analyse": "phpstan analyse --level max"
     },
     "minimum-stability": "stable",

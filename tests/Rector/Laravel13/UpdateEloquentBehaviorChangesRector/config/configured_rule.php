@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateEloquentBehaviorChangesRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Tests\Support\EnvAutoload;
 use Rector\Config\RectorConfig;
 
-return RectorConfig::configure()->withRules([UpdateEloquentBehaviorChangesRector::class]);
+return RectorConfig::configure()
+    ->withAutoloadPaths(array_filter([EnvAutoload::vendorDirectory()]))->withRules([UpdateEloquentBehaviorChangesRector::class]);
