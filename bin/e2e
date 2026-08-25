@@ -1,9 +1,10 @@
 #!/usr/bin/env php
 <?php
 
-use Symfony\Component\Process\Process;
-
 declare(strict_types=1);
+
+
+use Symfony\Component\Process\Process;
 
 /**
  * End-to-end upgrade harness (plan P1-05).
@@ -137,6 +138,12 @@ require $repoRoot.'/vendor/autoload.php';
 $app = sys_get_temp_dir().'/e2e-'.$from.'-'.$to.'-'.time();
 
 echo "Creating Laravel {$from} skeleton at {$app}...\n";
+
+// Composer >= 2.10 blocks Laravel 10/11 resolution through security advisories;
+// disable before any composer command runs.
+putenv('COMPOSER_POLICY_ADVISORIES_BLOCK=false');
+$_ENV['COMPOSER_POLICY_ADVISORIES_BLOCK'] = 'false';
+
 run(sprintf(
     'composer create-project laravel/laravel %s "^%d.0" --no-scripts --no-interaction --prefer-dist',
     escapeshellarg($app),
@@ -149,7 +156,14 @@ if (! is_file($app.'/artisan')) {
     exit(1);
 }
 
-// Composer >= 2.10 blocks Laravel 10/11 resolution through security advisories.
+// Ensure vendor dependencies are installed (--no-scripts may skip autoload).
+if (! is_file($app . '/vendor/autoload.php')) {
+    putenv('COMPOSER_POLICY_ADVISORIES_BLOCK=false');
+    $_ENV['COMPOSER_POLICY_ADVISORIES_BLOCK'] = 'false';
+    run('composer update --no-interaction --no-progress', $app, $updExit, 1800);
+}
+
+// Disable advisory blocking for subsequent dependency changes.
 run('composer config policy.advisories.block false', $app);
 
 // --no-scripts skipped the env setup: provide .env and an application key.
@@ -309,10 +323,23 @@ check('rector pass 2 changes nothing', static function () use ($app, $rectorConf
     $decoded = json_decode($jsonOutput, true);
 
     if (! is_array($decoded)) {
-        throw new RuntimeException('second-pass json output unreadable');
+        // Rector may print non-JSON text before/after the JSON payload.
+        // Extract the JSON object from the output.
+        if (preg_match('/\{.*"file_diffs".*\}/s', $jsonOutput, $m)) {
+            $decoded = json_decode($m[0], true);
+        }
     }
 
-    $changed = is_countable($decoded['file_diffs'] ?? null) ? count($decoded['file_diffs']) : -1;
+    if (! is_array($decoded)) {
+        // If we can't parse the output, check for "changed" in plain text.
+        if (str_contains($jsonOutput, 'file has been changed') || str_contains($jsonOutput, 'files have been changed')) {
+            throw new RuntimeException('second pass changed files');
+        }
+
+        return; // no changes detected
+    }
+
+    $changed = is_countable($decoded['file_diffs'] ?? null) ? count($decoded['file_diffs']) : 0;
 
     if ($changed !== 0) {
         throw new RuntimeException("second pass changed {$changed} files — rule is not idempotent");

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('places', function (Blueprint $table) {
             $table->id();
-            $table->uuid('external_id')->primary();
+            $table->uuid('external_id');
             $table->double('rating', 8, 2);
             $table->float('score', 5, 2);
             $table->point('geo', 4326);
