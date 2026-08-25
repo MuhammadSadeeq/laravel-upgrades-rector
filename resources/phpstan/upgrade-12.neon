@@ -13,3 +13,6 @@ services:
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PassportRoutesRemovedRule
         tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ImageRuleExcludesSvgRule
+        tags: [phpstan.rules.rule]
