@@ -31,3 +31,15 @@ services:
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\QueuedNotificationMissingModelsRule
         tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MergeIfMissingDotKeysRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ManagerExtendBindingRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\JsFromUnicodeRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\StrFactoryResetRule
+        tags: [phpstan.rules.rule]
