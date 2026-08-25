@@ -25,3 +25,9 @@ services:
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ModelBootInstantiationRule
         tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MorphPivotTableNameRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\QueuedNotificationMissingModelsRule
+        tags: [phpstan.rules.rule]
