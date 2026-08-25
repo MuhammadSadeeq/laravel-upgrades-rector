@@ -9,6 +9,7 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
+use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
 
@@ -48,7 +49,7 @@ final class ImageRuleExcludesSvgRule implements Rule
     }
 
     /**
-     * @param list<\PHPStan\Rules\IdentifierRuleError> $errors
+     * @param  list<IdentifierRuleError>  $errors
      */
     private function scanForImage(Node $node, array &$errors): void
     {
