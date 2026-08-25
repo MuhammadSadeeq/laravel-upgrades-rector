@@ -7,17 +7,11 @@ use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveSpatieOnceRector
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RenameCashierSubscriptionNameToTypeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeTrialRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateColumnModificationRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEloquentCastsMethodRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEmailVerificationSetupRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateEnumerableDumpSignatureRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateFloatingPointTypesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdatePasswordRehashingRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdatePublishedServiceProviderRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateRateLimitingRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSanctumConfigRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSchemaGetColumnTypeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateSpatialTypesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ContractSpecLoader;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ImplementMissingInterfaceMethodsRector;
@@ -32,7 +26,6 @@ return RectorConfig::configure()
     ->withRules([
         // High Impact Changes
         UpdateFloatingPointTypesRector::class,
-        UpdateColumnModificationRector::class,
         UpdateSanctumConfigRector::class,
 
         // Medium Impact Changes
@@ -42,17 +35,12 @@ return RectorConfig::configure()
 
         // Low Impact Changes
         RemoveDoctrineDBALRector::class,
-        UpdateEloquentCastsMethodRector::class,
         UpdateSpatialTypesRector::class,
         UpdateEnumerableDumpSignatureRector::class,
         UpdateAuthenticationExceptionRedirectToRector::class,
-        UpdateEmailVerificationSetupRector::class,
-        UpdateSchemaGetColumnTypeRector::class,
-        UpdatePublishedServiceProviderRector::class,
 
         // Package Updates (if installed)
         UpdateCashierStripeRector::class,
-        UpdateCashierStripeTrialRector::class,
         RenameCashierSubscriptionNameToTypeRector::class,
     ]);
 

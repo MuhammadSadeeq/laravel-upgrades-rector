@@ -5,12 +5,8 @@ declare(strict_types=1);
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameJobAttemptedEventPropertyRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameQueueBusyEventPropertyRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\RenameValidateCsrfTokensMethodRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateContainerCallNullableDefaultsRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateDatabaseQueryBehaviorRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateEloquentBehaviorChangesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdateHttpClientThrowSignaturesRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdatePaginationViewNamesRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel13\UpdatePasswordResetSubjectRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ContractSpecLoader;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Shared\ImplementMissingInterfaceMethodsRector;
 use Rector\Config\RectorConfig;
@@ -30,13 +26,9 @@ return RectorConfig::configure()
     ])
     ->withRules([
         RenameValidateCsrfTokensMethodRector::class,
-        UpdateContainerCallNullableDefaultsRector::class,
-        UpdateDatabaseQueryBehaviorRector::class,
-        UpdateEloquentBehaviorChangesRector::class,
         RenameJobAttemptedEventPropertyRector::class,
         RenameQueueBusyEventPropertyRector::class,
         UpdatePaginationViewNamesRector::class,
-        UpdatePasswordResetSubjectRector::class,
         UpdateHttpClientThrowSignaturesRector::class,
     ]);
 

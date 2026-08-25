@@ -3,22 +3,12 @@
 declare(strict_types=1);
 
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\ReplaceHasVersion7UuidsRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateConcurrencyResultMappingRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateDatabaseSignatureChangesRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateImageValidationSvgRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateRequestMergingRector;
-use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel12\UpdateSchemaMethodsRector;
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
     ->withSets([__DIR__.'/carbon-3.php'])
     ->withRules([
         ReplaceHasVersion7UuidsRector::class,
-        UpdateConcurrencyResultMappingRector::class,
-        UpdateDatabaseSignatureChangesRector::class,
-        UpdateImageValidationSvgRector::class,
-        UpdateRequestMergingRector::class,
-        UpdateSchemaMethodsRector::class,
     ]);
 
 /*
