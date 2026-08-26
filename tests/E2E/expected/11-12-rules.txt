@@ -1,6 +1,5 @@
 # Rules that must appear in the rector "applied rules" output for 11 -> 12.
+# Comment-only advisory rules (ImageValidationSvg, RequestMerging,
+# RoutePrecedence) replaced by PHPStan rules; CarbonDiffIn requires typed
+# receivers (Larastan).
 ReplaceHasVersion7UuidsRector
-UpdateImageValidationSvgRector
-UpdateRequestMergingRector
-UpdateRoutePrecedenceRector
-CarbonDiffInToSignedFloatRector
