@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton;
 
-use PhpParser\Node\Expr\ArrayItem;
+use PhpParser\Error;
 use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Identifier;
+use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Return_;
+use PhpParser\Parser;
 use PhpParser\ParserFactory;
-use PhpParser\Node;
+use PhpParser\PrettyPrinter\Standard;
 use RuntimeException;
 
 /**
@@ -22,11 +23,11 @@ use RuntimeException;
  */
 final class ConfigArrayMerger
 {
-    private \PhpParser\Parser $parser;
+    private Parser $parser;
 
     public function __construct()
     {
-        $this->parser = (new ParserFactory())->createForNewestSupportedVersion();
+        $this->parser = (new ParserFactory)->createForNewestSupportedVersion();
     }
 
     /**
@@ -83,7 +84,7 @@ final class ConfigArrayMerger
             $projectAst->items[] = $restored;
         }
 
-        return "<?php\n\nreturn " . $this->printArray($projectAst) . ";\n";
+        return "<?php\n\nreturn ".$this->printArray($projectAst).";\n";
     }
 
     /**
@@ -129,7 +130,7 @@ final class ConfigArrayMerger
     {
         try {
             $ast = $this->parser->parse($source);
-        } catch (\PhpParser\Error $error) {
+        } catch (Error $error) {
             throw new RuntimeException(sprintf(
                 'Cannot parse "%s": %s',
                 $name,
@@ -175,7 +176,7 @@ final class ConfigArrayMerger
 
     public function printArray(Array_ $array): string
     {
-        $prettyPrinter = new \PhpParser\PrettyPrinter\Standard();
+        $prettyPrinter = new Standard;
 
         return $prettyPrinter->prettyPrintExpr($array);
     }
