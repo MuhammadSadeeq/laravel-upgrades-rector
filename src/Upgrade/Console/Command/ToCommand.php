@@ -95,8 +95,26 @@ final class ToCommand extends Command
             return Command::SUCCESS;
         }
 
+        $stateDirectory = $workingDirectory.'/.laravel-upgrade';
+
+        $writeState = function (string $completedStep) use ($stateDirectory, $targetMajor): void {
+            if (! is_dir($stateDirectory)) {
+                @mkdir($stateDirectory, 0777, true);
+            }
+
+            file_put_contents($stateDirectory.'/state.json', json_encode([
+                'target' => $targetMajor,
+                'completed_step' => $completedStep,
+                'timestamp' => date('c'),
+            ], JSON_PRETTY_PRINT)."\n");
+        };
+
         // Step 1: deps.
         $style->section('Step 1/3 — Dependencies');
+
+        if (! $dryRun) {
+            $writeState('');
+        }
 
         $depsInput = new ArrayInput([
             'command' => 'deps',
@@ -115,6 +133,10 @@ final class ToCommand extends Command
             $style->error('Dependency planning failed. Fix and re-run.');
 
             return 3;
+        }
+
+        if (! $dryRun) {
+            $writeState('deps');
         }
 
         if ($dryRun) {
@@ -141,6 +163,8 @@ final class ToCommand extends Command
             return 3;
         }
 
+        $writeState('install');
+
         // Step 3: Rector code transformation.
         $style->section('Step 3/3 — Code transformation');
 
@@ -157,6 +181,8 @@ final class ToCommand extends Command
         if ($rectorProcess->getExitCode() !== 0) {
             $style->warning('Rector reported issues — review output above.');
         }
+
+        $writeState('rector');
 
         // Verification.
         $style->section('Verification');
@@ -201,6 +227,7 @@ final class ToCommand extends Command
             return 1;
         }
 
+        $writeState('done');
         $style->success(sprintf('Upgrade to Laravel %d complete!', $targetMajor));
 
         return Command::SUCCESS;
