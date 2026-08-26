@@ -8,6 +8,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory\ProjectAdvisor;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\ReportWriter;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton\EnvExampleMerger;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton\SkeletonStep;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
@@ -256,6 +257,23 @@ final class ToCommand extends Command
 
         if ($mergedFiles === []) {
             $style->text('  (no upstream configs available for this major)');
+        }
+
+        // Merge .env.example keys.
+        $envMerger = new EnvExampleMerger;
+        $envPath = $workingDirectory.'/.env.example';
+
+        if (is_file($envPath)) {
+            try {
+                $result = $envMerger->merge($envPath, $targetMajor);
+
+                if ($result !== file_get_contents($envPath)) {
+                    file_put_contents($envPath, $result);
+                    $style->text('✔ merged .env.example');
+                }
+            } catch (\Throwable) {
+                $style->text('⚠ could not merge .env.example');
+            }
         }
 
         // Post-step: artisan commands.

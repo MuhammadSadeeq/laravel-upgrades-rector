@@ -69,6 +69,6 @@ final class EnvExampleMerger
             return $contents;
         }
 
-        return rtrim($contents) . "\n\n# Laravel " . $targetMajor . "\n" . implode("\n", $appends) . "\n";
+        return rtrim($contents)."\n\n# Laravel ".$targetMajor."\n".implode("\n", $appends)."\n";
     }
 }
