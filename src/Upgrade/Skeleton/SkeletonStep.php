@@ -77,7 +77,7 @@ final class SkeletonStep
     public function upstreamConfigPath(int $targetMajor, string $configName): ?string
     {
         // Vendored skeletons live under resources/skeletons/<major>/config/.
-        $path = dirname(__DIR__, 2).'/resources/skeletons/'.$targetMajor.'/config/'.$configName.'.php';
+        $path = dirname(__DIR__, 3).'/resources/skeletons/'.$targetMajor.'/config/'.$configName.'.php';
 
         return is_file($path) ? $path : null;
     }
