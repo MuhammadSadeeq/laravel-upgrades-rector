@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveCashierIgnoreMigrationsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveDoctrineDBALRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveSpatieOnceRector;
+use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RemoveTelescopeIgnoreMigrationsRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\RenameCashierSubscriptionNameToTypeRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateAuthenticationExceptionRedirectToRector;
 use MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11\UpdateCashierStripeRector;
@@ -32,6 +34,8 @@ return RectorConfig::configure()
         UpdatePasswordRehashingRector::class,
         UpdateRateLimitingRector::class,
         RemoveSpatieOnceRector::class,
+        RemoveTelescopeIgnoreMigrationsRector::class,
+        RemoveCashierIgnoreMigrationsRector::class,
 
         // Low Impact Changes
         RemoveDoctrineDBALRector::class,

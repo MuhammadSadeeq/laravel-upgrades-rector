@@ -76,3 +76,12 @@ services:
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SpatialGeographyReviewRule
         tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DiffForHumansOptionsRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CarbonIntervalFloatSupportRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SetTestNowCopySemanticsRule
+        tags: [phpstan.rules.rule]
