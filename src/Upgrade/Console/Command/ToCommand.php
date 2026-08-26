@@ -404,6 +404,40 @@ final class ToCommand extends Command
             }
         }
 
+        // Route analysis: duplicate route names (L12 breaking change).
+        if ($targetMajor >= 12) {
+            $routeListProcess = new Process(['php', 'artisan', 'route:list', '--json'], $workingDirectory);
+            $routeListProcess->setTimeout(120);
+            $routeListProcess->run();
+
+            $routeJson = json_decode($routeListProcess->getOutput(), true);
+
+            if (is_array($routeJson)) {
+                $nameCounts = [];
+
+                foreach ($routeJson as $route) {
+                    $routeName = is_array($route) && is_string($route['name'] ?? null) ? $route['name'] : '';
+
+                    if ($routeName !== '') {
+                        $nameCounts[$routeName] = ($nameCounts[$routeName] ?? 0) + 1;
+                    }
+                }
+
+                $duplicates = array_keys(array_filter($nameCounts, static fn ($c): bool => $c > 1));
+
+                if ($duplicates !== []) {
+                    $msg = sprintf(
+                        'Duplicate route names detected: %s. Laravel 12 resolves duplicates to the first registered route.',
+                        implode(', ', $duplicates)
+                    );
+                    $verifyFailures[] = $msg;
+                    $style->text('⚠ '.$msg);
+                } else {
+                    $style->text('✔ Route names: no duplicates');
+                }
+            }
+        }
+
         if (! $skipTests) {
             $testProcess = new Process(['php', 'artisan', 'test', '--compact'], $workingDirectory);
             $testProcess->setTimeout(900);
