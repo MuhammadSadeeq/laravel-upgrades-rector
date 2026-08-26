@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ContinueCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\DepsCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\PlanCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ReportCommand;
@@ -20,6 +21,7 @@ final class Application extends SymfonyApplication
     {
         parent::__construct(self::NAME, self::VERSION);
 
+        $this->add(new ContinueCommand);
         $this->add(new DepsCommand);
         $this->add(new ToCommand);
         $this->add(new PlanCommand);

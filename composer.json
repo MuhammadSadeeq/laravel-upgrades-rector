@@ -1,6 +1,6 @@
 {
     "name": "muhammadsadeeq/laravel-upgrades-rector",
-    "description": "Rector rules and a dependency planner for Laravel upgrades. Supports Laravel 10 through 13 with verified code transforms and advisory markers.",
+    "description": "Automated Laravel upgrade tool: Rector rules, PHPStan advisories, and a CLI orchestrator for Laravel 10 through 13.",
     "type": "rector-extension",
     "keywords": [
         "laravel",
