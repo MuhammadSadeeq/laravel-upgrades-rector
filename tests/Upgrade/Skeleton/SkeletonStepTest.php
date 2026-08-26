@@ -37,11 +37,11 @@ final class SkeletonStepTest extends TestCase
             "<?php\n\nreturn [\n    'default' => 'file',\n];\n");
 
         $step = new SkeletonStep;
-        // No vendored skeleton files exist in the test environment, so
-        // sync() returns an empty array without crashing.
+        // The 13 skeleton has serializable_classes in cache.php which is
+        // missing from the project config, so it gets merged.
         $merged = $step->sync($this->tmpDir.'/config', 13);
 
-        self::assertSame([], $merged);
+        self::assertSame(['cache.php'], $merged);
     }
 
     public function test_upstream_config_path_returns_null_for_missing(): void
