@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\DepsCommand;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ToCommand;
 use Symfony\Component\Console\Application as SymfonyApplication;
 
 final class Application extends SymfonyApplication
@@ -18,5 +19,6 @@ final class Application extends SymfonyApplication
         parent::__construct(self::NAME, self::VERSION);
 
         $this->add(new DepsCommand);
+        $this->add(new ToCommand);
     }
 }
