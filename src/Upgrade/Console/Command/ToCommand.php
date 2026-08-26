@@ -35,6 +35,7 @@ final class ToCommand extends Command
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Print plan without touching anything')
             ->addOption('skip-tests', null, InputOption::VALUE_NONE, 'Skip artisan test at the end')
             ->addOption('annotate', null, InputOption::VALUE_NONE, 'Write advisory comments into source files')
+            ->addOption('no-interaction', 'n', InputOption::VALUE_NONE, 'Do not ask interactive confirmation prompts')
             ->addOption('working-dir', 'd', InputOption::VALUE_REQUIRED, 'Project directory', '.');
     }
 
@@ -47,6 +48,7 @@ final class ToCommand extends Command
         $dryRun = (bool) $input->getOption('dry-run');
         $skipTests = (bool) $input->getOption('skip-tests');
         $annotate = (bool) $input->getOption('annotate');
+        $interactive = ! $input->getOption('no-interaction') && $input->isInteractive();
 
         $targetRaw = $input->getArgument('target-major');
         $targetMajor = is_scalar($targetRaw) ? (int) $targetRaw : 0;
@@ -55,6 +57,22 @@ final class ToCommand extends Command
             $style->error('Supported target majors: 11, 12, 13.');
 
             return Command::FAILURE;
+        }
+
+        // Confirm before proceeding with a real run.
+        if ($interactive && ! $dryRun) {
+            $confirmed = $style->confirm(
+                sprintf('Upgrade to Laravel %d. This will modify composer.json, vendor/, and source files. Continue?',
+                    $targetMajor
+                ),
+                true
+            );
+
+            if (! $confirmed) {
+                $style->note('Aborted by user.');
+
+                return Command::SUCCESS;
+            }
         }
 
         // Detect current major from composer.json.
