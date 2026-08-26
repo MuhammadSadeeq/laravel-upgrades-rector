@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>Rector rules and a dependency planner for Laravel upgrades</strong> — Laravel 10 through 13.
+  <strong>One-command Laravel upgrades</strong> — dependency planning, code transformation, skeleton sync, and PHPStan advisories for Laravel 10 through 13.
 </p>
 
 ---
@@ -24,28 +24,42 @@ composer require --dev muhammadsadeeq/laravel-upgrades-rector
 
 Requires PHP 8.2+ and Rector ^2.3.
 
-## Recommended Upgrade Flow
-
-Order matters: the new vendor must be installed **before** Rector runs, so that
-type-dependent rules see the target framework's classes.
+## One-Command Upgrade
 
 ```bash
-# 1. Plan (writes nothing) — review the per-package decisions
+# Full upgrade flow: preflight → deps → composer update → rector → config sync → advisories → verify
+vendor/bin/laravel-upgrade to 11
+
+# Preview without touching anything
+vendor/bin/laravel-upgrade plan 11
+
+# Resume an interrupted upgrade
+vendor/bin/laravel-upgrade continue
+
+# Generate UPGRADE-REPORT.md from findings
+vendor/bin/laravel-upgrade report
+```
+
+## Manual Step-by-Step Flow
+
+```bash
+# 1. Plan dependencies (writes nothing)
 vendor/bin/laravel-upgrade deps 11 --dry-run
 
-# 2. Apply dependency changes to composer.json, then install them
+# 2. Apply dependency changes, then install
 vendor/bin/laravel-upgrade deps 11
 composer update --with-all-dependencies
 
-# 3. Rewrite application code
+# 3. Transform application code
 vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php
 
-# 4. Run a second Rector pass — it must change nothing (idempotency is tested)
-vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php && git diff --stat
+# 4. Run PHPStan advisory rules
+vendor/bin/phpstan analyse -c vendor/muhammadsadeeq/laravel-upgrades-rector/resources/phpstan/upgrade-11.neon app/
 
 # 5. Verify
 composer validate --strict && php artisan test
 ```
+
 
 `--dry-run` for `deps` prints the exact `composer require/remove` commands and
 the decision table; it never writes. `rector --dry-run` previews code changes;
@@ -64,16 +78,14 @@ as a dry run so solver conflicts surface before you commit.
 
 ## Rule Types
 
-| Type | What it does | Examples |
-|------|--------------|----------|
-| Transform rules | Rewrite code when the upgrade can be applied safely | contract methods appended with signatures matching the real interfaces, spatial columns → `geometry()`, rate limiter minutes → seconds |
-| Advisory rules | Attach a deduped, marker-tagged comment where behaviour needs a human decision | `->change()` index modifiers, `Concurrency::run()` keyed results |
+| Type | Count | What it does |
+|------|-------|--------------|
+| Rector transform rules | 20 in sets | Rewrite AST nodes when the upgrade can be applied safely |
+| PHPStan advisory rules | 24 in neon configs | Structured findings with file/line/severity for behaviour changes needing human review |
 
-Contract stub rules are transform rules whose generated bodies carry explicit
-`TODO` comments wherever an implementation is application-specific. Every
-generated signature was verified against the real `laravel/framework` sources
-of the target version, and every fixture output is re-applied to itself in CI
-to prove idempotency.
+Every generated contract signature was verified against real `laravel/framework`
+sources. Every fixture output is re-applied to itself to prove idempotency.
+Sets contain only transform rules — all advisory checks live in the PHPStan layer.
 
 ## Supported Versions
 
@@ -146,13 +158,17 @@ return RectorConfig::configure()
 ## Testing
 
 ```bash
-composer test
-composer analyse
+composer test        # runs all 4 env suites
+composer analyse     # PHPStan level max
+vendor/bin/pint --test   # code style
+
+# Per-environment testing (requires tests/env/laravel-N composer install)
+LARAVEL_ENV=11 php vendor/bin/phpunit --testsuite env-11
 ```
 
-Current verification: 297 tests / 531 assertions plus a sample-parse gate over every rule definition — every fixture additionally
-re-applied to itself to prove idempotency — and PHPStan at max level with zero
-errors.
+Current verification: 330+ tests across 4 environment suites, every fixture
+re-applied to itself for idempotency, sample-parse gate over rule definitions,
+code-style gates over src/, and PHPStan at max level with zero errors.
 
 ## Contributing
 
