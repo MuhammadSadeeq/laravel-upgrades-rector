@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton;
 
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
 use RuntimeException;
 
 /**
@@ -44,7 +43,7 @@ final class SkeletonStep
         $merged = [];
 
         foreach (self::CONFIG_FILES as $configName) {
-            $projectPath = $projectConfigDirectory . '/' . $configName . '.php';
+            $projectPath = $projectConfigDirectory.'/'.$configName.'.php';
 
             if (! is_file($projectPath)) {
                 continue;
@@ -64,7 +63,7 @@ final class SkeletonStep
 
             if ($result !== file_get_contents($projectPath)) {
                 file_put_contents($projectPath, $result);
-                $merged[] = $configName . '.php';
+                $merged[] = $configName.'.php';
             }
         }
 
@@ -78,7 +77,7 @@ final class SkeletonStep
     public function upstreamConfigPath(int $targetMajor, string $configName): ?string
     {
         // Vendored skeletons live under resources/skeletons/<major>/config/.
-        $path = dirname(__DIR__, 2) . '/resources/skeletons/' . $targetMajor . '/config/' . $configName . '.php';
+        $path = dirname(__DIR__, 2).'/resources/skeletons/'.$targetMajor.'/config/'.$configName.'.php';
 
         return is_file($path) ? $path : null;
     }

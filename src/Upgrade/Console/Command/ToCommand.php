@@ -8,6 +8,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory\ProjectAdvisor;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\ReportWriter;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton\SkeletonStep;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -241,6 +242,20 @@ final class ToCommand extends Command
             }
         } else {
             $style->text('✔ No project-level advisories.');
+        }
+
+        // Step 4: skeleton config sync.
+        $style->section('Config sync');
+
+        $skeletonStep = new SkeletonStep;
+        $mergedFiles = $skeletonStep->sync($workingDirectory.'/config', $targetMajor);
+
+        foreach ($mergedFiles as $file) {
+            $style->text('✔ merged '.$file);
+        }
+
+        if ($mergedFiles === []) {
+            $style->text('  (no upstream configs available for this major)');
         }
 
         // Post-step: artisan commands.
