@@ -459,6 +459,13 @@ final class ToCommand extends Command
 
         $writeState('done');
 
+        // Remove state file on success so `continue` knows nothing is pending.
+        $stateFile = $stateDirectory.'/state.json';
+
+        if (is_file($stateFile)) {
+            @unlink($stateFile);
+        }
+
         // Generate upgrade report.
         $reportDir = $workingDirectory.'/.laravel-upgrade';
         $findingsFile = $reportDir.'/findings.jsonl';
