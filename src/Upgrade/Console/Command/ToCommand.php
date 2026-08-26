@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\ReportWriter;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -241,6 +244,86 @@ final class ToCommand extends Command
             }
         }
 
+        // Advisory: PHPStan analysis with upgrade rules.
+        $style->section('Advisories');
+
+        $neonPath = dirname(__DIR__, 4).'/resources/phpstan/upgrade-'.$targetMajor.'.phpstan.neon';
+
+        if (is_file($neonPath)) {
+            $advisoryProcess = new Process(
+                ['vendor/bin/phpstan', 'analyse', '-c', $neonPath, '--error-format=json', '--no-progress', '--memory-limit=-1'],
+                $workingDirectory
+            );
+            $advisoryProcess->setTimeout(600);
+            $advisoryProcess->run();
+
+            $advisoryJson = $advisoryProcess->getOutput();
+            $decoded = json_decode($advisoryJson, true);
+
+            if (is_array($decoded) && is_array($decoded['files'] ?? null)) {
+                $findingCount = 0;
+                $findings = [];
+
+                foreach ($decoded['files'] as $file => $fileData) {
+                    if (! is_array($fileData) || ! is_array($fileData['messages'] ?? null)) {
+                        continue;
+                    }
+
+                    foreach ($fileData['messages'] as $message) {
+                        if (! is_array($message)) {
+                            continue;
+                        }
+
+                        $findingCount++;
+
+                        /** @var string $file */
+                        $shortFile = str_replace($workingDirectory.'/', '', $file);
+                        $line = is_int($message['line'] ?? null) ? $message['line'] : 0;
+                        $text = is_string($message['message'] ?? null) ? $message['message'] : '';
+                        $tipText = is_string($message['tip'] ?? null) ? $message['tip'] : '';
+                        $msgId = is_string($message['id'] ?? null) ? $message['id'] : 'unknown';
+
+                        $style->text(sprintf(
+                            '  ⚠ %s:%d — %s',
+                            $shortFile,
+                            $line,
+                            $text
+                        ));
+
+                        $findings[] = [
+                            'ruleId' => $msgId,
+                            'severity' => 'medium',
+                            'laravelVersion' => $targetMajor,
+                            'file' => $shortFile,
+                            'line' => $line,
+                            'message' => $text,
+                            'action' => $tipText,
+                        ];
+                    }
+                }
+
+                if ($findingCount === 0) {
+                    $style->text('✔ No advisories found.');
+                } else {
+                    $style->text(sprintf('⚠ %d advisories found.', $findingCount));
+
+                    // Write findings JSONL for the report command.
+                    if (! is_dir($workingDirectory.'/.laravel-upgrade')) {
+                        @mkdir($workingDirectory.'/.laravel-upgrade', 0777, true);
+                    }
+
+                    file_put_contents(
+                        $workingDirectory.'/.laravel-upgrade/findings.jsonl',
+                        implode('\n', array_map('json_encode', $findings)).'\n'
+                    );
+                }
+            } else {
+                $style->text('⚠ PHPStan advisory output unreadable (non-fatal).');
+            }
+        } else {
+            $style->text('⚠ Advisory config not found — skipping PHPStan analysis.');
+        }
+
         $writeState('rector');
 
         // Verification.
@@ -287,6 +370,44 @@ final class ToCommand extends Command
         }
 
         $writeState('done');
+
+        // Generate upgrade report.
+        $reportDir = $workingDirectory.'/.laravel-upgrade';
+        $findingsFile = $reportDir.'/findings.jsonl';
+
+        if (is_file($findingsFile)) {
+            $collector = new FindingCollector;
+            $lines = file($findingsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+            if (is_array($lines)) {
+                foreach ($lines as $line) {
+                    /** @var array<string, mixed>|null $data */
+                    $data = json_decode($line, true);
+
+                    if (is_array($data)) {
+                        $collector->merge([Finding::fromArray($data)]);
+                    }
+                }
+            }
+
+            $writer = new ReportWriter;
+            $project = [
+                'from' => (string) ($currentMajor ?? '?'),
+                'to' => (string) $targetMajor,
+                'php' => PHP_VERSION,
+                'commits' => 0,
+                'duration' => '',
+            ];
+
+            $writer->writeMarkdown($collector->all(), $project, $reportDir.'/UPGRADE-REPORT.md');
+            $writer->writeJson($collector->all(), $project, $reportDir.'/report.json');
+
+            $style->text(sprintf(
+                '📄 UPGRADE-REPORT.md written to %s',
+                $reportDir
+            ));
+        }
+
         $style->success(sprintf('Upgrade to Laravel %d complete!', $targetMajor));
 
         return Command::SUCCESS;
