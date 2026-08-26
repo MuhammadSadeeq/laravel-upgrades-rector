@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory\ProjectAdvisor;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\ReportWriter;
@@ -31,6 +32,7 @@ final class ToCommand extends Command
             ->addArgument('target-major', InputArgument::REQUIRED, 'Target Laravel major version (e.g. 11)')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Print plan without touching anything')
             ->addOption('skip-tests', null, InputOption::VALUE_NONE, 'Skip artisan test at the end')
+            ->addOption('annotate', null, InputOption::VALUE_NONE, 'Write advisory comments into source files')
             ->addOption('working-dir', 'd', InputOption::VALUE_REQUIRED, 'Project directory', '.');
     }
 
@@ -220,6 +222,25 @@ final class ToCommand extends Command
 
         if ($rectorProcess->getExitCode() !== 0) {
             $style->warning('Rector reported issues — review output above.');
+        }
+
+        // Advisory: project-level config scan.
+        $advisor = new ProjectAdvisor(
+            $workingDirectory.'/config',
+            $targetMajor
+        );
+
+        $collector = new FindingCollector;
+        $advisor->scan($collector);
+
+        if ($collector->count() > 0) {
+            $style->text(sprintf('⚠ %d project-level advisories found:', $collector->count()));
+
+            foreach ($collector->all() as $finding) {
+                $style->text(sprintf('  ⚠ %s — %s', $finding->file, $finding->message));
+            }
+        } else {
+            $style->text('✔ No project-level advisories.');
         }
 
         // Post-step: artisan commands.
