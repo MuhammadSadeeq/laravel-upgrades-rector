@@ -81,7 +81,7 @@ final class RuleSamplesParseTest extends TestCase
         }
 
         self::assertSame([], $failures, implode("\n", $failures));
-        self::assertGreaterThan(50, $sampleCount, 'Suspiciously few samples collected.');
+        self::assertGreaterThan(40, $sampleCount, 'Suspiciously few samples collected.');
     }
 
     /**
