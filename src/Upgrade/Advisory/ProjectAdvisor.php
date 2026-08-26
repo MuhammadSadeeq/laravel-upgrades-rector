@@ -14,6 +14,18 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
  */
 final class ProjectAdvisor
 {
+    /**
+     * Packages whose major upgrades have their own guides.
+     *
+     * @var array<string, array{url: string, key: string}>
+     */
+    private const PACKAGE_GUIDES = [
+        'livewire' => ['url' => 'https://livewire.laravel.com/docs/upgrading', 'key' => 'livewire/livewire'],
+        'jetstream' => ['url' => 'https://jetstream.laravel.com', 'key' => 'laravel/jetstream'],
+        'inertia' => ['url' => 'https://inertiajs.com/upgrade-guide', 'key' => 'inertiajs/inertia-laravel'],
+        'filament' => ['url' => 'https://filamentphp.com/docs/upgrade-guide', 'key' => 'filament/filament'],
+    ];
+
     private const CONFIG_CHECKS = [
         'database.php' => [
             'pattern' => '/DB_CONNECTION.*sqlite/',
@@ -83,6 +95,67 @@ final class ProjectAdvisor
                     0,
                     'SQLite database connection configured.',
                     'Verify SQLite >= 3.26 for Laravel 11+.'
+                );
+            }
+        }
+
+        $this->scanInstalledPackages(dirname($this->configDirectory), $collector);
+
+        $this->scanPublishedViews(dirname($this->configDirectory, 2), $collector);
+    }
+
+    private function scanInstalledPackages(string $projectDir, FindingCollector $collector): void
+    {
+        $lockPath = $projectDir.'/composer.lock';
+
+        if (! is_file($lockPath)) {
+            return;
+        }
+
+        /** @var array{packages?: list<array{name?: string}>} $lock */
+        $lock = json_decode((string) file_get_contents($lockPath), true);
+        $packages = is_array($lock['packages'] ?? null) ? $lock['packages'] : [];
+
+        foreach ($packages as $package) {
+            $name = is_string($package['name'] ?? null) ? $package['name'] : '';
+
+            foreach (self::PACKAGE_GUIDES as $key => $guide) {
+                if ($name === $guide['key']) {
+                    $collector->add(
+                        'laravelUpgrade.'.$key.'UpgradeGuide',
+                        Finding::SEVERITY_INFO,
+                        $this->targetMajor,
+                        'composer.lock',
+                        0,
+                        sprintf('%s is installed and may require its own upgrade process.', $name),
+                        sprintf('Review the %s upgrade guide.', $name)
+                    );
+                }
+            }
+        }
+    }
+
+    private function scanPublishedViews(string $projectDir, FindingCollector $collector): void
+    {
+        $viewsDir = $projectDir.'/resources/views/vendor';
+
+        if (! is_dir($viewsDir)) {
+            return;
+        }
+
+        foreach (self::PACKAGE_GUIDES as $_ => $guide) {
+            $vendorName = strtolower(substr($guide['key'], 0));
+            $viewDir = $viewsDir.'/'.$vendorName;
+
+            if (is_dir($viewDir)) {
+                $collector->add(
+                    'laravelUpgrade.publishedVendorViews',
+                    Finding::SEVERITY_LOW,
+                    $this->targetMajor,
+                    'resources/views/vendor/'.$vendorName,
+                    0,
+                    sprintf('Published vendor views found for "%s".', $vendorName),
+                    'Republish views after upgrading to ensure compatibility.'
                 );
             }
         }

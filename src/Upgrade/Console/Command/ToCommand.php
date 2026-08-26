@@ -46,6 +46,7 @@ final class ToCommand extends Command
         $workingDirectory = is_string($dirOption) && $dirOption !== '' ? $dirOption : '.';
         $dryRun = (bool) $input->getOption('dry-run');
         $skipTests = (bool) $input->getOption('skip-tests');
+        $annotate = (bool) $input->getOption('annotate');
 
         $targetRaw = $input->getArgument('target-major');
         $targetMajor = is_scalar($targetRaw) ? (int) $targetRaw : 0;
@@ -370,6 +371,38 @@ final class ToCommand extends Command
                         $workingDirectory.'/.laravel-upgrade/findings.jsonl',
                         implode('\n', array_map('json_encode', $findings)).'\n'
                     );
+
+                    if ($annotate) {
+                        foreach ($findings as $finding) {
+                            $filePath = $workingDirectory.'/'.$finding['file'];
+
+                            if (! is_file($filePath)) {
+                                continue;
+                            }
+
+                            $linesArr = file($filePath);
+
+                            if ($linesArr === false) {
+                                continue;
+                            }
+
+                            $findingLine = $finding['line'];
+                            $lineIdx = (int) $findingLine - 1;
+
+                            if (! isset($linesArr[$lineIdx])) {
+                                continue;
+                            }
+
+                            $marker = '@laravel-upgrade '.$finding['ruleId'];
+
+                            if (str_contains($linesArr[$lineIdx], $marker)) {
+                                continue;
+                            }
+
+                            $linesArr[$lineIdx] = '    // TODO '.$marker.': '.$finding['message']."\n".$linesArr[$lineIdx];
+                            file_put_contents($filePath, implode('', $linesArr));
+                        }
+                    }
                 }
             } else {
                 $style->text('⚠ PHPStan advisory output unreadable (non-fatal).');
