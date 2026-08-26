@@ -89,6 +89,43 @@ final class ToCommand extends Command
             ]
         );
 
+        // Preflight checks (plan P4-03).
+        $preflightFailures = [];
+
+        $requiredPhp = match ($targetMajor) {
+            13 => 80300,
+            12 => 80200,
+            default => 80200,
+        };
+
+        if ($requiredPhp > PHP_VERSION_ID) {
+            $preflightFailures[] = sprintf(
+                'PHP %s is too old for Laravel %d (requires >= %s).',
+                PHP_VERSION,
+                $targetMajor,
+                implode('.', [intdiv($requiredPhp, 10000), intdiv($requiredPhp % 10000, 100), $requiredPhp % 100])
+            );
+        }
+
+        // SQLite version check when sqlite is used.
+        $envFile = $workingDirectory.'/.env';
+
+        if (is_file($envFile) && str_contains((string) file_get_contents($envFile), 'DB_CONNECTION=sqlite')) {
+            $sqliteProcess = new Process(['php', '-r', 'echo (new PDO("sqlite::memory:"))->query("select sqlite_version()")->fetchColumn();']);
+            $sqliteProcess->run();
+            $sqliteVersion = trim($sqliteProcess->getOutput());
+
+            if ($sqliteVersion !== '' && version_compare($sqliteVersion, '3.26.0', '<')) {
+                $preflightFailures[] = sprintf('SQLite %s is too old for Laravel 11+ (requires >= 3.26).', $sqliteVersion);
+            }
+        }
+
+        if ($preflightFailures !== []) {
+            $style->error('Preflight failures:\n'.implode("\n", array_map(fn ($f) => '  - '.$f, $preflightFailures)));
+
+            return 2; // preflight failure per plan exit codes
+        }
+
         if ($currentMajor !== null && $currentMajor >= $targetMajor) {
             $style->success(sprintf('Already on Laravel %d — nothing to do.', $currentMajor));
 
@@ -180,6 +217,28 @@ final class ToCommand extends Command
 
         if ($rectorProcess->getExitCode() !== 0) {
             $style->warning('Rector reported issues — review output above.');
+        }
+
+        // Post-step: artisan commands.
+        $style->section('Post-step');
+
+        $postCommands = [
+            'composer dump-autoload' => ['composer', 'dump-autoload'],
+            'php artisan config:clear' => ['php', 'artisan', 'config:clear'],
+            'php artisan route:clear' => ['php', 'artisan', 'route:clear'],
+            'php artisan view:clear' => ['php', 'artisan', 'view:clear'],
+        ];
+
+        foreach ($postCommands as $label => $cmd) {
+            $postProcess = new Process($cmd, $workingDirectory);
+            $postProcess->setTimeout(120);
+            $postProcess->run();
+
+            if ($postProcess->isSuccessful()) {
+                $style->text('✔ '.$label);
+            } else {
+                $style->text('⚠ '.$label.' (non-fatal)');
+            }
         }
 
         $writeState('rector');
