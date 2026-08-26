@@ -30,7 +30,8 @@ final class ReportCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $jsonlPath = $input->getOption('findings-jsonl');
-        $outputDir = (string) $input->getOption('output-dir');
+        $dirRaw = $input->getOption('output-dir');
+        $outputDir = is_string($dirRaw) && $dirRaw !== '' ? $dirRaw : '.laravel-upgrade';
 
         if (! is_string($jsonlPath) || ! is_file($jsonlPath)) {
             // Try the default location.
@@ -65,7 +66,7 @@ final class ReportCommand extends Command
 
         $writer = new ReportWriter;
         $allFindings = $collector->all();
-        $project = ['from' => '?', 'to' => '?', 'php' => PHP_VERSION];
+        $project = ['from' => '?', 'to' => '?', 'php' => PHP_VERSION, 'commits' => 0, 'duration' => ''];
 
         $writer->writeMarkdown($allFindings, $project, $outputDir.'/UPGRADE-REPORT.md');
         $writer->writeJson($allFindings, $project, $outputDir.'/report.json');

@@ -34,12 +34,16 @@ final class PlanCommand extends Command
             return Command::FAILURE;
         }
 
+        $targetRaw = $input->getArgument('target-major');
+        $targetMajorString = is_scalar($targetRaw) ? (string) $targetRaw : '';
+
         $dirOption = $input->getOption('working-dir');
+        $workingDir = is_string($dirOption) && $dirOption !== '' ? $dirOption : '.';
 
         $toInput = new ArrayInput([
             'command' => 'to',
-            'target-major' => (string) $input->getArgument('target-major'),
-            '--working-dir' => is_string($dirOption) && $dirOption !== '' ? $dirOption : '.',
+            'target-major' => $targetMajorString,
+            '--working-dir' => $workingDir,
             '--dry-run' => true,
         ]);
 
