@@ -315,9 +315,16 @@ final class GitCheckpointService
             );
         }
 
+        $commitData = $this->processData($commit);
+        $commitHash = $this->commitHash($commit->combinedOutput());
+
+        if ($commitHash !== null) {
+            $commitData['commit'] = $commitHash;
+        }
+
         return GitCheckpointResult::successful(
             sprintf('Created checkpoint commit: %s', $message),
-            ['message' => $message, 'staged' => $pathsToStage, 'process' => $this->processData($commit)],
+            ['message' => $message, 'staged' => $pathsToStage, 'commit' => $commitHash, 'process' => $commitData],
         );
     }
 
@@ -619,5 +626,12 @@ final class GitCheckpointService
             'exitCode' => $result->exitCode,
             'output' => $result->combinedOutput(),
         ];
+    }
+
+    private function commitHash(string $output): ?string
+    {
+        return preg_match('/\[[^\]]*\s([0-9a-f]{7,64})\]/i', $output, $match) === 1
+            ? $match[1]
+            : null;
     }
 }

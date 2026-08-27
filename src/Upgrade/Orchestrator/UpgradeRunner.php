@@ -7,6 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator;
 use InvalidArgumentException;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Git\GitCheckpointService;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Journal\StateStore;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\UpgradeReportGenerator;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepResult;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\UpgradeContext;
@@ -28,6 +29,7 @@ final class UpgradeRunner
         iterable $steps,
         private readonly ?UpgradeObserver $observer = null,
         private readonly ?GitCheckpointService $gitCheckpoint = null,
+        private readonly ?UpgradeReportGenerator $reportGenerator = null,
     ) {
         $this->steps = [];
 
@@ -135,6 +137,42 @@ final class UpgradeRunner
                     continue;
                 }
 
+                $skippedResult = StepResult::skipped(
+                    in_array($stepName, $plan->skipSteps, true)
+                        ? 'Skipped by plan.'
+                        : 'Skipped before the requested from-step.',
+                );
+                $skippedExecution = new StepExecutionResult(
+                    transition: $transition,
+                    fromMajor: $targetMajor - 1,
+                    toMajor: $targetMajor,
+                    step: $stepName,
+                    result: $skippedResult,
+                );
+                $reportFailure = $this->reportFailure($context, $skippedExecution);
+
+                if ($reportFailure !== null) {
+                    $failedExecution = new StepExecutionResult(
+                        transition: $transition,
+                        fromMajor: $targetMajor - 1,
+                        toMajor: $targetMajor,
+                        step: $stepName,
+                        result: $reportFailure,
+                    );
+                    $results[] = $failedExecution;
+                    $this->stateStore->recordFailedStep($plan, $stepName, $reportFailure->message);
+                    $this->notifyStepFailed($transition, $stepName, $context, $reportFailure);
+
+                    return UpgradeRunResult::failed(
+                        failedStep: $stepName,
+                        failedTransition: $transition,
+                        exitCode: $reportFailure->exitCode ?? 1,
+                        stepResults: $results,
+                        completedTransitions: $completedTransitions,
+                        failureMessage: $reportFailure->message,
+                    );
+                }
+
                 $state = $this->stateStore->recordSkippedStep(
                     $plan,
                     $stepName,
@@ -200,6 +238,20 @@ final class UpgradeRunner
                 $results[] = $execution;
 
                 if ($result->isFailed()) {
+                    $reportFailure = $this->reportFailure($context, $execution);
+
+                    if ($reportFailure !== null) {
+                        $result = $this->withReportFailure($result, $reportFailure);
+                        $execution = new StepExecutionResult(
+                            transition: $transition,
+                            fromMajor: $targetMajor - 1,
+                            toMajor: $targetMajor,
+                            step: $stepName,
+                            result: $result,
+                        );
+                        $results[array_key_last($results)] = $execution;
+                    }
+
                     $this->stateStore->recordFailedStep($plan, $stepName, $result->message);
                     $this->notifyStepFailed($transition, $stepName, $context, $result);
 
@@ -240,6 +292,20 @@ final class UpgradeRunner
                             result: $result,
                         );
                         $results[array_key_last($results)] = $execution;
+                        $reportFailure = $this->reportFailure($context, $execution);
+
+                        if ($reportFailure !== null) {
+                            $result = $this->withReportFailure($result, $reportFailure);
+                            $execution = new StepExecutionResult(
+                                transition: $transition,
+                                fromMajor: $targetMajor - 1,
+                                toMajor: $targetMajor,
+                                step: $stepName,
+                                result: $result,
+                            );
+                            $results[array_key_last($results)] = $execution;
+                        }
+
                         $this->stateStore->recordFailedStep($plan, $stepName, $result->message);
                         $this->notifyStepFailed($transition, $stepName, $context, $result);
 
@@ -252,6 +318,42 @@ final class UpgradeRunner
                             failureMessage: $result->message,
                         );
                     }
+
+                    if ($checkpoint !== null && $checkpoint->isSuccessful()) {
+                        $result = $this->withCheckpointData($result, $checkpoint->data);
+                        $execution = new StepExecutionResult(
+                            transition: $transition,
+                            fromMajor: $targetMajor - 1,
+                            toMajor: $targetMajor,
+                            step: $stepName,
+                            result: $result,
+                        );
+                        $results[array_key_last($results)] = $execution;
+                    }
+                }
+
+                $reportFailure = $this->reportFailure($context, $execution);
+
+                if ($reportFailure !== null) {
+                    $execution = new StepExecutionResult(
+                        transition: $transition,
+                        fromMajor: $targetMajor - 1,
+                        toMajor: $targetMajor,
+                        step: $stepName,
+                        result: $reportFailure,
+                    );
+                    $results[array_key_last($results)] = $execution;
+                    $this->stateStore->recordFailedStep($plan, $stepName, $reportFailure->message);
+                    $this->notifyStepFailed($transition, $stepName, $context, $reportFailure);
+
+                    return UpgradeRunResult::failed(
+                        failedStep: $stepName,
+                        failedTransition: $transition,
+                        exitCode: $reportFailure->exitCode ?? 1,
+                        stepResults: $results,
+                        completedTransitions: $completedTransitions,
+                        failureMessage: $reportFailure->message,
+                    );
                 }
 
                 $state = $this->stateStore->recordCompletedStep(
@@ -439,5 +541,62 @@ final class UpgradeRunner
         } catch (Throwable) {
             // Observer failures must not hide the actual step failure.
         }
+    }
+
+    private function reportFailure(UpgradeContext $context, StepExecutionResult $execution): ?StepResult
+    {
+        if ($this->reportGenerator === null) {
+            return null;
+        }
+
+        if ($execution->step === 'commit' && ($execution->result->data['reportHandled'] ?? false) === true) {
+            return null;
+        }
+
+        try {
+            $this->reportGenerator->recordStep($context, $execution);
+        } catch (Throwable $exception) {
+            return StepResult::failed(
+                message: 'Upgrade report update failed: '.$this->exceptionMessage($exception),
+                data: ['check' => 'report', 'exception' => $exception::class],
+                exitCode: 1,
+            );
+        }
+
+        return null;
+    }
+
+    private function withReportFailure(StepResult $original, StepResult $reportFailure): StepResult
+    {
+        $data = $original->data;
+        $data['report'] = [
+            'status' => 'failed',
+            'message' => $reportFailure->message,
+            'data' => $reportFailure->data,
+        ];
+
+        return StepResult::failed(
+            message: $original->message,
+            changedFiles: $original->changedFiles,
+            findingsCount: $original->findingsCount,
+            data: $data,
+            exitCode: $original->exitCode,
+        );
+    }
+
+    /** @param array<string, mixed> $checkpointData */
+    private function withCheckpointData(StepResult $result, array $checkpointData): StepResult
+    {
+        $data = $result->data;
+        $data['git'] = $checkpointData;
+
+        return new StepResult(
+            status: $result->status,
+            changedFiles: $result->changedFiles,
+            findingsCount: $result->findingsCount,
+            message: $result->message,
+            data: $data,
+            exitCode: $result->exitCode,
+        );
     }
 }

@@ -4,79 +4,70 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command;
 
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\ReportWriter;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\UpgradeReportGenerator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-/**
- * Regenerates UPGRADE-REPORT.md and report.json from collected findings
- * (plan P4-11).
- */
+/** Regenerates the root Markdown report from canonical report.json (P4-11). */
 final class ReportCommand extends Command
 {
+    public function __construct(private readonly UpgradeReportGenerator $reportGenerator = new UpgradeReportGenerator)
+    {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this
             ->setName('report')
-            ->setDescription('Generate UPGRADE-REPORT.md from upgrade findings')
-            ->addOption('findings-jsonl', null, InputOption::VALUE_REQUIRED, 'Path to findings JSONL file')
-            ->addOption('output-dir', 'o', InputOption::VALUE_REQUIRED, 'Directory for generated reports', '.laravel-upgrade');
+            ->setDescription('Regenerate UPGRADE-REPORT.md from canonical report.json')
+            ->addOption('working-dir', 'd', InputOption::VALUE_REQUIRED, 'Project directory', '.')
+            // Kept as a parse-compatible option for callers of the pre-P4-11
+            // command. Reports are always read from the project state folder.
+            ->addOption('output-dir', 'o', InputOption::VALUE_REQUIRED, 'Deprecated; reports are written at the project root')
+            ->addOption('findings-jsonl', null, InputOption::VALUE_REQUIRED, 'Deprecated; report.json is the canonical input');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $jsonlPath = $input->getOption('findings-jsonl');
-        $dirRaw = $input->getOption('output-dir');
-        $outputDir = is_string($dirRaw) && $dirRaw !== '' ? $dirRaw : '.laravel-upgrade';
+        $workingDirectory = $this->workingDirectory($input);
 
-        if (! is_string($jsonlPath) || ! is_file($jsonlPath)) {
-            // Try the default location.
-            $default = '.laravel-upgrade/findings.jsonl';
+        if ($workingDirectory === null) {
+            $output->writeln('<error>The working directory does not exist.</error>');
 
-            if (is_file($default)) {
-                $jsonlPath = $default;
-            } else {
-                $output->writeln('<comment>No findings file found. Nothing to report.</>');
-
-                return Command::SUCCESS;
-            }
+            return Command::FAILURE;
         }
 
-        $collector = new FindingCollector;
-        $lines = file($jsonlPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        try {
+            $result = $this->reportGenerator->regenerate($workingDirectory);
+        } catch (\Throwable $exception) {
+            $output->writeln('<error>Could not regenerate report: '.$exception->getMessage().'</error>');
 
-        if (is_array($lines)) {
-            foreach ($lines as $line) {
-                /** @var array<string, mixed>|null $data */
-                $data = json_decode($line, true);
-
-                if (is_array($data)) {
-                    $collector->merge([Finding::fromArray($data)]);
-                }
-            }
+            return Command::FAILURE;
         }
 
-        if (! is_dir($outputDir)) {
-            mkdir($outputDir, 0777, true);
-        }
-
-        $writer = new ReportWriter;
-        $allFindings = $collector->all();
-        $project = ['from' => '?', 'to' => '?', 'php' => PHP_VERSION, 'commits' => 0, 'duration' => ''];
-
-        $writer->writeMarkdown($allFindings, $project, $outputDir.'/UPGRADE-REPORT.md');
-        $writer->writeJson($allFindings, $project, $outputDir.'/report.json');
+        $markdown = $result['markdown'] ?? null;
+        $markdown = is_string($markdown) ? $markdown : $workingDirectory.'/UPGRADE-REPORT.md';
+        $findings = $result['findings'] ?? 0;
+        $findings = is_int($findings) ? $findings : 0;
 
         $output->writeln(sprintf(
             'Report written: %s (%d findings)',
-            $outputDir.'/UPGRADE-REPORT.md',
-            count($allFindings)
+            $markdown,
+            $findings,
         ));
 
         return Command::SUCCESS;
+    }
+
+    private function workingDirectory(InputInterface $input): ?string
+    {
+        $value = $input->getOption('working-dir');
+        $directory = is_string($value) && $value !== '' ? $value : '.';
+        $resolved = realpath($directory);
+
+        return $resolved !== false && is_dir($resolved) ? $resolved : null;
     }
 }

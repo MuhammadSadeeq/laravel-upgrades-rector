@@ -10,6 +10,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\StepExecutionResul
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradeObserver;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradePlan;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradeRunner;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\UpgradeReportGenerator;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepResult;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\UpgradeContext;
@@ -176,6 +177,67 @@ final class UpgradeRunnerTest extends TestCase
         self::assertTrue($resumedSteps[4]->contexts[0]['options']['noTests'] ?? false);
     }
 
+    public function test_report_is_regenerated_after_each_step_and_retains_a_failed_attempt(): void
+    {
+        $store = new StateStore($this->workingDirectory);
+        $report = new UpgradeReportGenerator;
+        $failed = (new UpgradeRunner($store, $this->steps('dependencies'), null, null, $report))
+            ->run(new UpgradePlan(10, 11));
+
+        self::assertTrue($failed->isFailure());
+        self::assertFileExists($this->workingDirectory.'/.laravel-upgrade/report.json');
+        self::assertFileExists($this->workingDirectory.'/UPGRADE-REPORT.md');
+        $contents = file_get_contents($this->workingDirectory.'/.laravel-upgrade/report.json');
+        self::assertIsString($contents);
+        $firstReport = json_decode($contents, true);
+        self::assertIsArray($firstReport);
+        $firstSteps = $firstReport['steps'] ?? null;
+        self::assertIsArray($firstSteps);
+        self::assertCount(2, $firstSteps);
+        $firstFailedStep = $firstSteps[1] ?? null;
+        self::assertIsArray($firstFailedStep);
+        self::assertSame('failed', $firstFailedStep['status'] ?? null);
+
+        $resumed = (new UpgradeRunner($store, $this->steps(), null, null, $report))
+            ->run(new UpgradePlan(10, 11));
+
+        self::assertTrue($resumed->success);
+        $contents = file_get_contents($this->workingDirectory.'/.laravel-upgrade/report.json');
+        self::assertIsString($contents);
+        $finalReport = json_decode($contents, true);
+        self::assertIsArray($finalReport);
+        $finalSteps = $finalReport['steps'] ?? null;
+        self::assertIsArray($finalSteps);
+        self::assertCount(9, $finalSteps);
+        $finalDependencyStep = $finalSteps[1] ?? null;
+        self::assertIsArray($finalDependencyStep);
+        self::assertSame('ok', $finalDependencyStep['status'] ?? null);
+    }
+
+    public function test_report_update_failure_does_not_hide_step_failure_or_exit_code(): void
+    {
+        $steps = $this->steps('dependencies');
+        $observer = new CorruptingReportObserver($this->workingDirectory);
+
+        $result = (new UpgradeRunner(
+            new StateStore($this->workingDirectory),
+            $steps,
+            $observer,
+            null,
+            new UpgradeReportGenerator,
+        ))->run(new UpgradePlan(10, 11));
+
+        self::assertTrue($result->isFailure());
+        self::assertSame('dependencies failed', $result->failureMessage);
+        self::assertSame(3, $result->exitCode);
+        $failed = $result->stepResults[1] ?? null;
+        self::assertInstanceOf(StepExecutionResult::class, $failed);
+        self::assertSame('dependencies failed', $failed->result->message);
+        $reportFailure = $failed->result->data['report'] ?? null;
+        self::assertIsArray($reportFailure);
+        self::assertSame('failed', $reportFailure['status'] ?? null);
+    }
+
     public function test_exception_is_converted_to_a_failed_result_with_step_exit_code(): void
     {
         $steps = $this->steps(exceptionStep: 'preflight');
@@ -323,6 +385,31 @@ final class RecordingStep implements StepInterface
 
         return StepResult::successful(message: $this->stepName.' completed');
     }
+}
+
+final class CorruptingReportObserver implements UpgradeObserver
+{
+    public function __construct(private readonly string $directory) {}
+
+    public function stepStarted(string $transition, string $step, UpgradeContext $context): void {}
+
+    public function stepCompleted(
+        string $transition,
+        string $step,
+        UpgradeContext $context,
+        StepResult $result,
+    ): void {
+        if ($step === 'preflight') {
+            file_put_contents($this->directory.'/.laravel-upgrade/report.json', '{invalid');
+        }
+    }
+
+    public function stepFailed(
+        string $transition,
+        string $step,
+        UpgradeContext $context,
+        StepResult $result,
+    ): void {}
 }
 
 final class RecordingObserver implements UpgradeObserver

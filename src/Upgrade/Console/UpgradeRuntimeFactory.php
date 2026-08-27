@@ -72,8 +72,9 @@ final class UpgradeRuntimeFactory implements UpgradeRuntimeFactoryInterface, Upg
         ?UpgradeObserver $observer = null,
     ): UpgradeRunner {
         $git = new GitCheckpointService($this->processRunner, $this->binaryResolver);
+        $report = new UpgradeReportGenerator;
         $steps = $this->stepFactory === null
-            ? $this->realSteps($git)
+            ? $this->realSteps($git, $report)
             : ($this->stepFactory)($this->processRunner, $this->binaryResolver, $git);
 
         return new UpgradeRunner(
@@ -81,6 +82,7 @@ final class UpgradeRuntimeFactory implements UpgradeRuntimeFactoryInterface, Upg
             $steps,
             $observer,
             $git,
+            $report,
         );
     }
 
@@ -95,7 +97,7 @@ final class UpgradeRuntimeFactory implements UpgradeRuntimeFactoryInterface, Upg
     }
 
     /** @return list<StepInterface> */
-    private function realSteps(GitCheckpointService $git): array
+    private function realSteps(GitCheckpointService $git, UpgradeReportGenerator $report): array
     {
         $root = dirname(__DIR__, 3);
         $manifestReader = new ManifestReader;
@@ -112,7 +114,7 @@ final class UpgradeRuntimeFactory implements UpgradeRuntimeFactoryInterface, Upg
             new AdvisoryStep($this->processRunner, new PhpStanConfigGenerator),
             new PostStep($this->processRunner, $root.'/resources/compat/post-install-steps.json', $this->binaryResolver),
             new VerifyStep($this->processRunner, $this->binaryResolver),
-            new CommitStep($git, new UpgradeReportGenerator),
+            new CommitStep($git, $report),
         ];
     }
 }
