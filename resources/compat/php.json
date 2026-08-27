@@ -1,0 +1,17 @@
+{
+    "generatedAt": "2026-08-27",
+    "php": {
+        "11": {
+            "minimum": "8.2.0",
+            "requiredExtensions": ["ctype", "curl", "dom", "fileinfo", "filter", "hash", "mbstring", "openssl", "pcre", "pdo", "session", "tokenizer", "xml"]
+        },
+        "12": {
+            "minimum": "8.2.0",
+            "requiredExtensions": ["ctype", "curl", "dom", "fileinfo", "filter", "hash", "mbstring", "openssl", "pcre", "pdo", "session", "tokenizer", "xml"]
+        },
+        "13": {
+            "minimum": "8.3.0",
+            "requiredExtensions": ["ctype", "curl", "dom", "fileinfo", "filter", "hash", "mbstring", "openssl", "pcre", "pdo", "session", "tokenizer", "xml"]
+        }
+    }
+}

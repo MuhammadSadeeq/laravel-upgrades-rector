@@ -37,4 +37,42 @@ final class FindingCollectorTest extends TestCase
         self::assertSame($original->file, $restored->file);
         self::assertSame($original->line, $restored->line);
     }
+
+    public function test_jsonl_writes_append_unique_findings_without_colliding_ids(): void
+    {
+        $directory = sys_get_temp_dir().'/laravel-upgrade-findings-'.bin2hex(random_bytes(8));
+        mkdir($directory, 0777, true);
+        $path = $directory.'/findings.jsonl';
+
+        try {
+            $first = new FindingCollector;
+            $first->add('rule.first', 'medium', 11, 'app/first.php', 10, 'first finding');
+            $first->writeJsonl($path);
+
+            $second = new FindingCollector;
+            $second->add('rule.second', 'low', 12, 'app/second.php', 20, 'second finding');
+            $second->writeJsonl($path);
+
+            $third = new FindingCollector;
+            $third->add('rule.first', 'medium', 11, 'app/first.php', 10, 'first finding');
+            $third->writeJsonl($path);
+
+            $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            self::assertIsArray($lines);
+            self::assertCount(2, $lines);
+            $decoded = array_map(
+                static fn (string $line): mixed => json_decode($line, true, 512, JSON_THROW_ON_ERROR),
+                $lines,
+            );
+            self::assertCount(2, $decoded);
+            self::assertSame(['f-0001', 'f-0002'], array_column($decoded, 'id'));
+            self::assertSame(['rule.first', 'rule.second'], array_column($decoded, 'ruleId'));
+        } finally {
+            foreach (glob($directory.'/*') ?: [] as $file) {
+                unlink($file);
+            }
+
+            rmdir($directory);
+        }
+    }
 }

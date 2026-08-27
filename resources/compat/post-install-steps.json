@@ -1,0 +1,64 @@
+{
+    "caveats": [
+        "Migration publish tags and marker globs are conservative Laravel 11 compatibility data; verify them against the installed package release before applying a migration publish."
+    ],
+    "11": [
+        {
+            "type": "migration",
+            "id": "sanctum-migrations",
+            "package": "laravel/sanctum",
+            "tag": "sanctum-migrations",
+            "migrationMarkers": ["*_create_personal_access_tokens_table.php"]
+        },
+        {
+            "type": "migration",
+            "id": "passport-migrations",
+            "package": "laravel/passport",
+            "tag": "passport-migrations",
+            "migrationMarkers": ["*_create_oauth_*"]
+        },
+        {
+            "type": "migration",
+            "id": "telescope-migrations",
+            "package": "laravel/telescope",
+            "tag": "telescope-migrations",
+            "migrationMarkers": ["*_create_telescope_entries_table.php"]
+        },
+        {
+            "type": "migration",
+            "id": "cashier-migrations",
+            "package": "laravel/cashier",
+            "tag": "cashier-migrations",
+            "migrationMarkers": ["*_create_subscriptions_table.php"]
+        },
+        {
+            "type": "migration",
+            "id": "spark-migrations",
+            "package": "laravel/spark-stripe",
+            "tag": "spark-migrations",
+            "migrationMarkers": ["*_create_spark_*", "*_create_subscriptions_table.php"]
+        }
+    ],
+    "*": [
+        {
+            "type": "command",
+            "id": "composer-dump-autoload",
+            "argv": ["composer", "dump-autoload", "--no-interaction"]
+        },
+        {
+            "type": "command",
+            "id": "config-clear",
+            "argv": ["php", "artisan", "config:clear"]
+        },
+        {
+            "type": "command",
+            "id": "route-clear",
+            "argv": ["php", "artisan", "route:clear"]
+        },
+        {
+            "type": "command",
+            "id": "view-clear",
+            "argv": ["php", "artisan", "view:clear"]
+        }
+    ]
+}

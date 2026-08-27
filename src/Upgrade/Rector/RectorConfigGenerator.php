@@ -23,9 +23,9 @@ final class RectorConfigGenerator
         84 => 'PhpVersion::PHP_84',
     ];
 
-    public function generate(string $projectDirectory, int $targetMajor): string
+    public function generate(string $projectDirectory, int $targetMajor, ?string $outputDirectory = null): string
     {
-        $configDirectory = $projectDirectory.'/.laravel-upgrade';
+        $configDirectory = $outputDirectory ?? $projectDirectory.'/.laravel-upgrade';
 
         if (! is_dir($configDirectory) && ! mkdir($configDirectory, 0777, true) && ! is_dir($configDirectory)) {
             throw new RuntimeException(sprintf('Could not create "%s".', $configDirectory));
@@ -41,13 +41,18 @@ final class RectorConfigGenerator
         $larastan = $projectDirectory.'/vendor/larastan/larastan/extension.neon';
 
         if (is_file($larastan)) {
-            $larastanLine = sprintf("    ->withPHPStanConfigs(['%s'])\n", $larastan);
+            $larastanLine = sprintf("    ->withPHPStanConfigs([%s])\n", $this->phpString($larastan));
         }
 
         $pathLines = implode("\n", array_map(
-            static fn (string $path): string => sprintf("        '%s',", $path),
+            fn (string $path): string => sprintf('        %s,', $this->phpString($path)),
             $paths
         ));
+        $skipLines = implode("\n", array_map(
+            fn (string $path): string => sprintf('        %s,', $this->phpString($projectDirectory.'/'.$path)),
+            ['bootstrap/cache', 'storage', 'vendor', 'node_modules'],
+        ));
+        $cachePath = $this->phpString($configDirectory.'/rector-cache');
 
         $contents = <<<PHP
 <?php
@@ -74,13 +79,10 @@ return RectorConfig::configure()
 {$pathLines}
     ])
     ->withSkip([
-        '{$projectDirectory}/bootstrap/cache',
-        '{$projectDirectory}/storage',
-        '{$projectDirectory}/vendor',
-        '{$projectDirectory}/node_modules',
+{$skipLines}
         '*.blade.php',
     ])//
-{$larastanLine}    ->withCache('{$configDirectory}/rector-cache');
+{$larastanLine}    ->withCache({$cachePath});
 
 PHP;
 
@@ -89,6 +91,11 @@ PHP;
         }
 
         return $targetPath;
+    }
+
+    private function phpString(string $value): string
+    {
+        return "'".str_replace(['\\', "'"], ['\\\\', "\\'"], $value)."'";
     }
 
     /**

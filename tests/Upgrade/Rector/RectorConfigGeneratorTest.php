@@ -79,4 +79,32 @@ final class RectorConfigGeneratorTest extends TestCase
         self::assertStringContainsString('ContractSpecLoader::forMajor(11)', $contents);
         self::assertDoesNotMatchRegularExpression('/LARAVEL_1[23],/', $contents);
     }
+
+    public function test_generated_config_escapes_project_paths_for_php_literals(): void
+    {
+        $project = sys_get_temp_dir()."/rector-gen-quote-'".bin2hex(random_bytes(4));
+        mkdir($project.'/app', 0777, true);
+        mkdir($project.'/routes', 0777, true);
+
+        try {
+            $path = (new RectorConfigGenerator)->generate($project, 11);
+            $contents = (string) file_get_contents($path);
+
+            self::assertStringContainsString("\\'", $contents);
+            exec('php -l '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            self::assertSame(0, $exitCode, implode("\n", $output));
+        } finally {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($project, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST,
+            );
+
+            foreach ($iterator as $fileInfo) {
+                /** @var \SplFileInfo $fileInfo */
+                $fileInfo->isDir() ? rmdir($fileInfo->getPathname()) : unlink($fileInfo->getPathname());
+            }
+
+            rmdir($project);
+        }
+    }
 }
