@@ -5,16 +5,7 @@ parameters:
 
 services:
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ColumnChangeRequiresModifiersRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\HasUuidsNowV7Rule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PassportRoutesRemovedRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ImageRuleExcludesSvgRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ContainerCallNullableDefaultRule
         tags: [phpstan.rules.rule]
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\UpsertEmptyUniqueByRule
@@ -29,59 +20,32 @@ services:
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MorphPivotTableNameRule
         tags: [phpstan.rules.rule]
     -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\QueuedJobEloquentCollectionRule
+        tags: [phpstan.rules.rule]
+    -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\QueuedNotificationMissingModelsRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MergeIfMissingDotKeysRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\JobAttemptedExceptionTypeRule
         tags: [phpstan.rules.rule]
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ManagerExtendBindingRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\JsFromUnicodeRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\WithScheduleTimingRule
         tags: [phpstan.rules.rule]
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\StrFactoryResetRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SchemaInspectionAllSchemasRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ContainerCallNullableDefaultRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\JsFromUnicodeRule
         tags: [phpstan.rules.rule]
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PasswordResetSubjectRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\LocalDiskDefaultRootRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PaginationDefaultViewRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DatabaseTokenRepositoryExpiresRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PasswordRehashCustomColumnRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CarbonUntypedDiffRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\AfterCommitWithSyncQueueRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MariaDbUuidColumnRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\FloatPrecisionDroppedRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SpatialGeographyReviewRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DiffForHumansOptionsRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CarbonIntervalFloatSupportRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SetTestNowCopySemanticsRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ArrayFirstLastPolyfillRule
         tags: [phpstan.rules.rule]

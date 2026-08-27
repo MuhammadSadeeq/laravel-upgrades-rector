@@ -5,83 +5,32 @@ parameters:
 
 services:
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ColumnChangeRequiresModifiersRule
-        tags: [phpstan.rules.rule]
-    -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\HasUuidsNowV7Rule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PassportRoutesRemovedRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\BlueprintConstructorConnectionRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ImageRuleExcludesSvgRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\UpsertEmptyUniqueByRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DeleteJoinOrderLimitRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ModelBootInstantiationRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MorphPivotTableNameRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\QueuedNotificationMissingModelsRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MergeIfMissingDotKeysRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ManagerExtendBindingRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\JsFromUnicodeRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\StrFactoryResetRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SchemaInspectionAllSchemasRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ContainerCallNullableDefaultRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PasswordResetSubjectRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\LocalDiskDefaultRootRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\GrammarConstructorRule
         tags: [phpstan.rules.rule]
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DatabaseTokenRepositoryExpiresRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PasswordRehashCustomColumnRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ConcurrencyRunKeyedResultsRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CarbonUntypedDiffRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ContainerDefaultParameterRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\AfterCommitWithSyncQueueRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ImageRuleExcludesSvgRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MariaDbUuidColumnRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MergeIfMissingDotKeysRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\FloatPrecisionDroppedRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SchemaInspectionAllSchemasRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SpatialGeographyReviewRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DiffForHumansOptionsRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CarbonIntervalFloatSupportRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SetTestNowCopySemanticsRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\LocalDiskDefaultRootRule
         tags: [phpstan.rules.rule]

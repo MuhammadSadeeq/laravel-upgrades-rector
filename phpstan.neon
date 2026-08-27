@@ -9,6 +9,7 @@ parameters:
         - tests/E2E/plants
         - tests/Rector/*/Fixture
         - tests/Rector/*/*/Fixture
+        - tests/PHPStan/Rules/Fixture
 
     # Rector bundles its own PhpParser version which may differ from
     # the one PHPStan sees (especially with composer's --prefer-lowest in CI).

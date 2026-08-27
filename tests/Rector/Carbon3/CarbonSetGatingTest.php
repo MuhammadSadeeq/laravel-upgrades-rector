@@ -77,14 +77,15 @@ PHP;
         file_put_contents($fixturePath, $fixtureContents);
 
         $command = sprintf(
-            'cd %s && %s/vendor/bin/rector process %s --config=%s/src/Set/carbon-3.php --no-progress-bar --clear-cache 2>/dev/null',
+            'cd %s && %s/vendor/bin/rector process %s --config=%s/src/Set/carbon-3.php --no-progress-bar --clear-cache --debug 2>&1',
             escapeshellarg($projectDir),
             escapeshellarg($this->repoRoot),
             escapeshellarg($fixturePath),
             escapeshellarg($this->repoRoot)
         );
 
-        exec($command, $_, $exitCode);
+        $output = [];
+        exec($command, $output, $exitCode);
 
         $contents = (string) file_get_contents($fixturePath);
 
@@ -95,7 +96,7 @@ PHP;
         @rmdir($projectDir.'/vendor');
         @rmdir($projectDir);
 
-        self::assertSame(0, $exitCode, 'Rector must exit cleanly.');
+        self::assertSame(0, $exitCode, "Rector must exit cleanly.\n".implode("\n", $output));
 
         return $contents;
     }

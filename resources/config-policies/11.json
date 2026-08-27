@@ -1,0 +1,11 @@
+{
+    "behaviourChanging": {
+        "session.cookie": {
+            "preserveValue": null,
+            "reason": "Laravel 11 changes the default cookie naming strategy."
+        }
+    },
+    "structureOnly": [
+        "bootstrap/providers.php"
+    ]
+}

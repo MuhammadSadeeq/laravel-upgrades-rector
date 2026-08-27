@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory\FindingAnnotator;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory\ProjectAdvisor;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
@@ -320,7 +321,7 @@ final class ToCommand extends Command
         // Advisory: PHPStan analysis with upgrade rules.
         $style->section('Advisories');
 
-        $neonPath = dirname(__DIR__, 4).'/resources/phpstan/upgrade-'.$targetMajor.'.phpstan.neon';
+        $neonPath = self::advisoryConfigPath($targetMajor);
 
         if (is_file($neonPath)) {
             $advisoryProcess = new Process(
@@ -391,35 +392,8 @@ final class ToCommand extends Command
                     );
 
                     if ($annotate) {
-                        foreach ($findings as $finding) {
-                            $filePath = $workingDirectory.'/'.$finding['file'];
-
-                            if (! is_file($filePath)) {
-                                continue;
-                            }
-
-                            $linesArr = file($filePath);
-
-                            if ($linesArr === false) {
-                                continue;
-                            }
-
-                            $findingLine = $finding['line'];
-                            $lineIdx = (int) $findingLine - 1;
-
-                            if (! isset($linesArr[$lineIdx])) {
-                                continue;
-                            }
-
-                            $marker = '@laravel-upgrade '.$finding['ruleId'];
-
-                            if (str_contains($linesArr[$lineIdx], $marker)) {
-                                continue;
-                            }
-
-                            $linesArr[$lineIdx] = '    // TODO '.$marker.': '.$finding['message']."\n".$linesArr[$lineIdx];
-                            file_put_contents($filePath, implode('', $linesArr));
-                        }
+                        $annotator = new FindingAnnotator($workingDirectory);
+                        $annotator->annotateBatch($findings);
                     }
                 }
             } else {
@@ -557,5 +531,10 @@ final class ToCommand extends Command
         $style->success(sprintf('Upgrade to Laravel %d complete!', $targetMajor));
 
         return Command::SUCCESS;
+    }
+
+    public static function advisoryConfigPath(int $targetMajor): string
+    {
+        return dirname(__DIR__, 4).'/resources/phpstan/upgrade-'.$targetMajor.'.neon';
     }
 }

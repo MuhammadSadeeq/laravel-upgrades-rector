@@ -1,0 +1,161 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Refreshes resources/skeletons from the highest tagged laravel/laravel
+ * release for each supported major.
+ *
+ * This is a development-time command. The upgrade runtime never accesses the
+ * network and reads only the checked-in snapshots.
+ */
+
+use Symfony\Component\Process\Process;
+
+$root = realpath(dirname(__DIR__));
+
+if ($root === false) {
+    fwrite(STDERR, "Could not resolve the package root.\n");
+    exit(1);
+}
+
+$requested = array_slice($argv, 1);
+$majors = $requested === [] ? [10, 11, 12, 13] : array_map('intval', $requested);
+$snapshotRoot = $root.'/resources/skeletons';
+
+if (! is_dir($snapshotRoot)) {
+    mkdir($snapshotRoot, 0777, true);
+}
+
+$manifest = [
+    'generatedAt' => date('c'),
+    'source' => 'laravel/laravel',
+];
+
+foreach ($majors as $major) {
+    if (! in_array($major, [10, 11, 12, 13], true)) {
+        fwrite(STDERR, "Unsupported major {$major}; use 10, 11, 12, or 13.\n");
+        exit(2);
+    }
+
+    $tag = highestTag($major);
+    $temporary = sys_get_temp_dir().'/laravel-skeleton-'.$major.'-'.bin2hex(random_bytes(6));
+    $clone = new Process(['git', 'clone', '--depth', '1', '--branch', $tag, 'https://github.com/laravel/laravel.git', $temporary]);
+    $clone->setTimeout(300);
+    $clone->run();
+
+    if (! $clone->isSuccessful()) {
+        fwrite(STDERR, "Could not fetch {$tag}: ".$clone->getErrorOutput()."\n");
+        removeTree($temporary);
+        exit(3);
+    }
+
+    $destination = $snapshotRoot.'/'.$major;
+    removeTree($destination);
+    mkdir($destination, 0777, true);
+    copyTree($temporary, $destination);
+    $commit = trim((new Process(['git', '-C', $temporary, 'rev-parse', 'HEAD']))->mustRun()->getOutput());
+    $size = directorySize($destination);
+
+    if ($size >= 1024 * 1024) {
+        fwrite(STDERR, sprintf("Snapshot %d is %d bytes; expected less than 1 MB.\n", $major, $size));
+        removeTree($temporary);
+        exit(4);
+    }
+
+    $manifest[(string) $major] = [
+        'tag' => $tag,
+        'commit' => $commit,
+        'fetchedAt' => date('c'),
+        'complete' => true,
+        'structureOnly' => $major === 11 ? ['bootstrap/providers.php'] : [],
+        'size' => $size,
+    ];
+    removeTree($temporary);
+    fwrite(STDOUT, "Fetched {$tag} ({$size} bytes).\n");
+}
+
+file_put_contents($snapshotRoot.'/MANIFEST.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+
+/** @return string */
+function highestTag(int $major): string
+{
+    $process = new Process(['git', 'ls-remote', '--tags', '--refs', 'https://github.com/laravel/laravel.git', "v{$major}.*"]);
+    $process->setTimeout(120);
+    $process->mustRun();
+    $tags = [];
+
+    foreach (preg_split('/\R/', trim($process->getOutput())) ?: [] as $line) {
+        $tag = substr(strrchr($line, "\t") ?: '', 1);
+
+        if (preg_match('/^v'.preg_quote((string) $major, '/').'\.\d+(?:\.\d+)?$/', $tag) === 1) {
+            $tags[] = $tag;
+        }
+    }
+
+    if ($tags === []) {
+        throw new RuntimeException("No tagged Laravel {$major} skeleton was found.");
+    }
+
+    usort($tags, static fn (string $left, string $right): int => version_compare(ltrim($left, 'v'), ltrim($right, 'v')));
+
+    return (string) end($tags);
+}
+
+function copyTree(string $source, string $destination): void
+{
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST) as $item) {
+        /** @var SplFileInfo $item */
+        $relative = str_replace('\\', '/', substr($item->getPathname(), strlen($source) + 1));
+
+        if ($relative === '.git' || str_starts_with($relative, '.git/') || str_starts_with($relative, 'node_modules/')) {
+            continue;
+        }
+
+        if ($relative === 'README.md') {
+            continue;
+        }
+
+        $target = $destination.'/'.$relative;
+
+        if ($item->isDir()) {
+            if (! is_dir($target)) {
+                mkdir($target, 0777, true);
+            }
+        } else {
+            if (! is_dir(dirname($target))) {
+                mkdir(dirname($target), 0777, true);
+            }
+            copy($item->getPathname(), $target);
+        }
+    }
+}
+
+function removeTree(string $directory): void
+{
+    if (! is_dir($directory)) {
+        return;
+    }
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST) as $item) {
+        /** @var SplFileInfo $item */
+        $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+    }
+
+    rmdir($directory);
+}
+
+function directorySize(string $directory): int
+{
+    $size = 0;
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS)) as $item) {
+        /** @var SplFileInfo $item */
+        if ($item->isFile()) {
+            $size += $item->getSize();
+        }
+    }
+
+    return $size;
+}

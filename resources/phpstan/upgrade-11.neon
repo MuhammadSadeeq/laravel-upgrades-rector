@@ -1,4 +1,6 @@
-# Advisory rules for Laravel upgrade to 11.
+# Advisory rules for Laravel 11 (and Carbon 3 when that package is installed).
+# Keep version-specific registrations here; the orchestrator may add the
+# target package neon and project context parameters at runtime.
 parameters:
     level: 0
     reportUnmatchedIgnoredErrors: false
@@ -8,58 +10,28 @@ services:
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ColumnChangeRequiresModifiersRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\HasUuidsNowV7Rule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\EloquentCastsMethodConflictRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PassportRoutesRemovedRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SchemaGetColumnTypeRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ImageRuleExcludesSvgRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DoctrineRemovedMethodsRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\UpsertEmptyUniqueByRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\EmailVerificationAutoRegistrationRule
         tags: [phpstan.rules.rule]
     -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DeleteJoinOrderLimitRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ModelBootInstantiationRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MorphPivotTableNameRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\QueuedNotificationMissingModelsRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\MergeIfMissingDotKeysRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ManagerExtendBindingRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\JsFromUnicodeRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\StrFactoryResetRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SchemaInspectionAllSchemasRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\ContainerCallNullableDefaultRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PasswordResetSubjectRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\LocalDiskDefaultRootRule
-        tags: [phpstan.rules.rule]
-    -
-        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DatabaseTokenRepositoryExpiresRule
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PublishesConfigAppProvidersRule
         tags: [phpstan.rules.rule]
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PasswordRehashCustomColumnRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CashierSubscriptionCancelEndsTrialRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\PassportRoutesRemovedRule
         tags: [phpstan.rules.rule]
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CarbonUntypedDiffRule

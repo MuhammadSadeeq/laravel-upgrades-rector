@@ -1,0 +1,13 @@
+{
+    "behaviourChanging": {
+        "serialization": {
+            "preserveValue": "php",
+            "reason": "Switching session serialization invalidates existing sessions."
+        },
+        "serializable_classes": {
+            "preserveValue": false,
+            "reason": "Preserve the previous cache unserialization behaviour until reviewed."
+        }
+    },
+    "structureOnly": []
+}

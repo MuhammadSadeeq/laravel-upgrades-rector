@@ -1,0 +1,33 @@
+{
+    "generatedAt": "2026-08-23",
+    "source": "laravel/laravel",
+    "note": "The checked-in snapshots contain the upgrade-sensitive files available offline. Run bin/build-skeletons to refresh complete snapshots from tagged releases.",
+    "10": {
+        "tag": "v10.48.29",
+        "commit": null,
+        "fetchedAt": null,
+        "complete": false,
+        "structureOnly": []
+    },
+    "11": {
+        "tag": "v11.31.0",
+        "commit": null,
+        "fetchedAt": null,
+        "complete": false,
+        "structureOnly": ["bootstrap/providers.php"]
+    },
+    "12": {
+        "tag": "v12.0.0",
+        "commit": null,
+        "fetchedAt": null,
+        "complete": false,
+        "structureOnly": []
+    },
+    "13": {
+        "tag": "v13.17.0",
+        "commit": null,
+        "fetchedAt": null,
+        "complete": false,
+        "structureOnly": []
+    }
+}
