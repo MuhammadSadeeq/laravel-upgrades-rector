@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator;
 
 use InvalidArgumentException;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Git\GitCheckpointService;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Journal\StateStore;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepResult;
@@ -26,6 +27,7 @@ final class UpgradeRunner
         private readonly StateStore $stateStore,
         iterable $steps,
         private readonly ?UpgradeObserver $observer = null,
+        private readonly ?GitCheckpointService $gitCheckpoint = null,
     ) {
         $this->steps = [];
 
@@ -90,6 +92,12 @@ final class UpgradeRunner
                 activeFromMajor: $targetMajor - 1,
                 activeToMajor: $targetMajor,
             );
+            try {
+                $this->gitCheckpoint?->prepare($context);
+            } catch (Throwable) {
+                // The checkpoint is retried around the first checkpointed
+                // step, where a failure can be journaled against that step.
+            }
             $selectedSteps = $plan->stepsForTransition($targetMajor);
             $completed = $this->completedStepsForTransition($state, $transition);
 
@@ -130,7 +138,12 @@ final class UpgradeRunner
                         step: $stepName,
                         result: $skippedResult,
                     );
-                    $this->observer?->stepCompleted($transition, $stepName, $context, $skippedResult);
+                    try {
+                        $this->observer?->stepCompleted($transition, $stepName, $context, $skippedResult);
+                    } catch (Throwable) {
+                        // A presentation callback must not make a deliberately
+                        // skipped journal entry look unfinished.
+                    }
 
                     continue;
                 }
@@ -140,7 +153,12 @@ final class UpgradeRunner
                 }
 
                 $step = $stepsByName[$stepName];
-                $this->observer?->stepStarted($transition, $stepName, $context);
+                try {
+                    $this->observer?->stepStarted($transition, $stepName, $context);
+                } catch (Throwable) {
+                    // Observers are presentation hooks. A broken renderer
+                    // must not change the outcome of upgrade work.
+                }
 
                 try {
                     $result = $step->execute($context);
@@ -162,7 +180,7 @@ final class UpgradeRunner
 
                 if ($result->isFailed()) {
                     $this->stateStore->recordFailedStep($plan, $stepName, $result->message);
-                    $this->observer?->stepFailed($transition, $stepName, $context, $result);
+                    $this->notifyStepFailed($transition, $stepName, $context, $result);
 
                     return UpgradeRunResult::failed(
                         failedStep: $stepName,
@@ -174,6 +192,47 @@ final class UpgradeRunner
                     );
                 }
 
+                if ($this->gitCheckpoint !== null && in_array($stepName, ['dependencies', 'install', 'skeleton', 'code', 'post'], true)) {
+                    $checkpointMessage = null;
+                    try {
+                        $checkpoint = $this->gitCheckpoint->afterStep($stepName, $context, $result);
+                    } catch (Throwable $exception) {
+                        $checkpoint = null;
+                        $checkpointMessage = 'Git checkpoint failed: '.$this->exceptionMessage($exception);
+                    }
+
+                    $checkpointFailed = $checkpoint === null || $checkpoint->isFailed();
+
+                    if ($checkpointFailed) {
+                        $checkpointMessage ??= 'Git checkpoint failed: '.$checkpoint?->message;
+                        $result = StepResult::failed(
+                            message: $checkpointMessage,
+                            data: $checkpoint === null ? ['check' => 'git-checkpoint'] : ['git' => $checkpoint->data],
+                            exitCode: $checkpoint === null ? 1 : ($checkpoint->exitCode ?? 1),
+                        );
+                        unset($checkpointMessage);
+                        $execution = new StepExecutionResult(
+                            transition: $transition,
+                            fromMajor: $targetMajor - 1,
+                            toMajor: $targetMajor,
+                            step: $stepName,
+                            result: $result,
+                        );
+                        $results[array_key_last($results)] = $execution;
+                        $this->stateStore->recordFailedStep($plan, $stepName, $result->message);
+                        $this->notifyStepFailed($transition, $stepName, $context, $result);
+
+                        return UpgradeRunResult::failed(
+                            failedStep: $stepName,
+                            failedTransition: $transition,
+                            exitCode: $result->exitCode ?? 1,
+                            stepResults: $results,
+                            completedTransitions: $completedTransitions,
+                            failureMessage: $result->message,
+                        );
+                    }
+                }
+
                 $state = $this->stateStore->recordCompletedStep(
                     $plan,
                     $stepName,
@@ -181,7 +240,13 @@ final class UpgradeRunner
                     $result->findingsCount,
                 );
                 $completed = $this->completedStepsForTransition($state, $transition);
-                $this->observer?->stepCompleted($transition, $stepName, $context, $result);
+
+                try {
+                    $this->observer?->stepCompleted($transition, $stepName, $context, $result);
+                } catch (Throwable) {
+                    // Observers are presentation hooks and are intentionally
+                    // unable to turn a journaled success into a failure.
+                }
             }
 
             if (! in_array($transition, $completedTransitions, true)) {
@@ -340,5 +405,18 @@ final class UpgradeRunner
         $message = trim($exception->getMessage());
 
         return $message !== '' ? $message : $exception::class;
+    }
+
+    private function notifyStepFailed(
+        string $transition,
+        string $step,
+        UpgradeContext $context,
+        StepResult $result,
+    ): void {
+        try {
+            $this->observer?->stepFailed($transition, $step, $context, $result);
+        } catch (Throwable) {
+            // Observer failures must not hide the actual step failure.
+        }
     }
 }

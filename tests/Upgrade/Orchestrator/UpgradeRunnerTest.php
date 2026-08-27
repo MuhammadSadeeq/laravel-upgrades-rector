@@ -166,6 +166,16 @@ final class UpgradeRunnerTest extends TestCase
         self::assertFileDoesNotExist($store->path());
     }
 
+    public function test_observer_exceptions_do_not_fail_or_unjournal_successful_work(): void
+    {
+        $store = new StateStore($this->workingDirectory);
+        $result = (new UpgradeRunner($store, $this->steps(), new ThrowingObserver))
+            ->run(new UpgradePlan(10, 11));
+
+        self::assertTrue($result->success);
+        self::assertNull($store->load());
+    }
+
     public function test_duplicate_step_names_are_rejected(): void
     {
         $steps = $this->steps();
@@ -290,6 +300,30 @@ final class RecordingObserver implements UpgradeObserver
         StepResult $result,
     ): void {
         $this->completed[] = ['transition' => $transition, 'step' => $step];
+    }
+
+    public function stepFailed(
+        string $transition,
+        string $step,
+        UpgradeContext $context,
+        StepResult $result,
+    ): void {}
+}
+
+final class ThrowingObserver implements UpgradeObserver
+{
+    public function stepStarted(string $transition, string $step, UpgradeContext $context): void
+    {
+        throw new RuntimeException('renderer started failure');
+    }
+
+    public function stepCompleted(
+        string $transition,
+        string $step,
+        UpgradeContext $context,
+        StepResult $result,
+    ): void {
+        throw new RuntimeException('renderer completed failure');
     }
 
     public function stepFailed(
