@@ -4,531 +4,223 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command;
 
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory\FindingAnnotator;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory\ProjectAdvisor;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\ReportWriter;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton\EnvExampleMerger;
-use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton\SkeletonStep;
-use Symfony\Component\Console\Application;
+use InvalidArgumentException;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\ConsoleUpgradeObserver;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\PlanFileWriter;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\ProjectVersionDetector;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeFactory;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeInterface;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Journal\StateStore;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradePlan;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Process\Process;
 
-/**
- * One-command upgrade: chains deps → composer update → rector → verification.
- * Each step is verified before the next begins.
- */
+/** Runs the real, journaled upgrade orchestrator for one or more majors. */
 final class ToCommand extends Command
 {
+    public function __construct(
+        private readonly UpgradeRuntimeInterface $runtime = new UpgradeRuntimeFactory,
+        private readonly ProjectVersionDetector $versionDetector = new ProjectVersionDetector,
+        private readonly PlanFileWriter $planWriter = new PlanFileWriter,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this
             ->setName('to')
             ->setDescription('Run the full Laravel upgrade flow up to the target major')
-            ->addArgument('target-major', InputArgument::REQUIRED, 'Target Laravel major version (e.g. 11)')
-            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Print plan without touching anything')
-            ->addOption('skip-tests', null, InputOption::VALUE_NONE, 'Skip artisan test at the end')
-            ->addOption('annotate', null, InputOption::VALUE_NONE, 'Write advisory comments into source files')
-            ->addOption('no-interaction', 'n', InputOption::VALUE_NONE, 'Do not ask interactive confirmation prompts')
-            ->addOption('working-dir', 'd', InputOption::VALUE_REQUIRED, 'Project directory', '.');
+            ->addArgument('target-major', InputArgument::REQUIRED, 'Target Laravel major version (e.g. 11)');
+
+        self::addUpgradeOptions($this);
+    }
+
+    /** Add the common options to `to` and the explicit `plan` alias. */
+    public static function addUpgradeOptions(Command $command, bool $includePlan = true): void
+    {
+        if ($includePlan) {
+            $command->addOption('plan', null, InputOption::VALUE_NONE, 'Preview the complete upgrade without project mutations');
+        }
+
+        $command
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Compatibility alias for --plan')
+            ->addOption('from-step', null, InputOption::VALUE_REQUIRED, 'Resume the first transition at this canonical step')
+            ->addOption('skip-step', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Skip a canonical step (repeatable or comma-separated)')
+            ->addOption('no-git', null, InputOption::VALUE_NONE, 'Disable git safety and checkpoint commits')
+            ->addOption('allow-dirty', null, InputOption::VALUE_NONE, 'Allow a dirty worktree while protecting baseline paths')
+            ->addOption('no-install', null, InputOption::VALUE_NONE, 'Do not run Composer update/install')
+            ->addOption('no-tests', null, InputOption::VALUE_NONE, 'Skip the artisan test verification')
+            ->addOption('skip-tests', null, InputOption::VALUE_NONE, 'Compatibility alias for --no-tests')
+            ->addOption('no-pint', null, InputOption::VALUE_NONE, 'Do not run Pint after Rector')
+            ->addOption('annotate', null, InputOption::VALUE_NONE, 'Write advisory TODO comments into PHP source files')
+            ->addOption('constraint-policy', null, InputOption::VALUE_REQUIRED, 'Dependency constraint policy (replace or widen)', 'replace')
+            ->addOption('structure', null, InputOption::VALUE_REQUIRED, 'Skeleton structure mode (keep or modern)', 'keep')
+            ->addOption('no-interaction', 'n', InputOption::VALUE_NONE, 'Do not ask for confirmation')
+            ->addOption('working-dir', 'd', InputOption::VALUE_REQUIRED, 'Project directory', '.')
+            ->addOption('composer', null, InputOption::VALUE_REQUIRED, 'Composer binary or project-contained path')
+            ->addOption('reset', null, InputOption::VALUE_NONE, 'Reset a conflicting active journal explicitly');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $style = new SymfonyStyle($input, $output);
+        $workingDirectory = $this->workingDirectory($input);
 
-        $dirOption = $input->getOption('working-dir');
-        $workingDirectory = is_string($dirOption) && $dirOption !== '' ? $dirOption : '.';
-        $dryRun = (bool) $input->getOption('dry-run');
-        $skipTests = (bool) $input->getOption('skip-tests');
-        $annotate = (bool) $input->getOption('annotate');
-        $interactive = ! $input->getOption('no-interaction') && $input->isInteractive();
-
-        $targetRaw = $input->getArgument('target-major');
-        $targetMajor = is_scalar($targetRaw) ? (int) $targetRaw : 0;
-
-        if (! in_array($targetMajor, [11, 12, 13], true)) {
-            $style->error('Supported target majors: 11, 12, 13.');
+        if ($workingDirectory === null) {
+            $style->error('The working directory does not exist.');
 
             return Command::FAILURE;
         }
 
-        // Confirm before proceeding with a real run.
-        if ($interactive && ! $dryRun) {
-            $confirmed = $style->confirm(
-                sprintf('Upgrade to Laravel %d. This will modify composer.json, vendor/, and source files. Continue?',
-                    $targetMajor
-                ),
-                true
-            );
+        $targetMajor = $this->targetMajor($input);
 
-            if (! $confirmed) {
+        if ($targetMajor === null) {
+            $style->error('Target major must be one of: 11, 12, 13.');
+
+            return Command::FAILURE;
+        }
+
+        $planMode = (bool) $input->getOption('plan') || (bool) $input->getOption('dry-run');
+        $structure = $input->getOption('structure');
+
+        if (! is_string($structure) || ! in_array($structure, ['keep', 'modern'], true)) {
+            $style->error('Structure must be either keep or modern.');
+
+            return Command::FAILURE;
+        }
+
+        if ($structure === 'modern') {
+            $style->error('Modern structure mode is not available yet (Phase 6).');
+
+            return Command::FAILURE;
+        }
+
+        $constraintPolicy = $this->stringOption($input, 'constraint-policy', 'replace');
+
+        if (! in_array($constraintPolicy, ['replace', 'widen'], true)) {
+            $style->error('Constraint policy must be either replace or widen.');
+
+            return Command::FAILURE;
+        }
+
+        $detected = $this->versionDetector->detect($workingDirectory);
+
+        if ($detected->major === null) {
+            $style->error($detected->warning ?? 'Could not detect the current Laravel major.');
+
+            return Command::FAILURE;
+        }
+
+        if ($detected->warning !== null) {
+            $style->warning($detected->warning);
+        }
+
+        if ($detected->major === $targetMajor) {
+            $style->success(sprintf('Already on Laravel %d — nothing to do.', $targetMajor));
+
+            return Command::SUCCESS;
+        }
+
+        try {
+            $skipSteps = $this->skipSteps($input->getOption('skip-step'));
+            $fromStep = $input->getOption('from-step');
+            $fromStep = is_string($fromStep) && $fromStep !== '' ? $fromStep : null;
+            $plan = new UpgradePlan($detected->major, $targetMajor, $planMode, $fromStep, $skipSteps);
+        } catch (InvalidArgumentException $exception) {
+            $style->error($exception->getMessage());
+
+            return Command::FAILURE;
+        }
+
+        $options = $this->runOptions($input, $workingDirectory, $plan, $skipSteps, $fromStep);
+
+        if (! $planMode) {
+            $stateStore = new StateStore($workingDirectory);
+            $statePathExists = is_file($stateStore->path());
+            $state = $stateStore->load();
+
+            if ($statePathExists && $state === null) {
+                if (! (bool) $input->getOption('reset')) {
+                    $style->error('The upgrade state file is corrupt; pass --reset to discard it explicitly.');
+
+                    return Command::FAILURE;
+                }
+
+                $stateStore->reset();
+            } elseif (is_array($state)
+                && ($state['status'] ?? StateStore::STATUS_RUNNING) !== StateStore::STATUS_COMPLETED
+                && ($state['target'] ?? null) !== $targetMajor) {
+                if (! (bool) $input->getOption('reset')) {
+                    $style->error(sprintf(
+                        'An active Laravel %s upgrade exists; pass --reset before starting Laravel %d.',
+                        $this->displayValue($state['target'] ?? '?'),
+                        $targetMajor,
+                    ));
+
+                    return Command::FAILURE;
+                }
+
+                $stateStore->reset();
+            }
+        }
+
+        $style->title(sprintf('Laravel %d → Laravel %d', $detected->major, $targetMajor));
+        $style->table(
+            ['Setting', 'Value'],
+            [
+                ['Working directory', $workingDirectory],
+                ['Current major', (string) $detected->major],
+                ['Target major', (string) $targetMajor],
+                ['Mode', $planMode ? 'plan' : 'apply'],
+                ['Git', $options['git'] === true ? 'enabled' : 'disabled'],
+                ['Tests', $options['noTests'] === true ? 'skipped' : 'enabled'],
+            ],
+        );
+
+        if (! $planMode && ! (bool) $input->getOption('no-interaction') && $input->isInteractive()) {
+            if (! $style->confirm(sprintf('Upgrade to Laravel %d now?', $targetMajor), true)) {
                 $style->note('Aborted by user.');
 
                 return Command::SUCCESS;
             }
         }
 
-        // Detect current major from composer.json.
-        $manifestPath = rtrim($workingDirectory, '/').'/composer.json';
-
-        if (! is_file($manifestPath)) {
-            $style->error(sprintf('No composer.json found in "%s".', $workingDirectory));
-
-            return Command::FAILURE;
-        }
-
-        /** @var array<string, mixed> $manifest */
-        $manifest = json_decode((string) file_get_contents($manifestPath), true);
-
-        if (! is_array($manifest)) {
-            $style->error('composer.json contains invalid JSON.');
-
-            return Command::FAILURE;
-        }
-
-        $frameworkConstraint = (is_array($manifest['require'] ?? null) ? ($manifest['require']['laravel/framework'] ?? null) : null);
-        $currentMajor = null;
-
-        if (is_string($frameworkConstraint) && preg_match('/[\^~>]+\s*(\d+)\./', $frameworkConstraint, $m) === 1) {
-            $currentMajor = (int) $m[1];
-        }
-
-        // Show plan summary.
-        $style->title(sprintf('Laravel %s → Laravel %d', $currentMajor !== null ? (string) $currentMajor : '?', $targetMajor));
-
-        $style->table(
-            ['Setting', 'Value'],
-            [
-                ['Working directory', $workingDirectory],
-                ['Current major', $currentMajor !== null ? (string) $currentMajor : 'unknown'],
-                ['Target major', (string) $targetMajor],
-                ['PHP', PHP_VERSION],
-                ['Dry run', $dryRun ? 'yes' : 'no'],
-                ['Skip tests', $skipTests ? 'yes' : 'no'],
-            ]
-        );
-
-        // Preflight checks (plan P4-03).
-        $preflightFailures = [];
-
-        $requiredPhp = match ($targetMajor) {
-            13 => 80300,
-            12 => 80200,
-            default => 80200,
-        };
-
-        if ($requiredPhp > PHP_VERSION_ID) {
-            $preflightFailures[] = sprintf(
-                'PHP %s is too old for Laravel %d (requires >= %s).',
-                PHP_VERSION,
-                $targetMajor,
-                implode('.', [intdiv($requiredPhp, 10000), intdiv($requiredPhp % 10000, 100), $requiredPhp % 100])
+        try {
+            $result = $this->runtime->run(
+                $plan,
+                $workingDirectory,
+                $options,
+                new ConsoleUpgradeObserver($output),
             );
+        } catch (\Throwable $exception) {
+            $style->error('Upgrade could not be started: '.$exception->getMessage());
+
+            return Command::FAILURE;
         }
 
-        // SQLite version check when sqlite is used.
-        $envFile = $workingDirectory.'/.env';
-
-        if (is_file($envFile) && str_contains((string) file_get_contents($envFile), 'DB_CONNECTION=sqlite')) {
-            $sqliteProcess = new Process(['php', '-r', 'echo (new PDO("sqlite::memory:"))->query("select sqlite_version()")->fetchColumn();']);
-            $sqliteProcess->run();
-            $sqliteVersion = trim($sqliteProcess->getOutput());
-
-            if ($sqliteVersion !== '' && version_compare($sqliteVersion, '3.26.0', '<')) {
-                $preflightFailures[] = sprintf('SQLite %s is too old for Laravel 11+ (requires >= 3.26).', $sqliteVersion);
-            }
-        }
-
-        if ($preflightFailures !== []) {
-            $style->error('Preflight failures:\n'.implode("\n", array_map(fn ($f) => '  - '.$f, $preflightFailures)));
-
-            return 2; // preflight failure per plan exit codes
-        }
-
-        if ($currentMajor !== null && $currentMajor >= $targetMajor) {
-            $style->success(sprintf('Already on Laravel %d — nothing to do.', $currentMajor));
-
-            return Command::SUCCESS;
-        }
-
-        $stateDirectory = $workingDirectory.'/.laravel-upgrade';
-
-        $writeState = function (string $completedStep) use ($stateDirectory, $targetMajor): void {
-            if (! is_dir($stateDirectory)) {
-                @mkdir($stateDirectory, 0777, true);
-            }
-
-            file_put_contents($stateDirectory.'/state.json', json_encode([
-                'target' => $targetMajor,
-                'completed_step' => $completedStep,
-                'timestamp' => date('c'),
-            ], JSON_PRETTY_PRINT)."\n");
-        };
-
-        // Step 1: deps.
-        $style->section('Step 1/3 — Dependencies');
-
-        if (! $dryRun) {
-            $writeState('');
-        }
-
-        $depsInput = new ArrayInput([
-            'command' => 'deps',
-            'target-major' => (string) $targetMajor,
-            '--working-dir' => $workingDirectory,
-        ] + ($dryRun ? ['--dry-run' => true] : []));
-
-        $application = $this->getApplication();
-        $depsExit = 0;
-
-        if ($application instanceof Application) {
-            $depsExit = $application->find('deps')->run($depsInput, $output);
-        }
-
-        if ($depsExit !== 0 && ! $dryRun) {
-            $style->error('Dependency planning failed. Fix and re-run.');
-
-            return 3;
-        }
-
-        if (! $dryRun) {
-            $writeState('deps');
-        }
-
-        if ($dryRun) {
-            $style->note('Dry run complete.');
-
-            return Command::SUCCESS;
-        }
-
-        // Step 2: composer update -W.
-        $style->section('Step 2/3 — Install');
-
-        $updateProcess = new Process(
-            ['composer', 'update', '--with-all-dependencies', '--no-interaction', '--no-progress'],
-            $workingDirectory
-        );
-        $updateProcess->setTimeout(1800);
-        $updateProcess->run(function (string $type, string $buffer): void {
-            echo $buffer;
-        });
-
-        if ($updateProcess->getExitCode() !== 0) {
-            $style->error('composer update failed.');
-
-            return 3;
-        }
-
-        $writeState('install');
-
-        // Step 3: Rector code transformation.
-        $style->section('Step 3/3 — Code transformation');
-
-        $configPath = dirname(__DIR__, 4).'/config/laravel-'.$targetMajor.'.php';
-        $rectorProcess = new Process(
-            ['vendor/bin/rector', 'process', '--config', $configPath, '--no-progress-bar'],
-            $workingDirectory
-        );
-        $rectorProcess->setTimeout(1800);
-        $rectorProcess->run(function (string $type, string $buffer): void {
-            echo $buffer;
-        });
-
-        if ($rectorProcess->getExitCode() !== 0) {
-            $style->warning('Rector reported issues — review output above.');
-        }
-
-        // Advisory: project-level config scan.
-        $advisor = new ProjectAdvisor(
-            $workingDirectory.'/config',
-            $targetMajor
-        );
-
-        $collector = new FindingCollector;
-        $advisor->scan($collector);
-
-        if ($collector->count() > 0) {
-            $style->text(sprintf('⚠ %d project-level advisories found:', $collector->count()));
-
-            foreach ($collector->all() as $finding) {
-                $style->text(sprintf('  ⚠ %s — %s', $finding->file, $finding->message));
-            }
-        } else {
-            $style->text('✔ No project-level advisories.');
-        }
-
-        // Step 4: skeleton config sync.
-        $style->section('Config sync');
-
-        $skeletonStep = new SkeletonStep;
-        $mergedFiles = $skeletonStep->sync($workingDirectory.'/config', $targetMajor);
-
-        foreach ($mergedFiles as $file) {
-            $style->text('✔ merged '.$file);
-        }
-
-        if ($mergedFiles === []) {
-            $style->text('  (no upstream configs available for this major)');
-        }
-
-        // Merge .env.example keys.
-        $envMerger = new EnvExampleMerger;
-        $envPath = $workingDirectory.'/.env.example';
-
-        if (is_file($envPath)) {
+        if ($planMode) {
             try {
-                $result = $envMerger->merge($envPath, $targetMajor);
+                $path = $this->planWriter->write($workingDirectory, $plan, $result);
+                $style->text(sprintf('Plan written: %s', $path));
+            } catch (\Throwable $exception) {
+                $style->error('Could not write plan.json: '.$exception->getMessage());
 
-                if ($result !== file_get_contents($envPath)) {
-                    file_put_contents($envPath, $result);
-                    $style->text('✔ merged .env.example');
-                }
-            } catch (\Throwable) {
-                $style->text('⚠ could not merge .env.example');
+                return Command::FAILURE;
             }
         }
 
-        // Post-step: artisan commands.
-        $style->section('Post-step');
+        if (! $result->success) {
+            $style->error($result->failureMessage ?? 'Upgrade failed.');
 
-        $postCommands = [
-            'composer dump-autoload' => ['composer', 'dump-autoload'],
-            'php artisan config:clear' => ['php', 'artisan', 'config:clear'],
-            'php artisan route:clear' => ['php', 'artisan', 'route:clear'],
-            'php artisan view:clear' => ['php', 'artisan', 'view:clear'],
-        ];
-
-        foreach ($postCommands as $label => $cmd) {
-            $postProcess = new Process($cmd, $workingDirectory);
-            $postProcess->setTimeout(120);
-            $postProcess->run();
-
-            if ($postProcess->isSuccessful()) {
-                $style->text('✔ '.$label);
-            } else {
-                $style->text('⚠ '.$label.' (non-fatal)');
-            }
+            return $result->exitCode > 0 ? $result->exitCode : Command::FAILURE;
         }
 
-        // Advisory: PHPStan analysis with upgrade rules.
-        $style->section('Advisories');
-
-        $neonPath = self::advisoryConfigPath($targetMajor);
-
-        if (is_file($neonPath)) {
-            $advisoryProcess = new Process(
-                ['vendor/bin/phpstan', 'analyse', '-c', $neonPath, '--error-format=json', '--no-progress', '--memory-limit=-1'],
-                $workingDirectory
-            );
-            $advisoryProcess->setTimeout(600);
-            $advisoryProcess->run();
-
-            $advisoryJson = $advisoryProcess->getOutput();
-            $decoded = json_decode($advisoryJson, true);
-
-            if (is_array($decoded) && is_array($decoded['files'] ?? null)) {
-                $findingCount = 0;
-                $findings = [];
-
-                foreach ($decoded['files'] as $file => $fileData) {
-                    if (! is_array($fileData) || ! is_array($fileData['messages'] ?? null)) {
-                        continue;
-                    }
-
-                    foreach ($fileData['messages'] as $message) {
-                        if (! is_array($message)) {
-                            continue;
-                        }
-
-                        $findingCount++;
-
-                        /** @var string $file */
-                        $shortFile = str_replace($workingDirectory.'/', '', $file);
-                        $line = is_int($message['line'] ?? null) ? $message['line'] : 0;
-                        $text = is_string($message['message'] ?? null) ? $message['message'] : '';
-                        $tipText = is_string($message['tip'] ?? null) ? $message['tip'] : '';
-                        $msgId = is_string($message['id'] ?? null) ? $message['id'] : 'unknown';
-
-                        $style->text(sprintf(
-                            '  ⚠ %s:%d — %s',
-                            $shortFile,
-                            $line,
-                            $text
-                        ));
-
-                        $findings[] = [
-                            'ruleId' => $msgId,
-                            'severity' => 'medium',
-                            'laravelVersion' => $targetMajor,
-                            'file' => $shortFile,
-                            'line' => $line,
-                            'message' => $text,
-                            'action' => $tipText,
-                        ];
-                    }
-                }
-
-                if ($findingCount === 0) {
-                    $style->text('✔ No advisories found.');
-                } else {
-                    $style->text(sprintf('⚠ %d advisories found.', $findingCount));
-
-                    // Write findings JSONL for the report command.
-                    if (! is_dir($workingDirectory.'/.laravel-upgrade')) {
-                        @mkdir($workingDirectory.'/.laravel-upgrade', 0777, true);
-                    }
-
-                    file_put_contents(
-                        $workingDirectory.'/.laravel-upgrade/findings.jsonl',
-                        implode('\n', array_map('json_encode', $findings)).'\n'
-                    );
-
-                    if ($annotate) {
-                        $annotator = new FindingAnnotator($workingDirectory);
-                        $annotator->annotateBatch($findings);
-                    }
-                }
-            } else {
-                $style->text('⚠ PHPStan advisory output unreadable (non-fatal).');
-            }
-        } else {
-            $style->text('⚠ Advisory config not found — skipping PHPStan analysis.');
-        }
-
-        $writeState('rector');
-
-        // Verification.
-        $style->section('Verification');
-
-        $verifyCommands = [
-            'Validate composer.json' => 'composer validate --strict --no-check-lock',
-            'Clear config cache' => 'php artisan config:clear',
-            'Boot application' => 'php artisan about',
-        ];
-
-        $verifyFailures = [];
-
-        foreach ($verifyCommands as $label => $command) {
-            $verifyProcess = new Process(['sh', '-c', $command], $workingDirectory);
-            $verifyProcess->setTimeout(300);
-            $verifyProcess->run();
-
-            if ($verifyProcess->isSuccessful()) {
-                $style->text('✔ '.$label);
-            } else {
-                $verifyFailures[] = $label;
-                $style->text('✘ '.$label);
-            }
-        }
-
-        // Route analysis: duplicate route names (L12 breaking change).
-        if ($targetMajor >= 12) {
-            $routeListProcess = new Process(['php', 'artisan', 'route:list', '--json'], $workingDirectory);
-            $routeListProcess->setTimeout(120);
-            $routeListProcess->run();
-
-            $routeJson = json_decode($routeListProcess->getOutput(), true);
-
-            if (is_array($routeJson)) {
-                $nameCounts = [];
-
-                foreach ($routeJson as $route) {
-                    $routeName = is_array($route) && is_string($route['name'] ?? null) ? $route['name'] : '';
-
-                    if ($routeName !== '') {
-                        $nameCounts[$routeName] = ($nameCounts[$routeName] ?? 0) + 1;
-                    }
-                }
-
-                $duplicates = array_keys(array_filter($nameCounts, static fn ($c): bool => $c > 1));
-
-                if ($duplicates !== []) {
-                    $msg = sprintf(
-                        'Duplicate route names detected: %s. Laravel 12 resolves duplicates to the first registered route.',
-                        implode(', ', $duplicates)
-                    );
-                    $verifyFailures[] = $msg;
-                    $style->text('⚠ '.$msg);
-                } else {
-                    $style->text('✔ Route names: no duplicates');
-                }
-            }
-        }
-
-        if (! $skipTests) {
-            $testProcess = new Process(['php', 'artisan', 'test', '--compact'], $workingDirectory);
-            $testProcess->setTimeout(900);
-            $testProcess->run();
-
-            if ($testProcess->isSuccessful()) {
-                $style->text('✔ Tests');
-            } else {
-                $verifyFailures[] = 'Tests failed';
-                $style->text('✘ Tests');
-            }
-        }
-
-        if ($verifyFailures !== []) {
-            $style->error('Verification failures: '.implode(', ', $verifyFailures));
-
-            return 1;
-        }
-
-        $writeState('done');
-
-        // Remove state file on success so `continue` knows nothing is pending.
-        $stateFile = $stateDirectory.'/state.json';
-
-        if (is_file($stateFile)) {
-            @unlink($stateFile);
-        }
-
-        // Generate upgrade report.
-        $reportDir = $workingDirectory.'/.laravel-upgrade';
-        $findingsFile = $reportDir.'/findings.jsonl';
-
-        if (is_file($findingsFile)) {
-            $collector = new FindingCollector;
-            $lines = file($findingsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-            if (is_array($lines)) {
-                foreach ($lines as $line) {
-                    /** @var array<string, mixed>|null $data */
-                    $data = json_decode($line, true);
-
-                    if (is_array($data)) {
-                        $collector->merge([Finding::fromArray($data)]);
-                    }
-                }
-            }
-
-            $writer = new ReportWriter;
-            $project = [
-                'from' => (string) ($currentMajor ?? '?'),
-                'to' => (string) $targetMajor,
-                'php' => PHP_VERSION,
-                'commits' => 0,
-                'duration' => '',
-            ];
-
-            $writer->writeMarkdown($collector->all(), $project, $reportDir.'/UPGRADE-REPORT.md');
-            $writer->writeJson($collector->all(), $project, $reportDir.'/report.json');
-
-            $style->text(sprintf(
-                '📄 UPGRADE-REPORT.md written to %s',
-                $reportDir
-            ));
-        }
-
-        $style->success(sprintf('Upgrade to Laravel %d complete!', $targetMajor));
+        $style->success($planMode ? 'Upgrade plan completed.' : sprintf('Upgrade to Laravel %d complete.', $targetMajor));
 
         return Command::SUCCESS;
     }
@@ -536,5 +228,95 @@ final class ToCommand extends Command
     public static function advisoryConfigPath(int $targetMajor): string
     {
         return dirname(__DIR__, 4).'/resources/phpstan/upgrade-'.$targetMajor.'.neon';
+    }
+
+    private function workingDirectory(InputInterface $input): ?string
+    {
+        $value = $input->getOption('working-dir');
+        $directory = is_string($value) && $value !== '' ? $value : '.';
+        $resolved = realpath($directory);
+
+        return $resolved !== false && is_dir($resolved) ? $resolved : null;
+    }
+
+    private function targetMajor(InputInterface $input): ?int
+    {
+        $value = $input->getArgument('target-major');
+
+        if (! is_scalar($value) || preg_match('/^(11|12|13)$/', (string) $value) !== 1) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    /** @return list<string> */
+    private function skipSteps(mixed $raw): array
+    {
+        $values = is_array($raw) ? $raw : [$raw];
+        $steps = [];
+
+        foreach ($values as $value) {
+            if (! is_string($value)) {
+                continue;
+            }
+
+            foreach (explode(',', $value) as $step) {
+                $step = trim($step);
+
+                if ($step !== '' && ! in_array($step, $steps, true)) {
+                    $steps[] = $step;
+                }
+            }
+        }
+
+        return $steps;
+    }
+
+    /** @param list<string> $skipSteps
+     * @return array<string, mixed>
+     */
+    private function runOptions(
+        InputInterface $input,
+        string $workingDirectory,
+        UpgradePlan $plan,
+        array $skipSteps,
+        ?string $fromStep,
+    ): array {
+        $composer = $input->getOption('composer');
+        $composer = is_string($composer) && $composer !== '' ? $composer : null;
+        $noTests = (bool) $input->getOption('no-tests') || (bool) $input->getOption('skip-tests');
+        $noGit = (bool) $input->getOption('no-git');
+
+        return [
+            'workingDirectory' => $workingDirectory,
+            'git' => ! $noGit,
+            'noGit' => $noGit,
+            'allowDirty' => (bool) $input->getOption('allow-dirty'),
+            'noInstall' => (bool) $input->getOption('no-install'),
+            'noTests' => $noTests,
+            'noPint' => (bool) $input->getOption('no-pint'),
+            'pint' => ! (bool) $input->getOption('no-pint'),
+            'annotate' => (bool) $input->getOption('annotate') && ! $plan->isPlanMode(),
+            'constraintPolicy' => $this->stringOption($input, 'constraint-policy', 'replace'),
+            'structure' => $this->stringOption($input, 'structure', 'keep'),
+            'noInteraction' => (bool) $input->getOption('no-interaction'),
+            'composerBinary' => $composer,
+            'clearCache' => true,
+            'fromStep' => $fromStep,
+            'skipSteps' => $skipSteps,
+        ];
+    }
+
+    private function stringOption(InputInterface $input, string $name, string $default): string
+    {
+        $value = $input->getOption($name);
+
+        return is_string($value) && $value !== '' ? $value : $default;
+    }
+
+    private function displayValue(mixed $value): string
+    {
+        return is_scalar($value) ? (string) $value : '?';
     }
 }

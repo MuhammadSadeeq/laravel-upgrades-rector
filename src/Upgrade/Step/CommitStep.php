@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Git\GitCheckpointService;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\UpgradeReportGenerator;
 
 /**
  * Creates the final report checkpoint commit when git safety is enabled.
  *
- * ReportWriter remains the owner of report generation; this boundary stages
- * an already-generated UPGRADE-REPORT.md and records that contract in the
- * result instead of inventing report contents without the run's findings.
+ * The report is materialised before the final checkpoint so a normal apply
+ * run always has a report available for GitCheckpointService to stage.
  */
 final class CommitStep implements StepInterface
 {
-    public function __construct(private readonly GitCheckpointService $git) {}
+    public function __construct(
+        private readonly GitCheckpointService $git,
+        private readonly UpgradeReportGenerator $reportGenerator = new UpgradeReportGenerator,
+    ) {}
 
     public function name(): string
     {
@@ -24,6 +27,16 @@ final class CommitStep implements StepInterface
 
     public function execute(UpgradeContext $context): StepResult
     {
+        try {
+            $report = $this->reportGenerator->generate($context);
+        } catch (\Throwable $exception) {
+            return StepResult::failed(
+                message: 'Upgrade report generation failed: '.$exception->getMessage(),
+                data: ['check' => 'report-generation'],
+                exitCode: 1,
+            );
+        }
+
         $result = $this->git->finalize($context);
 
         if ($result->isFailed()) {
@@ -31,7 +44,7 @@ final class CommitStep implements StepInterface
                 message: $result->message,
                 data: [
                     'git' => $result->data,
-                    'reportGeneration' => 'ReportWriter must generate UPGRADE-REPORT.md before the final checkpoint.',
+                    'reportGeneration' => $report,
                 ],
                 exitCode: $result->exitCode ?? 1,
             );
@@ -42,7 +55,7 @@ final class CommitStep implements StepInterface
                 message: $result->message,
                 data: [
                     'git' => $result->data,
-                    'reportGeneration' => 'ReportWriter must generate UPGRADE-REPORT.md before the final checkpoint.',
+                    'reportGeneration' => $report,
                 ],
             );
         }
@@ -51,7 +64,7 @@ final class CommitStep implements StepInterface
             message: $result->message,
             data: [
                 'git' => $result->data,
-                'reportGeneration' => 'ReportWriter generated UPGRADE-REPORT.md before the final checkpoint.',
+                'reportGeneration' => $report,
             ],
         );
     }

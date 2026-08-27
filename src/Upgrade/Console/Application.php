@@ -17,14 +17,16 @@ final class Application extends SymfonyApplication
 
     public const VERSION = '1.1.0';
 
-    public function __construct()
+    public function __construct(?UpgradeRuntimeInterface $runtime = null)
     {
         parent::__construct(self::NAME, self::VERSION);
 
-        $this->add(new ContinueCommand);
+        $runtime ??= new UpgradeRuntimeFactory;
+
+        $this->add(new ContinueCommand($runtime));
         $this->add(new DepsCommand);
-        $this->add(new ToCommand);
-        $this->add(new PlanCommand);
+        $this->add(new ToCommand($runtime));
+        $this->add(new PlanCommand($runtime));
         $this->add(new ReportCommand);
     }
 }

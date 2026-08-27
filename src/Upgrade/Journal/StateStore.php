@@ -59,9 +59,10 @@ final class StateStore
     /**
      * Create or resume a journal for a plan.
      *
+     * @param  array<string, mixed>  $options
      * @return array<string, mixed>
      */
-    public function start(UpgradePlan $plan, ?string $runId = null): array
+    public function start(UpgradePlan $plan, ?string $runId = null, array $options = []): array
     {
         $existing = $this->load();
 
@@ -86,6 +87,15 @@ final class StateStore
             }
 
             if ($existingStatus !== self::STATUS_COMPLETED && $existingTarget === $plan->targetMajor) {
+                if ($options !== []) {
+                    $existing['options'] = array_replace(
+                        is_array($existing['options'] ?? null) ? $existing['options'] : [],
+                        self::sanitizeOptions($options),
+                    );
+                    $this->touch($existing);
+                    $this->persist($existing);
+                }
+
                 return $existing;
             }
         }
@@ -103,6 +113,7 @@ final class StateStore
             'completedSteps' => [],
             'changedFiles' => [],
             'findingsCount' => 0,
+            'options' => self::sanitizeOptions($options),
             'status' => $plan->isNoOp() ? self::STATUS_COMPLETED : self::STATUS_RUNNING,
             'startedAt' => $now,
             'updatedAt' => $now,
@@ -122,6 +133,124 @@ final class StateStore
     }
 
     /**
+     * Update only safe, operational options on an active journal. This is
+     * used by continue to persist explicit overrides without accepting
+     * arbitrary input (or secrets) into state.json.
+     *
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>
+     */
+    public function updateOptions(UpgradePlan $plan, array $options): array
+    {
+        $state = $this->requireState($plan);
+        $state['options'] = array_replace(
+            is_array($state['options'] ?? null) ? $state['options'] : [],
+            self::sanitizeOptions($options),
+        );
+        $this->touch($state);
+        $this->persist($state);
+
+        return $state;
+    }
+
+    /**
+     * Remove exactly this store's state file. The command exposes this only
+     * behind an explicit --reset option.
+     */
+    public function reset(): void
+    {
+        if ($this->planMode || ! is_file($this->path())) {
+            return;
+        }
+
+        if (! unlink($this->path())) {
+            throw new RuntimeException('Unable to reset the upgrade journal.');
+        }
+    }
+
+    /**
+     * Whitelist values that are useful for resuming an upgrade. In
+     * particular, arbitrary option names are not persisted because callers
+     * may accidentally pass credentials or process environment data.
+     *
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>
+     */
+    public static function sanitizeOptions(array $options): array
+    {
+        $allowed = [
+            'allowDirty', 'annotate', 'clearCache', 'composerBinary',
+            'constraintPolicy', 'forceConfig', 'fromStep', 'git', 'noGit',
+            'noInstall', 'noInteraction', 'noPint', 'noTests', 'pint',
+            'phpstanBinary', 'phpstanPaths', 'rectorBinary', 'skipSteps',
+            'solverDryRun', 'structure', 'workingDirectory', 'library',
+            'verifyPhpstan',
+        ];
+        $safe = [];
+
+        foreach ($allowed as $key) {
+            if (! array_key_exists($key, $options)) {
+                continue;
+            }
+
+            $value = $options[$key];
+
+            if (is_bool($value) || is_int($value) || is_float($value) || is_string($value)) {
+                $safe[$key] = $value;
+
+                continue;
+            }
+
+            if (is_array($value) && self::isSafeOptionList($value)) {
+                $safe[$key] = array_values($value);
+            }
+        }
+
+        return $safe;
+    }
+
+    /**
+     * @param  array<string, mixed>  $stored
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function mergeOptions(array $stored, array $overrides): array
+    {
+        return array_replace(self::sanitizeOptions($stored), self::sanitizeOptions($overrides));
+    }
+
+    /** @return array<string, mixed> */
+    public static function optionsFromState(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $options = [];
+
+        foreach ($value as $key => $option) {
+            if (is_string($key)) {
+                $options[$key] = $option;
+            }
+        }
+
+        return self::sanitizeOptions($options);
+    }
+
+    /** @param array<mixed> $values */
+    private static function isSafeOptionList(array $values): bool
+    {
+        foreach ($values as $key => $value) {
+            if (! is_int($key)
+                || (! is_string($value) && ! is_int($value) && ! is_bool($value) && ! (is_array($value) && self::isSafeOptionList($value)))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Load and validate a journal. Missing and malformed journals both return
      * null so callers can present a safe "no resume state" result.
      *
@@ -129,7 +258,10 @@ final class StateStore
      */
     public function load(): ?array
     {
-        if ($this->planMode && $this->memoryState !== null) {
+        // A preview is deliberately an in-memory journal. Never inspect an
+        // apply journal in the same project: it could otherwise cause a plan
+        // to resume/conflict based on unrelated on-disk state.
+        if ($this->planMode) {
             return $this->memoryState;
         }
 
@@ -441,6 +573,11 @@ final class StateStore
         if (! is_array($state['changedFiles'] ?? null)
             || ! is_int($state['findingsCount'] ?? null)
             || $state['findingsCount'] < 0) {
+            return false;
+        }
+
+        if (array_key_exists('options', $state)
+            && (! is_array($state['options']) || ! self::isSafeOptionList(array_values($state['options'])))) {
             return false;
         }
 

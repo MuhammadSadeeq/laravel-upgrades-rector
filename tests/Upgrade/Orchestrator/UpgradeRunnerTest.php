@@ -133,6 +133,49 @@ final class UpgradeRunnerTest extends TestCase
         self::assertNull($store->load());
     }
 
+    public function test_resume_at_a_later_transition_merges_stored_options_and_overrides(): void
+    {
+        $store = new StateStore($this->workingDirectory);
+        $firstSteps = $this->steps(failureStep: 'code', failureFrom: 11);
+
+        $failed = (new UpgradeRunner($store, $firstSteps))->run(
+            new UpgradePlan(10, 13),
+            [
+                'composerBinary' => '/usr/local/bin/composer',
+                'noTests' => false,
+                'apiToken' => 'must-not-be-persisted',
+            ],
+        );
+
+        self::assertTrue($failed->isFailure());
+        self::assertSame('11->12', $failed->failedTransition);
+        self::assertSame(['10->11'], $failed->completedTransitions);
+
+        $state = $store->load();
+        self::assertIsArray($state);
+        self::assertSame(11, $state['currentMajor'] ?? null);
+        self::assertSame('11->12', $state['currentTransition'] ?? null);
+        $storedOptions = $state['options'] ?? null;
+        self::assertIsArray($storedOptions);
+        self::assertSame('/usr/local/bin/composer', $storedOptions['composerBinary'] ?? null);
+        self::assertFalse($storedOptions['noTests'] ?? true);
+        self::assertArrayNotHasKey('apiToken', $storedOptions);
+
+        $resumedSteps = $this->steps();
+        $resumed = (new UpgradeRunner($store, $resumedSteps))->run(
+            new UpgradePlan(11, 13),
+            ['noTests' => true],
+        );
+
+        self::assertTrue($resumed->success);
+        self::assertSame(['11->12', '12->13'], $resumed->completedTransitions);
+        self::assertNull($store->load());
+        self::assertNotEmpty($resumedSteps[4]->contexts);
+        self::assertSame(11, $resumedSteps[4]->contexts[0]['from']);
+        self::assertSame('/usr/local/bin/composer', $resumedSteps[4]->contexts[0]['options']['composerBinary'] ?? null);
+        self::assertTrue($resumedSteps[4]->contexts[0]['options']['noTests'] ?? false);
+    }
+
     public function test_exception_is_converted_to_a_failed_result_with_step_exit_code(): void
     {
         $steps = $this->steps(exceptionStep: 'preflight');
@@ -196,8 +239,12 @@ final class UpgradeRunnerTest extends TestCase
     /**
      * @return list<RecordingStep>
      */
-    private function steps(?string $failureStep = null, ?string $exceptionStep = null, ?int $failureCode = null): array
-    {
+    private function steps(
+        ?string $failureStep = null,
+        ?string $exceptionStep = null,
+        ?int $failureCode = null,
+        ?int $failureFrom = null,
+    ): array {
         $steps = [];
 
         foreach (UpgradePlan::canonicalStepNames() as $name) {
@@ -206,6 +253,7 @@ final class UpgradeRunnerTest extends TestCase
                 $failureStep === $name,
                 $exceptionStep === $name,
                 $failureCode,
+                $failureFrom,
             );
         }
 
@@ -248,6 +296,7 @@ final class RecordingStep implements StepInterface
         private readonly bool $fails = false,
         private readonly bool $throws = false,
         private readonly ?int $failureCode = null,
+        private readonly ?int $failureFrom = null,
     ) {}
 
     public function name(): string
@@ -268,7 +317,7 @@ final class RecordingStep implements StepInterface
             throw new RuntimeException($this->stepName.' exploded');
         }
 
-        if ($this->fails) {
+        if ($this->fails && ($this->failureFrom === null || $this->failureFrom === $context->fromMajor())) {
             return StepResult::failed($this->stepName.' failed', exitCode: $this->failureCode);
         }
 

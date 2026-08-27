@@ -170,6 +170,23 @@ final class StateStoreTest extends TestCase
         self::assertFileDoesNotExist($store->path());
     }
 
+    public function test_plan_mode_ignores_existing_apply_state_even_when_active_or_corrupt(): void
+    {
+        $applyStore = new StateStore($this->workingDirectory);
+        $applyStore->start(new UpgradePlan(10, 12), 'apply-run');
+        $planStore = new StateStore($this->workingDirectory, true);
+        $plan = new UpgradePlan(10, 11, true);
+
+        self::assertSame('running', $planStore->start($plan, 'plan-run')['status']);
+        self::assertSame('running', $planStore->load()['status'] ?? null);
+        self::assertSame('10->11', $applyStore->load()['currentTransition'] ?? null);
+
+        file_put_contents($applyStore->path(), '{corrupt');
+        $isolated = new StateStore($this->workingDirectory, true);
+        self::assertSame('running', $isolated->start($plan, 'second-plan')['status']);
+        self::assertSame('{corrupt', file_get_contents($applyStore->path()));
+    }
+
     private function removeDirectory(string $directory): void
     {
         if (! is_dir($directory)) {

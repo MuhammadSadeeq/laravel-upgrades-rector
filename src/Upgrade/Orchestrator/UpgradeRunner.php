@@ -46,7 +46,28 @@ final class UpgradeRunner
     public function run(UpgradePlan $plan, array $options = []): UpgradeRunResult
     {
         $stepsByName = $this->validatedSteps();
-        $state = $this->stateStore->start($plan);
+        $state = $this->stateStore->start($plan, options: $options);
+        $options = StateStore::mergeOptions(
+            StateStore::optionsFromState($state['options'] ?? null),
+            $options,
+        );
+
+        // Verification needs the aggregate paths recorded by earlier real
+        // steps. Keep these transient in the context; they are journal data,
+        // not user-supplied run options.
+        $changedFiles = $state['changedFiles'] ?? [];
+
+        if (is_array($changedFiles)) {
+            $safeChangedFiles = [];
+
+            foreach ($changedFiles as $changedFile) {
+                if (is_string($changedFile)) {
+                    $safeChangedFiles[] = $changedFile;
+                }
+            }
+
+            $options['changedFiles'] = $safeChangedFiles;
+        }
         $runId = $this->stateString($state, 'runId');
 
         if ($plan->isNoOp()) {
