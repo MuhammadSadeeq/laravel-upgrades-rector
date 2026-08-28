@@ -84,6 +84,15 @@ final class ProjectAdvisorTest extends TestCase
         ));
         self::assertCount(1, $removed);
         self::assertSame(11, $removed[0]->laravelVersion);
+
+        self::assertCount(1, array_filter(
+            $findings,
+            static fn (Finding $finding): bool => $finding->ruleId === 'laravelUpgrade.publishedVendorViews',
+        ));
+        self::assertCount(1, array_filter(
+            $findings,
+            static fn (Finding $finding): bool => $finding->ruleId === 'laravelUpgrade.paginationPublishedView',
+        ));
     }
 
     public function test_skips_absent_optional_surfaces_and_records_unchecked_installer(): void

@@ -426,31 +426,56 @@ final class SkeletonStep
         // or writes the real .env file.
         $envExamplePath = $projectDirectory.'/.env.example';
         $upstreamEnvExamplePath = $toDirectory.'/.env.example';
+        $proposedEnvExample = is_file($envExamplePath) ? file_get_contents($envExamplePath) : false;
 
-        if (is_file($envExamplePath) && is_file($upstreamEnvExamplePath)) {
+        if (is_string($proposedEnvExample) && is_file($upstreamEnvExamplePath)) {
             $envMerger = new EnvExampleMerger;
-            $current = file_get_contents($envExamplePath);
+            $current = $proposedEnvExample;
 
-            if ($current !== false) {
-                try {
-                    $mergedEnv = $envMerger->merge(
-                        $envExamplePath,
-                        $targetMajor,
-                        $upstreamEnvExamplePath,
-                        $collector
-                    );
+            try {
+                $mergedEnv = $envMerger->merge(
+                    $envExamplePath,
+                    $targetMajor,
+                    $upstreamEnvExamplePath,
+                    $collector,
+                    $fromDirectory.'/.env.example',
+                );
 
-                    if ($mergedEnv !== $current) {
-                        $changed[] = '.env.example';
+                if ($mergedEnv !== $current) {
+                    $proposedEnvExample = $mergedEnv;
+                    $changed[] = '.env.example';
 
-                        if (! $dryRun) {
-                            $this->writeFile($envExamplePath, $mergedEnv);
-                        }
+                    if (! $dryRun) {
+                        $this->writeFile($envExamplePath, $mergedEnv);
                     }
-                } catch (RuntimeException) {
-                    // A malformed example is reported by the advisory pass;
-                    // it must not prevent code/config synchronization.
                 }
+            } catch (RuntimeException) {
+                // A malformed example is reported by the advisory pass; it
+                // must not prevent code/config synchronization.
+            }
+        }
+
+        $environmentPath = $projectDirectory.'/.env';
+
+        if ($collector !== null && is_file($environmentPath) && is_string($proposedEnvExample)) {
+            $environment = file_get_contents($environmentPath);
+            $missingEnvironmentKeys = $environment === false
+                ? []
+                : (new EnvExampleMerger)->missingFromEnvironmentContents($environment, $proposedEnvExample);
+
+            if ($missingEnvironmentKeys !== []) {
+                $collector->add(
+                    'laravelUpgrade.envExampleMissingFromEnvironment',
+                    Finding::SEVERITY_MEDIUM,
+                    $targetMajor,
+                    '.env',
+                    0,
+                    sprintf(
+                        'The real .env is missing keys documented by .env.example: %s.',
+                        implode(', ', $missingEnvironmentKeys),
+                    ),
+                    'Review these keys and add only the values required by the deployed environment; the .env file was not modified.',
+                );
             }
         }
 

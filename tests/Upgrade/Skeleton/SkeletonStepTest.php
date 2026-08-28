@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Upgrade\Skeleton;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\StepExecutionResult;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradePlan;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\UpgradeReportGenerator;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton\SkeletonRepository;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton\SkeletonStep;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\SkeletonSyncStep;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\UpgradeContext;
 use PHPUnit\Framework\TestCase;
 
 final class SkeletonStepTest extends TestCase
@@ -141,6 +146,19 @@ final class SkeletonStepTest extends TestCase
         $ruleIds = array_map(static fn ($finding): string => $finding->ruleId, $collector->all());
         self::assertContains('laravelUpgrade.packageJsonDependencies', $ruleIds);
         self::assertContains('laravelUpgrade.skeletonRouteChanged', $ruleIds);
+        self::assertContains('laravelUpgrade.envExampleMissingFromEnvironment', $ruleIds);
+        $environmentFinding = array_values(array_filter(
+            $collector->all(),
+            static fn ($finding): bool => $finding->ruleId === 'laravelUpgrade.envExampleMissingFromEnvironment',
+        ));
+        self::assertCount(1, $environmentFinding);
+        self::assertStringContainsString('NEW_KEY', $environmentFinding[0]->message);
+        $packageFinding = array_values(array_filter(
+            $collector->all(),
+            static fn ($finding): bool => $finding->ruleId === 'laravelUpgrade.packageJsonDependencies',
+        ));
+        self::assertCount(1, $packageFinding);
+        self::assertStringContainsString('vite', $packageFinding[0]->message);
         self::assertSame([], $result['conflicts']);
         self::assertNotContains('package.json', $result['added']);
         self::assertNotContains('package.json', $result['modified']);
@@ -335,12 +353,18 @@ final class SkeletonStepTest extends TestCase
                     $app,
                 );
                 file_put_contents($project.'/config/app.php', $app);
+                $envExample = file_get_contents($project.'/.env.example');
+                self::assertIsString($envExample);
+                $envExample = preg_replace('/^APP_NAME=.*\R/m', '', $envExample);
+                self::assertIsString($envExample);
+                file_put_contents($project.'/.env.example', $envExample);
             }
 
             $collector = new FindingCollector;
             $step = new SkeletonStep($repository);
             $result = $step->syncProject($project, $from, $target, $collector);
 
+            self::assertSame([], $result['conflicts']);
             self::assertSame($beforePackage, file_get_contents($project.'/package.json'));
             self::assertSame($beforeRoute, file_get_contents($project.'/routes/web.php'));
             self::assertContains('laravelUpgrade.packageJsonDependencies', array_map(
@@ -358,6 +382,27 @@ final class SkeletonStepTest extends TestCase
                 self::assertIsString($app);
                 self::assertStringContainsString('CustomProvider::class', $app);
                 self::assertNotEmpty($result['changed']);
+                $envExample = file_get_contents($project.'/.env.example');
+                self::assertIsString($envExample);
+                self::assertDoesNotMatchRegularExpression('/^APP_NAME=/m', $envExample);
+                self::assertStringContainsString('APP_TIMEZONE=UTC', $envExample);
+                self::assertStringContainsString('# APP_MAINTENANCE_STORE=database', $envExample);
+                self::assertLessThan(
+                    strpos($envExample, 'APP_URL=http://localhost'),
+                    strpos($envExample, 'APP_TIMEZONE=UTC'),
+                );
+                self::assertLessThan(
+                    strpos($envExample, 'APP_MAINTENANCE_DRIVER=file'),
+                    strpos($envExample, 'APP_LOCALE=en'),
+                );
+                self::assertLessThan(
+                    strpos($envExample, 'PHP_CLI_SERVER_WORKERS=4'),
+                    strpos($envExample, 'APP_MAINTENANCE_DRIVER=file'),
+                );
+                self::assertLessThan(
+                    strpos($envExample, 'BCRYPT_ROUNDS=12'),
+                    strpos($envExample, 'PHP_CLI_SERVER_WORKERS=4'),
+                );
             }
 
             if ($from === 11 && $target === 12) {
@@ -398,6 +443,60 @@ final class SkeletonStepTest extends TestCase
                 self::assertCount(1, $filesystemFindings);
             }
         }
+    }
+
+    public function test_real_laravel_12_to_13_sync_has_a_session_report_item_and_is_plan_neutral(): void
+    {
+        $repository = new SkeletonRepository;
+        $project = $this->tmpDir.'/e2e-12-13';
+        $this->copyDirectory($repository->path(12), $project);
+
+        $step = new SkeletonSyncStep(new SkeletonStep($repository));
+        $context = new UpgradeContext(
+            $project,
+            new UpgradePlan(12, 13),
+            'e2e-12-13',
+        );
+        $result = $step->execute($context);
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        $sync = $result->data['sync'] ?? null;
+        self::assertIsArray($sync);
+        self::assertSame([], $sync['conflicts'] ?? null);
+        self::assertStringContainsString(
+            "'serialization' => 'php'",
+            (string) file_get_contents($project.'/config/session.php'),
+        );
+
+        (new UpgradeReportGenerator)->recordStep(
+            $context,
+            new StepExecutionResult(
+                '12->13',
+                12,
+                13,
+                'skeleton',
+                $result,
+            ),
+        );
+        $report = (string) file_get_contents($project.'/.laravel-upgrade/report.json');
+        self::assertStringContainsString('laravelUpgrade.configBehaviourChange', $report);
+
+        $afterApply = $this->fileContents($project);
+        $second = $step->execute($context);
+        self::assertTrue($second->isSuccessful(), $second->message);
+        self::assertSame([], $second->changedFiles);
+        self::assertSame($afterApply, $this->fileContents($project));
+
+        $planProject = $this->tmpDir.'/e2e-plan-12-13';
+        $this->copyDirectory($repository->path(12), $planProject);
+        $beforePlan = $this->fileContents($planProject);
+        $planResult = $step->execute(new UpgradeContext(
+            $planProject,
+            new UpgradePlan(12, 13, true),
+            'e2e-plan-12-13',
+        ));
+        self::assertTrue($planResult->isSuccessful(), $planResult->message);
+        self::assertSame($beforePlan, $this->fileContents($planProject));
     }
 
     /** @return array<string, string> */

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton;
 
+use FilesystemIterator;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
+use SplFileInfo;
 
 /** Finds published vendor views which may shadow a target skeleton update. */
 final class PublishedViewChecker
@@ -20,8 +22,21 @@ final class PublishedViewChecker
 
         $this->scanPagination($projectDirectory, $targetMajor, $collector);
 
-        foreach (glob($viewsDirectory.'/*', GLOB_ONLYDIR) ?: [] as $vendorDirectory) {
-            $relative = 'resources/views/vendor/'.basename($vendorDirectory);
+        $seen = [];
+        $iterator = new FilesystemIterator($viewsDirectory, FilesystemIterator::SKIP_DOTS);
+
+        foreach ($iterator as $vendorEntry) {
+            if (! $vendorEntry instanceof SplFileInfo || $vendorEntry->isLink()) {
+                continue;
+            }
+
+            $relative = 'resources/views/vendor/'.$vendorEntry->getFilename();
+
+            if (isset($seen[$relative])) {
+                continue;
+            }
+
+            $seen[$relative] = true;
 
             $collector->add(
                 'laravelUpgrade.publishedVendorViews',
@@ -46,7 +61,7 @@ final class PublishedViewChecker
         foreach (['default', 'simple-default'] as $name) {
             $path = $paginationDirectory.'/'.$name.'.blade.php';
 
-            if (is_file($path)) {
+            if (! is_link($path) && is_file($path)) {
                 $renames[] = $name.'.blade.php';
             }
         }
