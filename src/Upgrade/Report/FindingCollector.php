@@ -31,6 +31,36 @@ final class FindingCollector
         bool $autoFixed = false,
         string $confidence = 'high',
     ): Finding {
+        $canonicalKey = $this->canonicalKey(
+            $ruleId,
+            $severity,
+            $laravelVersion,
+            $file,
+            $line,
+            $message,
+            $action,
+            $guideUrl,
+            $autoFixed,
+            $confidence,
+        );
+
+        foreach ($this->findings as $existing) {
+            if ($this->canonicalKey(
+                $existing->ruleId,
+                $existing->severity,
+                $existing->laravelVersion,
+                $existing->file,
+                $existing->line,
+                $existing->message,
+                $existing->action,
+                $existing->guideUrl,
+                $existing->autoFixed,
+                $existing->confidence,
+            ) === $canonicalKey) {
+                return $existing;
+            }
+        }
+
         $finding = new Finding(
             id: sprintf('f-%04d', $this->nextId++),
             ruleId: $ruleId,
@@ -137,7 +167,9 @@ final class FindingCollector
         }
 
         try {
-            if (file_put_contents($temporaryPath, $contents, LOCK_EX) === false || ! rename($temporaryPath, $path)) {
+            $written = file_put_contents($temporaryPath, $contents, LOCK_EX);
+
+            if ($written !== strlen($contents) || ! rename($temporaryPath, $path)) {
                 throw new \RuntimeException(sprintf('Could not write findings JSONL file "%s".', $path));
             }
         } finally {
@@ -196,12 +228,18 @@ final class FindingCollector
         $seen = [];
 
         foreach ($findings as $finding) {
-            $key = implode("\0", [
+            $key = $this->canonicalKey(
                 $finding->ruleId,
+                $finding->severity,
+                $finding->laravelVersion,
                 $finding->file,
-                (string) $finding->line,
+                $finding->line,
                 $finding->message,
-            ]);
+                $finding->action,
+                $finding->guideUrl,
+                $finding->autoFixed,
+                $finding->confidence,
+            );
 
             if (isset($seen[$key])) {
                 continue;
@@ -212,6 +250,33 @@ final class FindingCollector
         }
 
         return $unique;
+    }
+
+    private function canonicalKey(
+        string $ruleId,
+        string $severity,
+        int $laravelVersion,
+        string $file,
+        int $line,
+        string $message,
+        string $action,
+        string $guideUrl,
+        bool $autoFixed,
+        string $confidence,
+    ): string {
+        return (new Finding(
+            id: '',
+            ruleId: $ruleId,
+            severity: $severity,
+            laravelVersion: $laravelVersion,
+            file: $file,
+            line: $line,
+            message: $message,
+            action: $action,
+            guideUrl: $guideUrl,
+            autoFixed: $autoFixed,
+            confidence: $confidence,
+        ))->identity();
     }
 
     /**

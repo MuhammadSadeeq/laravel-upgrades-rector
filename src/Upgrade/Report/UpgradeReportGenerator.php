@@ -582,13 +582,7 @@ final class UpgradeReportGenerator
         $seen = [];
 
         foreach ($all as $finding) {
-            $key = implode("\0", [
-                $this->stringValue($finding['ruleId'] ?? null),
-                $this->stringValue($finding['major'] ?? ($finding['laravelVersion'] ?? null)),
-                $this->stringValue($finding['file'] ?? null),
-                $this->stringValue($finding['line'] ?? null),
-                $this->stringValue($finding['message'] ?? null),
-            ]);
+            $key = Finding::identityFromArray($finding);
 
             if (isset($seen[$key])) {
                 continue;
@@ -670,9 +664,15 @@ final class UpgradeReportGenerator
             return null;
         }
 
-        $version = $finding['laravelVersion'] ?? $finding['major'] ?? 0;
-        $version = is_int($version) ? $version : 0;
-        $normalized = Finding::fromArray($this->stringKeyArray($finding))->toArray();
+        $data = $this->stringKeyArray($finding);
+        $version = $data['laravelVersion'] ?? null;
+
+        if (! is_int($version)) {
+            $version = is_int($data['major'] ?? null) ? $data['major'] : 0;
+        }
+
+        $data['laravelVersion'] = $version;
+        $normalized = Finding::fromArray($data)->toArray();
         $normalized['major'] = $version;
 
         return $normalized;

@@ -27,17 +27,9 @@ final class SkeletonStep
         'hashing', 'logging', 'mail', 'queue', 'services', 'session', 'view',
     ];
 
-    /** @var list<string> */
-    private const EXCLUDED_PREFIXES = [
-        '.env',
-        'composer.json',
-        'composer.lock',
-        'package-lock.json',
-        'app/',
-        'routes/',
-        'tests/',
-        'public/index.php',
-        'artisan',
+    /** Files whose merge semantics belong to NonPhpFileMerger. */
+    private const NON_PHP_FILES = [
+        '.editorconfig', '.gitignore', 'package.json', 'phpunit.xml', 'vite.config.js',
     ];
 
     private ConfigArrayMerger $merger;
@@ -104,7 +96,7 @@ final class SkeletonStep
             }
 
             if (! $dryRun) {
-                file_put_contents($projectPath, $result);
+                $this->writeFile($projectPath, $result);
             }
 
             $merged[] = $configName.'.php';
@@ -174,6 +166,12 @@ final class SkeletonStep
         $conflicts = [];
 
         foreach ($classification['added'] as $relative) {
+            if ($this->isRoute($relative)) {
+                $this->reportRouteChange($collector, $targetMajor, $relative, 'added');
+
+                continue;
+            }
+
             if ($this->excluded($relative) || $this->structureOnly($targetMajor, $relative)) {
                 continue;
             }
@@ -181,18 +179,46 @@ final class SkeletonStep
             $targetPath = $projectDirectory.'/'.$relative;
             $sourcePath = $toDirectory.'/'.$relative;
 
-            if (is_file($targetPath) || ! is_file($sourcePath)) {
+            if ($this->isMigration($relative)) {
+                if (! file_exists($targetPath) && $collector !== null) {
+                    $collector->add(
+                        'laravelUpgrade.skeletonMigrationAdded',
+                        Finding::SEVERITY_MEDIUM,
+                        $targetMajor,
+                        $relative,
+                        0,
+                        sprintf('Laravel %d added migration "%s" to the application skeleton.', $targetMajor, $relative),
+                        'Review the migration and publish or adapt it manually; it was not copied because it may collide with an existing table.',
+                    );
+                }
+
                 continue;
+            }
+
+            if (file_exists($targetPath) || ! is_file($sourcePath)) {
+                continue;
+            }
+
+            $contents = file_get_contents($sourcePath);
+
+            if ($contents === false) {
+                throw new RuntimeException(sprintf('Could not read skeleton file "%s".', $sourcePath));
             }
 
             $changed[] = $relative;
 
             if (! $dryRun) {
-                $this->writeFile($targetPath, (string) file_get_contents($sourcePath));
+                $this->writeFile($targetPath, $contents, $this->fileMode($sourcePath));
             }
         }
 
         foreach ($classification['removed'] as $relative) {
+            if ($this->isRoute($relative)) {
+                $this->reportRouteChange($collector, $targetMajor, $relative, 'removed');
+
+                continue;
+            }
+
             if ($this->excluded($relative) || $structure === 'modern') {
                 continue;
             }
@@ -208,13 +234,19 @@ final class SkeletonStep
                     $targetMajor,
                     $relative,
                     0,
-                    sprintf('The Laravel %d skeleton removed "%s".', $targetMajor, $relative),
+                    sprintf('The Laravel %d skeleton removed "%s", but the project still contains it.', $targetMajor, $relative),
                     'Delete it only after confirming that your application no longer references or customizes it.'
                 );
             }
         }
 
         foreach ($classification['modified'] as $relative) {
+            if ($this->isRoute($relative)) {
+                $this->reportRouteChange($collector, $targetMajor, $relative, 'modified');
+
+                continue;
+            }
+
             if ($this->excluded($relative)) {
                 continue;
             }
@@ -231,6 +263,7 @@ final class SkeletonStep
                 $this->syncConfigFile(
                     $oursPath,
                     $theirsPath,
+                    $basePath,
                     $relative,
                     $targetMajor,
                     $collector,
@@ -242,10 +275,16 @@ final class SkeletonStep
             }
 
             if (! is_file($oursPath)) {
+                $contents = file_get_contents($theirsPath);
+
+                if ($contents === false) {
+                    throw new RuntimeException(sprintf('Could not read skeleton file "%s".', $theirsPath));
+                }
+
                 $changed[] = $relative;
 
                 if (! $dryRun) {
-                    $this->writeFile($oursPath, (string) file_get_contents($theirsPath));
+                    $this->writeFile($oursPath, $contents, $this->fileMode($theirsPath));
                 }
 
                 continue;
@@ -299,7 +338,38 @@ final class SkeletonStep
         }
 
         foreach ($classification['renamed'] as $old => $new) {
+            if ($this->isRoute($old) || $this->isRoute($new)) {
+                $this->reportRouteChange(
+                    $collector,
+                    $targetMajor,
+                    $this->isRoute($new) ? $new : $old,
+                    'renamed',
+                );
+
+                continue;
+            }
+
             if ($this->excluded($old) || $this->excluded($new) || $structure === 'modern') {
+                continue;
+            }
+
+            // A migration filename change is not a safe rename operation:
+            // migrations are application history and copying or deleting one
+            // can collide with a table that already exists. Keep the old
+            // project file and surface the new upstream migration instead.
+            if ($this->isMigration($new)) {
+                if (! file_exists($projectDirectory.'/'.$new) && $collector !== null) {
+                    $collector->add(
+                        'laravelUpgrade.skeletonMigrationAdded',
+                        Finding::SEVERITY_MEDIUM,
+                        $targetMajor,
+                        $new,
+                        0,
+                        sprintf('Laravel %d changed migration "%s" in the application skeleton.', $targetMajor, $new),
+                        'Review the migration and publish or adapt it manually; it was not renamed automatically because migrations are application history.',
+                    );
+                }
+
                 continue;
             }
 
@@ -312,9 +382,18 @@ final class SkeletonStep
 
             $changed[] = $new;
 
+            $contents = file_get_contents($oldPath);
+
+            if ($contents === false) {
+                throw new RuntimeException(sprintf('Could not read project file "%s".', $oldPath));
+            }
+
             if (! $dryRun) {
-                $this->writeFile($newPath, (string) file_get_contents($oldPath));
-                unlink($oldPath);
+                $this->writeFile($newPath, $contents, $this->fileMode($oldPath));
+
+                if (! unlink($oldPath)) {
+                    throw new RuntimeException(sprintf('Could not remove renamed project file "%s".', $oldPath));
+                }
             }
         }
 
@@ -332,6 +411,7 @@ final class SkeletonStep
                 $this->syncConfigFile(
                     $projectPath,
                     $upstreamPath,
+                    $fromDirectory.'/config/'.$configName.'.php',
                     'config/'.$configName.'.php',
                     $targetMajor,
                     $collector,
@@ -384,12 +464,30 @@ final class SkeletonStep
         $changed = array_merge($changed, $nonPhp['changed']);
         $conflicts = array_merge($conflicts, $nonPhp['conflicts']);
 
+        $added = array_values(array_filter(
+            $classification['added'],
+            fn (string $relative): bool => ! $this->nonPhpFile($relative),
+        ));
+        $removed = array_values(array_filter(
+            $classification['removed'],
+            fn (string $relative): bool => ! $this->nonPhpFile($relative),
+        ));
+        $modified = array_values(array_filter(
+            $classification['modified'],
+            fn (string $relative): bool => ! $this->nonPhpFile($relative),
+        ));
+        $renamed = array_filter(
+            $classification['renamed'],
+            fn (string $new, string $old): bool => ! $this->nonPhpFile($old) && ! $this->nonPhpFile($new),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
         return [
             'changed' => array_values(array_unique($changed)),
-            'added' => $classification['added'],
-            'removed' => $classification['removed'],
-            'modified' => $classification['modified'],
-            'renamed' => $classification['renamed'],
+            'added' => $added,
+            'removed' => $removed,
+            'modified' => $modified,
+            'renamed' => $renamed,
             'conflicts' => array_values(array_unique($conflicts)),
         ];
     }
@@ -405,6 +503,7 @@ final class SkeletonStep
     private function syncConfigFile(
         string $projectPath,
         string $upstreamPath,
+        ?string $basePath,
         string $relative,
         int $targetMajor,
         ?FindingCollector $collector,
@@ -412,7 +511,9 @@ final class SkeletonStep
         bool $dryRun
     ): void {
         try {
-            $result = $this->merger->merge($projectPath, $upstreamPath, $collector, $targetMajor);
+            $result = $basePath !== null && is_file($basePath)
+                ? $this->merger->mergeWithBase($projectPath, $basePath, $upstreamPath, $collector, $targetMajor)
+                : $this->merger->merge($projectPath, $upstreamPath, $collector, $targetMajor);
         } catch (RuntimeException) {
             return;
         }
@@ -432,13 +533,23 @@ final class SkeletonStep
 
     private function excluded(string $relative): bool
     {
-        foreach (self::EXCLUDED_PREFIXES as $prefix) {
-            if ($relative === $prefix || str_starts_with($relative, $prefix)) {
-                return true;
-            }
+        if ($relative === '.env' || $relative === '.env.example'
+            || $relative === 'composer.json' || $relative === 'composer.lock'
+            || $relative === 'package-lock.json' || $this->nonPhpFile($relative)
+            || str_starts_with($relative, 'app/')) {
+            return true;
         }
 
-        return false;
+        if (str_starts_with($relative, 'routes/')) {
+            return true;
+        }
+
+        return str_starts_with($relative, 'tests/') && $relative !== 'tests/TestCase.php';
+    }
+
+    private function nonPhpFile(string $relative): bool
+    {
+        return in_array($relative, self::NON_PHP_FILES, true);
     }
 
     private function structureOnly(int $targetMajor, string $relative): bool
@@ -446,10 +557,18 @@ final class SkeletonStep
         try {
             $metadata = $this->repository->metadata($targetMajor);
         } catch (RuntimeException) {
-            return false;
+            $metadata = [];
         }
 
         $paths = $metadata['structureOnly'] ?? $metadata['structure-only'] ?? [];
+
+        $policyPath = dirname(__DIR__, 3).'/resources/config-policies/'.$targetMajor.'.json';
+        $policyContents = is_file($policyPath) ? file_get_contents($policyPath) : false;
+        $policy = is_string($policyContents) ? json_decode($policyContents, true) : null;
+
+        if (is_array($policy) && is_array($policy['structureOnly'] ?? null)) {
+            $paths = array_merge(is_array($paths) ? $paths : [], $policy['structureOnly']);
+        }
 
         if (! is_array($paths)) {
             return false;
@@ -458,14 +577,82 @@ final class SkeletonStep
         return in_array($relative, $paths, true);
     }
 
-    private function writeFile(string $path, string $contents): void
+    private function isMigration(string $relative): bool
+    {
+        return str_starts_with($relative, 'database/migrations/');
+    }
+
+    private function isRoute(string $relative): bool
+    {
+        return str_starts_with($relative, 'routes/');
+    }
+
+    private function reportRouteChange(
+        ?FindingCollector $collector,
+        int $targetMajor,
+        string $relative,
+        string $change,
+    ): void {
+        if ($collector === null) {
+            return;
+        }
+
+        $collector->add(
+            'laravelUpgrade.skeletonRouteChanged',
+            Finding::SEVERITY_INFO,
+            $targetMajor,
+            $relative,
+            0,
+            sprintf('The Laravel %d skeleton %s route file "%s".', $targetMajor, $change, $relative),
+            'Review the route changes manually; route files are application code and were not modified automatically.',
+        );
+    }
+
+    private function writeFile(string $path, string $contents, ?int $sourceMode = null): void
     {
         $directory = dirname($path);
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0777, true);
+        if (! is_dir($directory) && (! mkdir($directory, 0777, true) && ! is_dir($directory))) {
+            throw new RuntimeException(sprintf('Could not create directory "%s".', $directory));
         }
 
-        file_put_contents($path, $contents);
+        $temporaryPath = tempnam($directory, basename($path).'.tmp-');
+
+        if ($temporaryPath === false) {
+            throw new RuntimeException(sprintf('Could not create temporary file for "%s".', $path));
+        }
+
+        try {
+            $written = file_put_contents($temporaryPath, $contents, LOCK_EX);
+
+            if ($written !== strlen($contents)) {
+                throw new RuntimeException(sprintf('Could not write skeleton file "%s".', $path));
+            }
+
+            $mode = is_file($path) ? fileperms($path) : $sourceMode;
+
+            if ($mode === false || $mode === null) {
+                $mode = 0644;
+            }
+
+            if (! chmod($temporaryPath, $mode & 0777)) {
+                throw new RuntimeException(sprintf('Could not set permissions for "%s".', $path));
+            }
+
+            if (! rename($temporaryPath, $path)) {
+                throw new RuntimeException(sprintf('Could not replace skeleton file "%s".', $path));
+            }
+        } finally {
+            if (is_file($temporaryPath)) {
+                unlink($temporaryPath);
+            }
+        }
+    }
+
+    private function fileMode(string $path): ?int
+    {
+        $mode = fileperms($path);
+
+        return $mode === false ? null : $mode & 0777;
     }
 }

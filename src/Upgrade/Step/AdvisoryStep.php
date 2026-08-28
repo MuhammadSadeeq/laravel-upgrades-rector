@@ -402,12 +402,7 @@ final class AdvisoryStep implements StepInterface
         $seen = [];
 
         foreach (array_merge($phpstan, $advisor) as $finding) {
-            $key = implode("\0", [
-                $finding->ruleId,
-                $finding->file,
-                (string) $finding->line,
-                $finding->message,
-            ]);
+            $key = $finding->identity();
 
             if (isset($seen[$key])) {
                 continue;

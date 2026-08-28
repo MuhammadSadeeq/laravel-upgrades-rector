@@ -15,11 +15,16 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\DNumber;
 use PhpParser\Node\Scalar\LNumber;
 use PhpParser\Node\Scalar\String_;
+use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\CloningVisitor;
 use PhpParser\Parser;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
+use PhpParser\Token;
 use RuntimeException;
+use Throwable;
 
 /**
  * Merges Laravel configuration arrays without deleting project values.
@@ -67,11 +72,11 @@ final class ConfigArrayMerger
             throw new RuntimeException(sprintf('Could not read "%s".', $upstreamConfigPath));
         }
 
-        $projectAst = $this->parseReturnArray($projectSource, basename($projectConfigPath));
+        $projectDocument = $this->parseDocument($projectSource, basename($projectConfigPath));
         $upstreamAst = $this->parseReturnArray($upstreamSource, basename($upstreamConfigPath));
         $policies = $targetMajor > 0 ? $this->policies($targetMajor) : [];
         $changed = $this->mergeArray(
-            $projectAst,
+            $projectDocument['array'],
             $upstreamAst,
             '',
             $policies,
@@ -84,7 +89,60 @@ final class ConfigArrayMerger
             return $projectSource;
         }
 
-        return $this->printSource($projectSource, $projectAst);
+        return $this->printSource($projectSource, $projectDocument);
+    }
+
+    /**
+     * Merge a config file while comparing it with the previous skeleton.
+     * This enables truthful findings for upstream removals and changed
+     * defaults without ever replacing an existing project value.
+     */
+    public function mergeWithBase(
+        string $projectConfigPath,
+        string $baseConfigPath,
+        string $upstreamConfigPath,
+        ?FindingCollector $collector = null,
+        int $targetMajor = 0
+    ): string {
+        $projectSource = file_get_contents($projectConfigPath);
+        $baseSource = file_get_contents($baseConfigPath);
+        $upstreamSource = file_get_contents($upstreamConfigPath);
+
+        if ($projectSource === false || $baseSource === false || $upstreamSource === false) {
+            throw new RuntimeException(sprintf('Could not read config files for "%s".', basename($projectConfigPath)));
+        }
+
+        $projectDocument = $this->parseDocument($projectSource, basename($projectConfigPath));
+        $baseAst = $this->parseReturnArray($baseSource, basename($baseConfigPath));
+        $upstreamAst = $this->parseReturnArray($upstreamSource, basename($upstreamConfigPath));
+        $policies = $targetMajor > 0 ? $this->policies($targetMajor) : [];
+
+        $this->reportBaseDifferences(
+            $projectDocument['array'],
+            $baseAst,
+            $upstreamAst,
+            '',
+            $policies,
+            $collector,
+            $targetMajor,
+            basename($projectConfigPath),
+        );
+
+        $changed = $this->mergeArray(
+            $projectDocument['array'],
+            $upstreamAst,
+            '',
+            $policies,
+            $collector,
+            $targetMajor,
+            basename($projectConfigPath),
+        );
+
+        if (! $changed) {
+            return $projectSource;
+        }
+
+        return $this->printSource($projectSource, $projectDocument);
     }
 
     /**
@@ -177,7 +235,7 @@ final class ConfigArrayMerger
 
             $key = $upstreamItem->key->value;
             $path = $prefix === '' ? $key : $prefix.'.'.$key;
-            $policy = $policies[$path] ?? null;
+            $policy = $this->policyFor($policies, $path, $file);
             $projectItem = $projectIndexes[$key] ?? null;
 
             if ($projectItem === null) {
@@ -187,21 +245,13 @@ final class ConfigArrayMerger
                     $newItem->value = $this->policyExpression($policy['preserveValue']);
 
                     if ($collector !== null && $targetMajor > 0) {
-                        $collector->add(
-                            'laravelUpgrade.configBehaviourChange',
-                            Finding::SEVERITY_HIGH,
+                        $this->addPolicyFinding(
+                            $collector,
+                            $policy,
                             $targetMajor,
-                            'config/'.$file,
+                            $file,
+                            $path,
                             $upstreamItem->getStartLine(),
-                            sprintf(
-                                'New Laravel %d config key "%s" changes framework behaviour.',
-                                $targetMajor,
-                                $path
-                            ),
-                            sprintf(
-                                'The previous-behaviour value was preserved. Review "%s" and migrate deliberately.',
-                                $path
-                            )
                         );
                     }
                 }
@@ -350,7 +400,209 @@ final class ConfigArrayMerger
         return $keys;
     }
 
+    /**
+     * Report changes between the old and target skeleton while retaining the
+     * project's value. The recursive walk deliberately only reports a removed
+     * key when the project still has that key, avoiding noise for values that
+     * were never customized or present in the application.
+     *
+     * @param  array<string, array<string, mixed>>  $policies
+     */
+    private function reportBaseDifferences(
+        Array_ $project,
+        Array_ $base,
+        Array_ $upstream,
+        string $prefix,
+        array $policies,
+        ?FindingCollector $collector,
+        int $targetMajor,
+        string $file,
+    ): void {
+        if ($collector === null || $targetMajor <= 0) {
+            return;
+        }
+
+        $projectItems = $this->indexItems($project);
+        $baseItems = $this->indexItems($base);
+        $upstreamItems = $this->indexItems($upstream);
+
+        foreach ($baseItems as $key => $baseItem) {
+            $path = $prefix === '' ? $key : $prefix.'.'.$key;
+            $projectItem = $projectItems[$key] ?? null;
+            $upstreamItem = $upstreamItems[$key] ?? null;
+
+            if ($upstreamItem === null) {
+                if ($projectItem !== null) {
+                    $collector->add(
+                        'laravelUpgrade.configKeyRemoved',
+                        Finding::SEVERITY_MEDIUM,
+                        $targetMajor,
+                        'config/'.$file,
+                        max(0, $projectItem->getStartLine()),
+                        sprintf('Laravel %d removed config key "%s" from the skeleton.', $targetMajor, $path),
+                        'Keep it if your application uses it; otherwise remove it after reviewing the upgrade guide.',
+                    );
+                }
+
+                continue;
+            }
+
+            if ($projectItem !== null
+                && (! $baseItem->value instanceof Array_ || ! $upstreamItem->value instanceof Array_)
+                && ! $this->expressionsEqual($baseItem->value, $upstreamItem->value)
+                && ! $this->expressionsEqual($projectItem->value, $upstreamItem->value)) {
+                $policy = $this->policyFor($policies, $path, $file);
+
+                if ($policy !== null) {
+                    $this->addPolicyFinding(
+                        $collector,
+                        $policy,
+                        $targetMajor,
+                        $file,
+                        $path,
+                        $projectItem->getStartLine(),
+                    );
+                } else {
+                    $collector->add(
+                        'laravelUpgrade.configDefaultChanged',
+                        Finding::SEVERITY_INFO,
+                        $targetMajor,
+                        'config/'.$file,
+                        max(0, $projectItem->getStartLine()),
+                        sprintf('Laravel %d changed the default value for config key "%s"; the project value was kept.', $targetMajor, $path),
+                        'Review the new default and change this value deliberately if appropriate.',
+                    );
+                }
+            } elseif ($projectItem !== null) {
+                $policy = $this->policyFor($policies, $path, $file);
+
+                if ($policy !== null && ($policy['informational'] ?? false) === true
+                    && (! $this->expressionsEqual($baseItem->value, $upstreamItem->value)
+                        || ($policy['transition'] ?? false) === true)) {
+                    $this->addPolicyFinding(
+                        $collector,
+                        $policy,
+                        $targetMajor,
+                        $file,
+                        $path,
+                        $projectItem->getStartLine(),
+                    );
+                }
+            }
+
+            if ($projectItem?->value instanceof Array_
+                && $baseItem->value instanceof Array_
+                && $upstreamItem->value instanceof Array_) {
+                $this->reportBaseDifferences(
+                    $projectItem->value,
+                    $baseItem->value,
+                    $upstreamItem->value,
+                    $path,
+                    $policies,
+                    $collector,
+                    $targetMajor,
+                    $file,
+                );
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $policies
+     * @return array<string, mixed>|null
+     */
+    private function policyFor(array $policies, string $path, string $file): ?array
+    {
+        $fileBase = pathinfo($file, PATHINFO_FILENAME);
+        $normalizedFile = str_replace('/', '.', ltrim($file, './'));
+        $candidates = [
+            $normalizedFile.'.'.$path,
+            $fileBase.'.'.$path,
+        ];
+
+        if (! str_starts_with($normalizedFile, 'config.')) {
+            $candidates[] = 'config.'.$normalizedFile.'.'.$path;
+        }
+
+        $candidates = array_map(static fn (string $candidate): string => str_replace('/', '.', $candidate), $candidates);
+
+        foreach ($policies as $key => $policy) {
+            $normalized = str_replace('/', '.', $key);
+
+            if (in_array($normalized, $candidates, true)) {
+                return $policy;
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string, mixed> $policy */
+    private function addPolicyFinding(
+        FindingCollector $collector,
+        array $policy,
+        int $targetMajor,
+        string $file,
+        string $path,
+        int $line,
+    ): void {
+        $severity = $policy['severity'] ?? (($policy['informational'] ?? false) ? Finding::SEVERITY_INFO : Finding::SEVERITY_HIGH);
+        $severity = is_string($severity) ? $severity : Finding::SEVERITY_MEDIUM;
+        $message = $policy['message'] ?? $policy['reason'] ?? sprintf('Laravel %d changed config key "%s".', $targetMajor, $path);
+        $action = $policy['action'] ?? sprintf('The project value for "%s" was kept. Review the new Laravel default before changing it.', $path);
+        $guide = $policy['guide'] ?? $policy['guideUrl'] ?? '';
+
+        $collector->add(
+            'laravelUpgrade.configBehaviourChange',
+            $severity,
+            $targetMajor,
+            'config/'.$file,
+            max(0, $line),
+            is_string($message) ? $message : sprintf('Laravel %d changed config key "%s".', $targetMajor, $path),
+            is_string($action) ? $action : '',
+            is_string($guide) ? $guide : '',
+        );
+    }
+
+    private function expressionsEqual(Expr $left, Expr $right): bool
+    {
+        return $this->printer->prettyPrintExpr($left) === $this->printer->prettyPrintExpr($right);
+    }
+
     private function parseReturnArray(string $source, string $name): Array_
+    {
+        return $this->findReturnArray($this->parseStatements($source, $name), $name);
+    }
+
+    /**
+     * Parse a project config and clone its nodes with links to the original
+     * tree. This is required by PhpParser's format-preserving printer: only
+     * the inserted ArrayItems are reprinted while the original whitespace,
+     * comments, and line endings remain byte-for-byte intact.
+     *
+     * @return array{array: Array_, original: list<Stmt>, working: list<Stmt>, tokens: list<Token>}
+     */
+    private function parseDocument(string $source, string $name): array
+    {
+        $original = $this->parseStatements($source, $name);
+        $working = (new NodeTraverser(new CloningVisitor))->traverse($original);
+        $working = array_values(array_filter(
+            $working,
+            static fn (mixed $statement): bool => $statement instanceof Stmt,
+        ));
+
+        return [
+            'array' => $this->findReturnArray($working, $name),
+            'original' => $original,
+            'working' => $working,
+            'tokens' => array_values($this->parser->getTokens()),
+        ];
+    }
+
+    /**
+     * @return list<Stmt>
+     */
+    private function parseStatements(string $source, string $name): array
     {
         try {
             $ast = $this->parser->parse($source);
@@ -362,42 +614,68 @@ final class ConfigArrayMerger
             ));
         }
 
-        foreach ($ast ?? [] as $stmt) {
-            if ($stmt instanceof Return_ && $stmt->expr instanceof Array_) {
-                return $stmt->expr;
+        if ($ast === null) {
+            throw new RuntimeException(sprintf('Cannot parse "%s".', $name));
+        }
+
+        return array_values($ast);
+    }
+
+    /**
+     * @param  list<Stmt>  $statements
+     */
+    private function findReturnArray(array $statements, string $name): Array_
+    {
+        foreach ($statements as $statement) {
+            if ($statement instanceof Return_ && $statement->expr instanceof Array_) {
+                return $statement->expr;
             }
         }
 
         throw new RuntimeException(sprintf('"%s" does not contain a return [...] statement.', $name));
     }
 
-    private function printSource(string $source, Array_ $array): string
+    /**
+     * @param  array{array: Array_, original: list<Stmt>, working: list<Stmt>, tokens: list<Token>}  $document
+     */
+    private function printSource(string $source, array $document): string
     {
-        $returnStart = null;
-
         try {
-            $statements = $this->parser->parse($source) ?? [];
-        } catch (Error) {
-            return "<?php\n\nreturn ".$this->printArray($array).";\n";
-        }
+            return $this->printer->printFormatPreserving(
+                $document['working'],
+                $document['original'],
+                $document['tokens'],
+            );
+        } catch (Throwable) {
+            // Keep a safe fallback for parser versions that cannot format
+            // preserve a particular PHP construct. This path is still
+            // limited to the returned config expression.
+            $returnStart = null;
 
-        foreach ($statements as $statement) {
-            if ($statement instanceof Return_ && $statement->expr instanceof Array_) {
-                $returnStart = $statement->getStartFilePos();
-                $expressionEnd = $statement->expr->getEndFilePos();
-                $suffix = $expressionEnd >= 0 ? substr($source, $expressionEnd + 1) : ";\n";
+            try {
+                $statements = $this->parser->parse($source) ?? [];
+            } catch (Error) {
+                return "<?php\n\nreturn ".$this->printArray($document['array']).";\n";
+            }
 
-                if ($suffix === '') {
-                    $suffix = ";\n";
+            foreach ($statements as $statement) {
+                if ($statement instanceof Return_ && $statement->expr instanceof Array_) {
+                    $returnStart = $statement->getStartFilePos();
+                    $expressionEnd = $statement->expr->getEndFilePos();
+                    $suffix = $expressionEnd >= 0 ? substr($source, $expressionEnd + 1) : ";\n";
+
+                    if ($suffix === '') {
+                        $suffix = ";\n";
+                    }
+
+                    $prefix = $returnStart >= 0 ? substr($source, 0, $returnStart) : "<?php\n\n";
+
+                    return $prefix.'return '.$this->printArray($document['array']).$suffix;
                 }
-
-                $prefix = $returnStart >= 0 ? substr($source, 0, $returnStart) : "<?php\n\n";
-
-                return $prefix.'return '.$this->printArray($array).$suffix;
             }
         }
 
-        return "<?php\n\nreturn ".$this->printArray($array).";\n";
+        return "<?php\n\nreturn ".$this->printArray($document['array']).";\n";
     }
 
     /**
@@ -424,13 +702,29 @@ final class ConfigArrayMerger
         }
 
         $result = [];
+        $flatten = function (array $items, string $prefix = '') use (&$flatten, &$result): void {
+            foreach ($items as $key => $policy) {
+                if (! is_string($key) || ! is_array($policy)) {
+                    continue;
+                }
 
-        foreach ($section as $key => $policy) {
-            if (is_string($key) && is_array($policy)) {
-                /** @var array<string, mixed> $policy */
-                $result[$key] = $policy;
+                $path = $prefix === '' ? $key : $prefix.'.'.$key;
+                $isLeaf = array_intersect(
+                    ['preserveValue', 'upstreamDefault', 'severity', 'informational', 'transition', 'message', 'reason', 'guide', 'guideUrl', 'action'],
+                    array_keys($policy),
+                ) !== [];
+
+                if ($isLeaf) {
+                    /** @var array<string, mixed> $policy */
+                    $result[$path] = $policy;
+
+                    continue;
+                }
+
+                $flatten($policy, $path);
             }
-        }
+        };
+        $flatten($section);
 
         return $result;
     }

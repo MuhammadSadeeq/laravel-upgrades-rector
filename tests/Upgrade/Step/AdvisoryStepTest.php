@@ -163,7 +163,46 @@ final class AdvisoryStepTest extends TestCase
         $result = $this->step($runner)->execute($this->context(planMode: true));
 
         self::assertTrue($result->isSuccessful());
-        self::assertSame(2, $result->findingsCount);
+        self::assertSame(3, $result->findingsCount);
+    }
+
+    public function test_same_location_and_major_with_different_metadata_survives_advisory_aggregation(): void
+    {
+        file_put_contents(
+            $this->projectDirectory.'/config/session.php',
+            "<?php\nreturn ['serialization' => 'php'];\n",
+        );
+        $file = $this->projectDirectory.'/config/session.php';
+        $runner = new AdvisoryFakeProcessRunner([
+            new ProcessResult([], 0, $this->phpstanJson([
+                'message' => 'Session serialization uses the legacy PHP format.',
+                'line' => 2,
+                'identifier' => 'laravelUpgrade.sessionSerialization',
+                'tip' => 'PHPStan-specific guidance.',
+                'metadata' => [
+                    'severity' => 'medium',
+                    'confidence' => 'low',
+                    'guideUrl' => 'https://example.test/phpstan',
+                ],
+            ], [], $file)),
+        ]);
+
+        $result = $this->step($runner)->execute(new UpgradeContext(
+            $this->projectDirectory,
+            new UpgradePlan(12, 13, true),
+            'advisory-test',
+        ));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        $findings = $result->data['findings'] ?? null;
+        self::assertIsArray($findings);
+        $matching = array_values(array_filter(
+            $findings,
+            static fn (mixed $finding): bool => is_array($finding)
+                && ($finding['ruleId'] ?? null) === 'laravelUpgrade.sessionSerialization',
+        ));
+        self::assertCount(2, $matching);
+        self::assertSame(['medium', 'high'], array_column($matching, 'severity'));
     }
 
     public function test_apply_advisories_preserve_prior_findings_and_are_idempotent(): void

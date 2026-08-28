@@ -53,6 +53,38 @@ final class Finding
     }
 
     /**
+     * Return the one identity used when findings cross step/process/report
+     * boundaries. Presentation fields are part of the identity so a later
+     * transition cannot silently replace a finding with different guidance.
+     */
+    public function identity(): string
+    {
+        return implode("\0", [
+            $this->ruleId,
+            (string) $this->laravelVersion,
+            $this->file,
+            (string) $this->line,
+            $this->message,
+            $this->severity,
+            $this->action,
+            $this->guideUrl,
+            $this->autoFixed ? '1' : '0',
+            $this->confidence,
+        ]);
+    }
+
+    /**
+     * Build the canonical identity from report/JSONL data, including legacy
+     * report arrays that called the major field `major`.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function identityFromArray(array $data): string
+    {
+        return self::fromArray($data)->identity();
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public static function fromArray(array $data): self
@@ -60,7 +92,11 @@ final class Finding
         $id = $data['id'] ?? '';
         $ruleId = $data['ruleId'] ?? '';
         $severity = $data['severity'] ?? self::SEVERITY_MEDIUM;
-        $laravelVersion = $data['laravelVersion'] ?? 0;
+        $laravelVersion = $data['laravelVersion'] ?? null;
+
+        if (! is_int($laravelVersion)) {
+            $laravelVersion = is_int($data['major'] ?? null) ? $data['major'] : 0;
+        }
         $file = $data['file'] ?? '';
         $line = $data['line'] ?? 0;
         $message = $data['message'] ?? '';
@@ -73,7 +109,7 @@ final class Finding
             id: is_string($id) ? $id : '',
             ruleId: is_string($ruleId) ? $ruleId : '',
             severity: is_string($severity) ? $severity : self::SEVERITY_MEDIUM,
-            laravelVersion: is_int($laravelVersion) ? $laravelVersion : 0,
+            laravelVersion: $laravelVersion,
             file: is_string($file) ? $file : '',
             line: is_int($line) ? $line : 0,
             message: is_string($message) ? $message : '',

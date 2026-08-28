@@ -342,9 +342,9 @@ final class ProjectAdvisor
                 }
 
                 $collector->add(
-                    'laravelUpgrade.skeletonFileRemoved', Finding::SEVERITY_INFO, $this->targetMajor, $relative, 0,
+                    'laravelUpgrade.skeletonFileRemoved', Finding::SEVERITY_INFO, $major, $relative, 0,
                     sprintf('The Laravel %d skeleton removed "%s", but the project still contains it.', $major, $relative),
-                    'Delete it only after confirming that the application no longer references or customizes it.'
+                    'Delete it only after confirming that your application no longer references or customizes it.'
                 );
             }
         }

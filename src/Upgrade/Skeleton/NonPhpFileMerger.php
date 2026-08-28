@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
+use RuntimeException;
 
 /**
  * Handles skeleton files which are not PHP configuration arrays.
@@ -92,7 +93,21 @@ final class NonPhpFileMerger
         $packagePath = $projectDirectory.'/package.json';
         $targetPackagePath = $toSkeletonDirectory.'/package.json';
 
-        if (is_file($packagePath) && is_file($targetPackagePath)) {
+        if (is_file($targetPackagePath) && ! is_file($packagePath)) {
+            $result['advisories'][] = 'package.json';
+
+            if ($collector !== null) {
+                $collector->add(
+                    'laravelUpgrade.packageJsonDependencies',
+                    Finding::SEVERITY_INFO,
+                    $this->targetMajor($toSkeletonDirectory),
+                    'package.json',
+                    0,
+                    'The target Laravel skeleton adds package.json, but the project has no JavaScript manifest.',
+                    'Review the target JavaScript dependencies and create or update package.json with your package manager.',
+                );
+            }
+        } elseif (is_file($packagePath) && is_file($targetPackagePath)) {
             $ours = file_get_contents($packagePath);
             $theirs = file_get_contents($targetPackagePath);
 
@@ -148,15 +163,45 @@ final class NonPhpFileMerger
         return true;
     }
 
-    private function write(string $path, string $contents): void
+    private function write(string $path, string $contents, ?int $sourceMode = null): void
     {
         $directory = dirname($path);
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0777, true);
+        if (! is_dir($directory) && (! mkdir($directory, 0777, true) && ! is_dir($directory))) {
+            throw new RuntimeException(sprintf('Could not create directory "%s".', $directory));
         }
 
-        file_put_contents($path, $contents);
+        $temporaryPath = tempnam($directory, basename($path).'.tmp-');
+
+        if ($temporaryPath === false) {
+            throw new RuntimeException(sprintf('Could not create temporary file for "%s".', $path));
+        }
+
+        try {
+            $written = file_put_contents($temporaryPath, $contents, LOCK_EX);
+
+            if ($written !== strlen($contents)) {
+                throw new RuntimeException(sprintf('Could not write non-PHP file "%s".', $path));
+            }
+
+            $mode = is_file($path) ? fileperms($path) : $sourceMode;
+
+            if ($mode === false || $mode === null) {
+                $mode = 0644;
+            }
+
+            if (! chmod($temporaryPath, $mode & 0777)) {
+                throw new RuntimeException(sprintf('Could not set permissions for "%s".', $path));
+            }
+
+            if (! rename($temporaryPath, $path)) {
+                throw new RuntimeException(sprintf('Could not replace non-PHP file "%s".', $path));
+            }
+        } finally {
+            if (is_file($temporaryPath)) {
+                unlink($temporaryPath);
+            }
+        }
     }
 
     private function targetMajor(string $skeletonDirectory): int

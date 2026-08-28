@@ -1,8 +1,18 @@
 {
     "behaviourChanging": {
-        "session.cookie": {
-            "preserveValue": null,
-            "reason": "Laravel 11 changes the default cookie naming strategy."
+        "config/cache.php.prefix": {
+            "informational": true,
+            "transition": true,
+            "severity": "info",
+            "message": "Laravel 11 no longer appends a colon to the cache prefix automatically.",
+            "action": "The explicit project cache prefix was kept; review cache key compatibility before changing it."
+        },
+        "config/filesystems.php.disks.local.root": {
+            "upstreamDefault": "storage_path('app/private')",
+            "preserveValue": "storage_path('app')",
+            "severity": "medium",
+            "message": "Laravel 11 changes the local filesystem root to storage/app/private.",
+            "action": "The previous storage/app root was kept. Review private-file isolation before changing it."
         }
     },
     "structureOnly": [

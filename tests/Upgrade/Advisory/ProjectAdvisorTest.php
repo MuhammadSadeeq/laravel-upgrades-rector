@@ -76,6 +76,14 @@ final class ProjectAdvisorTest extends TestCase
         $livewire = $livewireFindings[0];
         self::assertSame('https://livewire.laravel.com/docs/upgrading', $livewire->guideUrl);
         self::assertSame(4, count(array_filter($ruleIds, static fn (string $id): bool => $id === 'laravelUpgrade.envKeyRenamed')));
+
+        $removed = array_values(array_filter(
+            $findings,
+            static fn (Finding $finding): bool => $finding->ruleId === 'laravelUpgrade.skeletonFileRemoved'
+                && $finding->file === 'app/Console/Kernel.php',
+        ));
+        self::assertCount(1, $removed);
+        self::assertSame(11, $removed[0]->laravelVersion);
     }
 
     public function test_skips_absent_optional_surfaces_and_records_unchecked_installer(): void

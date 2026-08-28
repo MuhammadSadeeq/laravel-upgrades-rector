@@ -92,6 +92,8 @@ final class SkeletonStepTest extends TestCase
         $root = $this->tmpDir.'/complete-snapshots';
         mkdir($root.'/12/config', 0777, true);
         mkdir($root.'/13/config', 0777, true);
+        mkdir($root.'/12/routes', 0777, true);
+        mkdir($root.'/13/routes', 0777, true);
         file_put_contents($root.'/MANIFEST.json', json_encode([
             '12' => ['complete' => true],
             '13' => ['complete' => true],
@@ -102,10 +104,17 @@ final class SkeletonStepTest extends TestCase
         file_put_contents($root.'/13/.env.example', "APP_NAME=Laravel\nNEW_KEY=target\n");
         file_put_contents($root.'/12/.gitignore', "base\n");
         file_put_contents($root.'/13/.gitignore', "target\n");
+        file_put_contents($root.'/12/package.json', "{\"dependencies\":{\"vite\":\"old\"}}\n");
+        file_put_contents($root.'/13/package.json', "{\"dependencies\":{\"vite\":\"new\"}}\n");
+        file_put_contents($root.'/12/routes/web.php', "<?php\n// old route\n");
+        file_put_contents($root.'/13/routes/web.php', "<?php\n// target route\n");
         file_put_contents($this->tmpDir.'/config/session.php', "<?php\nreturn [];\n");
         file_put_contents($this->tmpDir.'/.env.example', "APP_NAME=Laravel\n");
         file_put_contents($this->tmpDir.'/.env', "APP_KEY=secret\n");
         file_put_contents($this->tmpDir.'/.gitignore', "base\n");
+        file_put_contents($this->tmpDir.'/package.json', "{\"dependencies\":{\"vite\":\"project\"}}\n");
+        mkdir($this->tmpDir.'/routes', 0777, true);
+        file_put_contents($this->tmpDir.'/routes/web.php', "<?php\n// project route\n");
         $collector = new FindingCollector;
 
         $result = (new SkeletonStep(new SkeletonRepository($root)))->syncProject(
@@ -126,6 +135,322 @@ final class SkeletonStepTest extends TestCase
         self::assertStringContainsString('NEW_KEY=target', $envExample);
         self::assertSame("APP_KEY=secret\n", file_get_contents($this->tmpDir.'/.env'));
         self::assertSame("target\n", file_get_contents($this->tmpDir.'/.gitignore'));
+        self::assertSame("{\"dependencies\":{\"vite\":\"project\"}}\n", file_get_contents($this->tmpDir.'/package.json'));
+        self::assertSame("<?php\n// project route\n", file_get_contents($this->tmpDir.'/routes/web.php'));
+        self::assertNotContains('routes/web.php', $result['changed']);
+        $ruleIds = array_map(static fn ($finding): string => $finding->ruleId, $collector->all());
+        self::assertContains('laravelUpgrade.packageJsonDependencies', $ruleIds);
+        self::assertContains('laravelUpgrade.skeletonRouteChanged', $ruleIds);
         self::assertSame([], $result['conflicts']);
+        self::assertNotContains('package.json', $result['added']);
+        self::assertNotContains('package.json', $result['modified']);
+        self::assertNotContains('package.json', $result['removed']);
+        self::assertNotContains('package.json', array_keys($result['renamed']));
+        self::assertSame(1, count(array_filter(
+            $result['changed'],
+            static fn (string $relative): bool => $relative === '.gitignore',
+        )));
+    }
+
+    public function test_missing_project_package_is_advisory_only(): void
+    {
+        $root = $this->tmpDir.'/package-snapshots';
+        mkdir($root.'/10', 0777, true);
+        mkdir($root.'/11', 0777, true);
+        file_put_contents($root.'/MANIFEST.json', json_encode([
+            '10' => ['complete' => true],
+            '11' => ['complete' => true],
+        ], JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/11/package.json', "{\"private\":true}\n");
+
+        $collector = new FindingCollector;
+        $result = (new SkeletonStep(new SkeletonRepository($root)))->syncProject(
+            $this->tmpDir,
+            10,
+            11,
+            $collector,
+        );
+
+        self::assertFileDoesNotExist($this->tmpDir.'/package.json');
+        self::assertNotContains('package.json', $result['added']);
+        self::assertNotContains('package.json', $result['changed']);
+        self::assertSame(['laravelUpgrade.packageJsonDependencies'], array_map(
+            static fn ($finding): string => $finding->ruleId,
+            $collector->all(),
+        ));
+    }
+
+    public function test_added_migrations_are_advisory_structure_only_files_are_skipped_and_removed_files_are_not_deleted(): void
+    {
+        $root = $this->tmpDir.'/policy-snapshots';
+        mkdir($root.'/10', 0777, true);
+        mkdir($root.'/11/bootstrap', 0777, true);
+        mkdir($root.'/11/database/migrations', 0777, true);
+        file_put_contents($root.'/MANIFEST.json', json_encode([
+            '10' => ['complete' => true],
+            '11' => ['complete' => true],
+        ], JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/10/removed.php', 'removed');
+        file_put_contents($root.'/11/new.php', 'new');
+        file_put_contents($root.'/11/bootstrap/providers.php', "<?php\nreturn [];\n");
+        file_put_contents($root.'/11/database/migrations/2026_01_01_000000_create_cache_table.php', "<?php\n");
+        file_put_contents($this->tmpDir.'/removed.php', 'project custom');
+
+        $collector = new FindingCollector;
+        $result = (new SkeletonStep(new SkeletonRepository($root)))->syncProject(
+            $this->tmpDir,
+            10,
+            11,
+            $collector,
+        );
+
+        self::assertFileExists($this->tmpDir.'/new.php');
+        self::assertFileDoesNotExist($this->tmpDir.'/bootstrap/providers.php');
+        self::assertFileDoesNotExist($this->tmpDir.'/database/migrations/2026_01_01_000000_create_cache_table.php');
+        self::assertSame('project custom', file_get_contents($this->tmpDir.'/removed.php'));
+        self::assertContains('removed.php', $result['removed']);
+        self::assertContains('new.php', $result['added']);
+        self::assertSame(['laravelUpgrade.skeletonMigrationAdded', 'laravelUpgrade.skeletonFileRemoved'], array_map(
+            static fn ($finding): string => $finding->ruleId,
+            $collector->all(),
+        ));
+    }
+
+    public function test_new_files_preserve_source_mode_and_conflict_artifacts_use_safe_mode(): void
+    {
+        $root = $this->tmpDir.'/mode-snapshots';
+        mkdir($root.'/10', 0777, true);
+        mkdir($root.'/11', 0777, true);
+        file_put_contents($root.'/MANIFEST.json', json_encode([
+            '10' => ['complete' => true],
+            '11' => ['complete' => true],
+        ], JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/10/custom.txt', "base\n");
+        file_put_contents($root.'/11/custom.txt', "target\n");
+        file_put_contents($root.'/11/target-only.sh', "#!/bin/sh\nexit 0\n");
+        chmod($root.'/11/target-only.sh', 0755);
+        file_put_contents($this->tmpDir.'/custom.txt', "project\n");
+
+        $result = (new SkeletonStep(new SkeletonRepository($root)))->syncProject($this->tmpDir, 10, 11);
+
+        self::assertContains('custom.txt', $result['conflicts']);
+        self::assertSame(0755, fileperms($this->tmpDir.'/target-only.sh') & 0777);
+        $artifact = $this->tmpDir.'/.laravel-upgrade/merge/custom.txt.merged';
+        self::assertFileExists($artifact);
+        self::assertSame(0644, fileperms($artifact) & 0777);
+    }
+
+    public function test_public_artisan_and_test_case_use_three_way_sync_but_application_and_feature_tests_are_excluded(): void
+    {
+        $root = $this->tmpDir.'/three-way-snapshots';
+        mkdir($root.'/10/public', 0777, true);
+        mkdir($root.'/11/public', 0777, true);
+        mkdir($root.'/10/tests', 0777, true);
+        mkdir($root.'/11/tests', 0777, true);
+        mkdir($root.'/10/app', 0777, true);
+        mkdir($root.'/11/app', 0777, true);
+        file_put_contents($root.'/MANIFEST.json', json_encode([
+            '10' => ['complete' => true],
+            '11' => ['complete' => true],
+        ], JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/10/artisan', "<?php\n// old\n");
+        file_put_contents($root.'/11/artisan', "<?php\n// target\n");
+        file_put_contents($root.'/10/public/index.php', "<?php\n// old\n");
+        file_put_contents($root.'/11/public/index.php', "<?php\n// target\n");
+        file_put_contents($root.'/10/tests/TestCase.php', "<?php\n// old\n");
+        file_put_contents($root.'/11/tests/TestCase.php', "<?php\n// target\n");
+        file_put_contents($root.'/10/tests/Feature.php', "<?php\n// old\n");
+        file_put_contents($root.'/11/tests/Feature.php', "<?php\n// target\n");
+        file_put_contents($root.'/10/app/Example.php', "<?php\n// old\n");
+        file_put_contents($root.'/11/app/Example.php', "<?php\n// target\n");
+        file_put_contents($this->tmpDir.'/artisan', "<?php\n// old\n");
+        mkdir($this->tmpDir.'/public', 0777, true);
+        file_put_contents($this->tmpDir.'/public/index.php', "<?php\n// old\n");
+        mkdir($this->tmpDir.'/tests', 0777, true);
+        file_put_contents($this->tmpDir.'/tests/TestCase.php', "<?php\n// old\n");
+        file_put_contents($this->tmpDir.'/tests/Feature.php', "<?php\n// old\n");
+        mkdir($this->tmpDir.'/app', 0777, true);
+        file_put_contents($this->tmpDir.'/app/Example.php', "<?php\n// old\n");
+
+        $result = (new SkeletonStep(new SkeletonRepository($root)))->syncProject($this->tmpDir, 10, 11);
+
+        self::assertSame("<?php\n// target\n", file_get_contents($this->tmpDir.'/artisan'));
+        self::assertSame("<?php\n// target\n", file_get_contents($this->tmpDir.'/public/index.php'));
+        self::assertSame("<?php\n// target\n", file_get_contents($this->tmpDir.'/tests/TestCase.php'));
+        self::assertSame("<?php\n// old\n", file_get_contents($this->tmpDir.'/tests/Feature.php'));
+        self::assertSame("<?php\n// old\n", file_get_contents($this->tmpDir.'/app/Example.php'));
+        self::assertContains('artisan', $result['changed']);
+        self::assertContains('public/index.php', $result['changed']);
+        self::assertContains('tests/TestCase.php', $result['changed']);
+    }
+
+    public function test_config_app_merge_preserves_custom_providers_and_inserts_new_keys(): void
+    {
+        $root = $this->tmpDir.'/config-snapshots';
+        mkdir($root.'/10/config', 0777, true);
+        mkdir($root.'/11/config', 0777, true);
+        file_put_contents($root.'/MANIFEST.json', json_encode([
+            '10' => ['complete' => true],
+            '11' => ['complete' => true],
+        ], JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/10/config/app.php', "<?php\nreturn [\n    'name' => 'Laravel',\n    'providers' => [\n        'FrameworkProvider',\n    ],\n];\n");
+        file_put_contents($root.'/11/config/app.php', "<?php\nreturn [\n    'name' => 'Laravel 11',\n    'new_key' => true,\n    'providers' => [\n        'FrameworkProvider',\n        'NewProvider',\n    ],\n];\n");
+        file_put_contents($this->tmpDir.'/config/app.php', "<?php\n// Keep this comment.\nreturn [\n    'name' => 'My application',\n    'providers' => [\n        'FrameworkProvider',\n        'AppProvider',\n    ],\n];\n");
+
+        $collector = new FindingCollector;
+        $result = (new SkeletonStep(new SkeletonRepository($root)))->syncProject(
+            $this->tmpDir,
+            10,
+            11,
+            $collector,
+        );
+        $contents = file_get_contents($this->tmpDir.'/config/app.php');
+
+        self::assertIsString($contents);
+        self::assertStringContainsString('// Keep this comment.', $contents);
+        self::assertStringContainsString("'new_key' => true", $contents);
+        self::assertStringContainsString("'name' => 'My application'", $contents);
+        self::assertStringContainsString("'AppProvider'", $contents);
+        self::assertStringNotContainsString("'NewProvider'", $contents);
+        self::assertContains('config/app.php', $result['changed']);
+    }
+
+    public function test_complete_vendored_snapshot_matrix_keeps_user_files_and_is_idempotent(): void
+    {
+        $repository = new SkeletonRepository;
+        $transitions = [[10, 11], [11, 12], [12, 13]];
+
+        foreach ($transitions as [$from, $target]) {
+            $project = $this->tmpDir.'/matrix-'.$from.'-'.$target;
+            $this->copyDirectory($repository->path($from), $project);
+            $beforePackage = file_get_contents($project.'/package.json');
+            $beforeRoute = file_get_contents($project.'/routes/web.php');
+
+            if ($from === 10 && $target === 11) {
+                $app = file_get_contents($project.'/config/app.php');
+                self::assertIsString($app);
+                $app = str_replace(
+                    'App\\Providers\\RouteServiceProvider::class,',
+                    "App\\Providers\\RouteServiceProvider::class,\n        App\\Providers\\CustomProvider::class,",
+                    $app,
+                );
+                file_put_contents($project.'/config/app.php', $app);
+            }
+
+            $collector = new FindingCollector;
+            $step = new SkeletonStep($repository);
+            $result = $step->syncProject($project, $from, $target, $collector);
+
+            self::assertSame($beforePackage, file_get_contents($project.'/package.json'));
+            self::assertSame($beforeRoute, file_get_contents($project.'/routes/web.php'));
+            self::assertContains('laravelUpgrade.packageJsonDependencies', array_map(
+                static fn ($finding): string => $finding->ruleId,
+                $collector->all(),
+            ));
+
+            if ($from === 10 && $target === 11) {
+                self::assertContains('laravelUpgrade.skeletonRouteChanged', array_map(
+                    static fn ($finding): string => $finding->ruleId,
+                    $collector->all(),
+                ));
+                self::assertFileDoesNotExist($project.'/bootstrap/providers.php');
+                $app = file_get_contents($project.'/config/app.php');
+                self::assertIsString($app);
+                self::assertStringContainsString('CustomProvider::class', $app);
+                self::assertNotEmpty($result['changed']);
+            }
+
+            if ($from === 11 && $target === 12) {
+                self::assertSame(
+                    file_get_contents($repository->path(12).'/artisan'),
+                    file_get_contents($project.'/artisan'),
+                );
+            }
+
+            if ($from === 12 && $target === 13) {
+                $session = file_get_contents($project.'/config/session.php');
+                self::assertIsString($session);
+                self::assertStringContainsString("'serialization' => 'php'", $session);
+            }
+
+            // Every complete transition must be idempotent and its dry-run
+            // must leave the project byte-for-byte unchanged.
+            $afterFirstRun = $this->fileContents($project);
+            $step->syncProject($project, $from, $target, new FindingCollector);
+            self::assertSame($afterFirstRun, $this->fileContents($project));
+
+            $planProject = $this->tmpDir.'/matrix-plan-'.$from.'-'.$target;
+            $this->copyDirectory($repository->path($from), $planProject);
+            $beforePlan = $this->fileContents($planProject);
+            $step->syncProject($planProject, $from, $target, new FindingCollector, true);
+            self::assertSame($beforePlan, $this->fileContents($planProject));
+
+            if ($from === 10 && $target === 11) {
+                self::assertContains('laravelUpgrade.configBehaviourChange', array_map(
+                    static fn ($finding): string => $finding->ruleId,
+                    $collector->all(),
+                ));
+                $filesystemFindings = array_values(array_filter(
+                    $collector->all(),
+                    static fn ($finding): bool => $finding->ruleId === 'laravelUpgrade.configBehaviourChange'
+                        && str_contains($finding->message, 'filesystem root'),
+                ));
+                self::assertCount(1, $filesystemFindings);
+            }
+        }
+    }
+
+    /** @return array<string, string> */
+    private function fileContents(string $directory): array
+    {
+        $contents = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+        );
+
+        foreach ($iterator as $fileInfo) {
+            /** @var \SplFileInfo $fileInfo */
+            if (! $fileInfo->isFile()) {
+                continue;
+            }
+
+            $relative = str_replace('\\', '/', substr($fileInfo->getPathname(), strlen($directory) + 1));
+            $value = file_get_contents($fileInfo->getPathname());
+            self::assertIsString($value);
+            $contents[$relative] = $value;
+        }
+
+        ksort($contents);
+
+        return $contents;
+    }
+
+    private function copyDirectory(string $source, string $destination): void
+    {
+        mkdir($destination, 0777, true);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($source, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST,
+        );
+
+        foreach ($iterator as $fileInfo) {
+            /** @var \SplFileInfo $fileInfo */
+            $relative = str_replace('\\', '/', substr($fileInfo->getPathname(), strlen($source) + 1));
+            $destinationPath = $destination.'/'.$relative;
+
+            if ($fileInfo->isDir()) {
+                if (! is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+
+                continue;
+            }
+
+            if (! is_dir(dirname($destinationPath))) {
+                mkdir(dirname($destinationPath), 0777, true);
+            }
+            self::assertTrue(copy($fileInfo->getPathname(), $destinationPath));
+            chmod($destinationPath, fileperms($fileInfo->getPathname()) & 0777);
+        }
     }
 }

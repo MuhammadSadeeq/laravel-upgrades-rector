@@ -1,12 +1,20 @@
 {
     "behaviourChanging": {
-        "serialization": {
+        "config/session.php.serialization": {
             "preserveValue": "php",
-            "reason": "Switching session serialization invalidates existing sessions."
+            "upstreamDefault": "json",
+            "severity": "high",
+            "message": "Laravel 13 serializes sessions as JSON by default; switching invalidates all active sessions. The previous 'php' value was kept.",
+            "action": "Change to 'json' during a maintenance window after expiring or migrating active sessions.",
+            "guide": "#session-serialization"
         },
-        "serializable_classes": {
-            "preserveValue": false,
-            "reason": "Preserve the previous cache unserialization behaviour until reviewed."
+        "config/cache.php.serializable_classes": {
+            "preserveValue": true,
+            "upstreamDefault": false,
+            "severity": "medium",
+            "message": "Laravel 13 disables PHP object unserialization from cache by default.",
+            "action": "The previous permissive cache unserialization behavior was kept. Review cached object usage and narrow this value deliberately.",
+            "guide": "#cache-serializable-classes"
         }
     },
     "structureOnly": []

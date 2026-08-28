@@ -262,6 +262,57 @@ final class UpgradeReportGeneratorTest extends TestCase
         self::assertStringContainsString('Review the failed test.', $markdown);
     }
 
+    public function test_report_identity_preserves_metadata_variants_and_collapses_exact_duplicates(): void
+    {
+        mkdir($this->directory.'/.laravel-upgrade', 0777, true);
+        $generator = new UpgradeReportGenerator;
+        $context = new UpgradeContext(
+            $this->directory,
+            new UpgradePlan(10, 11),
+            'run-1',
+            activeFromMajor: 10,
+            activeToMajor: 11,
+        );
+        $finding = static fn (string $severity, string $action): array => [
+            'ruleId' => 'rule.same',
+            'severity' => $severity,
+            'laravelVersion' => 11,
+            'file' => 'app/Example.php',
+            'line' => 4,
+            'message' => 'Same finding.',
+            'action' => $action,
+            'guideUrl' => 'https://example.test',
+            'autoFixed' => false,
+            'confidence' => 'high',
+        ];
+
+        foreach ([
+            ['advisories', [$finding('info', 'First guidance.')]],
+            ['verify', [$finding('medium', 'Second guidance.')]],
+            ['post', [$finding('info', 'First guidance.')]],
+        ] as [$step, $findings]) {
+            $generator->recordStep($context, new StepExecutionResult(
+                '10->11',
+                10,
+                11,
+                $step,
+                StepResult::successful(
+                    findingsCount: 1,
+                    data: ['findings' => $findings],
+                ),
+            ));
+        }
+
+        $contents = file_get_contents($this->directory.'/.laravel-upgrade/report.json');
+        self::assertIsString($contents);
+        $report = json_decode($contents, true);
+        self::assertIsArray($report);
+        $findings = $report['findings'] ?? null;
+        self::assertIsArray($findings);
+        self::assertCount(2, $findings);
+        self::assertSame(['info', 'medium'], array_column($findings, 'severity'));
+    }
+
     public function test_regenerate_reads_canonical_json_and_writes_the_project_root_report(): void
     {
         mkdir($this->directory.'/.laravel-upgrade', 0777, true);
