@@ -1,33 +1,56 @@
 {
-    "generatedAt": "2026-08-23",
-    "source": "laravel/laravel",
-    "note": "The checked-in snapshots contain the upgrade-sensitive files available offline. Run bin/build-skeletons to refresh complete snapshots from tagged releases.",
     "10": {
-        "tag": "v10.48.29",
-        "commit": null,
-        "fetchedAt": null,
-        "complete": false,
-        "structureOnly": []
+        "tag": "v10.3.3",
+        "commit": "d3287461e15862d1c7a8f10925988b4f1640d92b",
+        "fetchedAt": "2026-08-28T01:33:21+00:00",
+        "complete": true,
+        "size": 119977,
+        "treeSha256": "8a212143f4cbfa5711e1e791e7e2a85d2965ae62fda249be37738b629b263ea2",
+        "excluded": [
+            ".git",
+            "README.md",
+            "node_modules"
+        ]
     },
     "11": {
-        "tag": "v11.31.0",
-        "commit": null,
-        "fetchedAt": null,
-        "complete": false,
-        "structureOnly": ["bootstrap/providers.php"]
+        "tag": "v11.6.1",
+        "commit": "e417ebc95d76da3cbee761f0d2b77aebdf52cdc9",
+        "fetchedAt": "2026-08-28T01:33:24+00:00",
+        "complete": true,
+        "size": 109748,
+        "treeSha256": "2571ce51f290ccedb0c2291ee51b5e7244f0c40ce206f7a3ccec203891a8c306",
+        "excluded": [
+            ".git",
+            "README.md",
+            "node_modules"
+        ]
     },
     "12": {
-        "tag": "v12.0.0",
-        "commit": null,
-        "fetchedAt": null,
-        "complete": false,
-        "structureOnly": []
+        "tag": "v12.12.2",
+        "commit": "945f4e5a9fd3695dc0ee512f497c650fb82cfbb8",
+        "fetchedAt": "2026-08-28T01:33:26+00:00",
+        "complete": true,
+        "size": 156774,
+        "treeSha256": "5b3687a69e2a000faf11c676a56e3824a54766769c09d6a841d8c794a3a3d0d4",
+        "excluded": [
+            ".git",
+            "README.md",
+            "node_modules"
+        ]
     },
     "13": {
-        "tag": "v13.17.0",
-        "commit": null,
-        "fetchedAt": null,
-        "complete": false,
-        "structureOnly": []
-    }
+        "tag": "v13.10.1",
+        "commit": "5aad4ddf34d5e21dfe6b4c07eeac67d5bd5e08b0",
+        "fetchedAt": "2026-08-28T01:33:28+00:00",
+        "complete": true,
+        "size": 158331,
+        "treeSha256": "5c964f19c6672944a51e8723ea95fe99402776a805118aac335a069642299785",
+        "excluded": [
+            ".git",
+            "README.md",
+            "node_modules"
+        ]
+    },
+    "schemaVersion": 1,
+    "source": "laravel/laravel"
 }
