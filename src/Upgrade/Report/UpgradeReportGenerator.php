@@ -146,6 +146,29 @@ final class UpgradeReportGenerator
         return rtrim($workingDirectory, '/\\').'/.laravel-upgrade/report.json';
     }
 
+    /**
+     * Return the existing report run id, validating its canonical schema first.
+     * A standalone engine command uses this id to append to the same report as
+     a prior full run instead of replacing its accumulated history.
+     */
+    public function runIdFor(string $workingDirectory, string $fallback): string
+    {
+        $path = $this->canonicalPath($workingDirectory);
+
+        if (! is_file($path)) {
+            return $fallback;
+        }
+
+        $report = $this->loadCanonical($path);
+        $runId = $report['runId'] ?? null;
+
+        if (! is_string($runId) || $runId === '') {
+            throw new RuntimeException(sprintf('Canonical report file "%s" has no valid run id.', $path));
+        }
+
+        return $runId;
+    }
+
     /** @return array<string, mixed> */
     private function newReport(UpgradeContext $context): array
     {
@@ -199,7 +222,53 @@ final class UpgradeReportGenerator
             return $this->newReport($context);
         }
 
+        return $this->reconcileProjectBounds($report, $context);
+    }
+
+    /**
+     * Keep the report's overall range when standalone commands are used for
+     * successive transitions. Non-numeric values are deliberately preserved.
+     *
+     * @param  array<string, mixed>  $report
+     * @return array<string, mixed>
+     */
+    private function reconcileProjectBounds(array $report, UpgradeContext $context): array
+    {
+        $project = $report['project'] ?? null;
+
+        if (! is_array($project)) {
+            return $report;
+        }
+
+        $contextFrom = $context->currentMajor();
+        $contextTo = $context->targetMajor();
+        $existingFrom = $this->numericMajor($project['from'] ?? null);
+        $existingTo = $this->numericMajor($project['to'] ?? null);
+
+        if ($existingFrom !== null) {
+            $project['from'] = (string) min($existingFrom, $contextFrom);
+        }
+
+        if ($existingTo !== null) {
+            $project['to'] = (string) max($existingTo, $contextTo);
+        }
+
+        $report['project'] = $project;
+
         return $report;
+    }
+
+    private function numericMajor(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        return null;
     }
 
     /** @return array<string, mixed> */
