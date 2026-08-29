@@ -67,6 +67,18 @@ final class CodeStep implements StepInterface
                 '--no-progress-bar',
             ];
 
+            // Make the project's Composer classes available before Rector
+            // loads optional PHPStan extensions (notably Larastan). The
+            // project-local binary normally provides this already, but the
+            // explicit option keeps generated configs portable when invoked
+            // through a wrapper or from a different Composer installation.
+            $autoloadFile = rtrim($context->workingDirectory, '/\\').'/vendor/autoload.php';
+
+            if (is_file($autoloadFile)) {
+                $arguments[] = '--autoload-file';
+                $arguments[] = $autoloadFile;
+            }
+
             if ($context->option('clearCache', true) === true) {
                 $arguments[] = '--clear-cache';
             }

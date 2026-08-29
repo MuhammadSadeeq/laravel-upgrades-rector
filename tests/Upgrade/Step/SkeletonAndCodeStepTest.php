@@ -79,6 +79,35 @@ final class SkeletonAndCodeStepTest extends TestCase
         self::assertNotContains('--clear-cache', $runner->requests[0]->arguments);
     }
 
+    public function test_code_passes_project_composer_autoload_to_rector(): void
+    {
+        file_put_contents($this->projectDirectory.'/vendor/autoload.php', "<?php\n");
+        $runner = new StepFakeProcessRunner([
+            new ProcessResult([], 0, '{"totals":{"changed_files":0},"file_diffs":[]}'),
+        ]);
+
+        $result = $this->codeStep($runner)->execute($this->context());
+
+        self::assertTrue($result->isSuccessful());
+        $arguments = $runner->requests[0]->arguments;
+        $autoloadIndex = array_search('--autoload-file', $arguments, true);
+
+        self::assertIsInt($autoloadIndex);
+        self::assertSame($this->projectDirectory.'/vendor/autoload.php', $arguments[$autoloadIndex + 1] ?? null);
+    }
+
+    public function test_code_does_not_pass_missing_project_composer_autoload_to_rector(): void
+    {
+        $runner = new StepFakeProcessRunner([
+            new ProcessResult([], 0, '{"totals":{"changed_files":0},"file_diffs":[]}'),
+        ]);
+
+        $result = $this->codeStep($runner)->execute($this->context());
+
+        self::assertTrue($result->isSuccessful());
+        self::assertNotContains('--autoload-file', $runner->requests[0]->arguments);
+    }
+
     public function test_code_reports_missing_binary_and_invalid_json(): void
     {
         $this->removeDirectory($this->projectDirectory.'/vendor');

@@ -65,10 +65,6 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
                 continue;
             }
 
-            if ($param->var->name === 'request') {
-                return $param->var->name;
-            }
-
             if ($param->type instanceof Node\Name && $this->isName($param->type, 'Illuminate\\Http\\Request')) {
                 return $param->var->name;
             }
@@ -131,15 +127,7 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
 
     private function isAuthenticationExceptionExpression(Node $node): bool
     {
-        if ($this->isObjectType($node, new ObjectType('Illuminate\\Auth\\AuthenticationException'))) {
-            return true;
-        }
-
-        if (! $node instanceof Node\Expr\Variable || ! is_string($node->name)) {
-            return false;
-        }
-
-        return in_array($node->name, ['e', 'exception', 'authException', 'authenticationException'], true);
+        return $this->isObjectType($node, new ObjectType('Illuminate\\Auth\\AuthenticationException'));
     }
 
     public function getRuleDefinition(): RuleDefinition
