@@ -499,6 +499,140 @@ final class SkeletonStepTest extends TestCase
         self::assertSame($beforePlan, $this->fileContents($planProject));
     }
 
+    public function test_modern_slim_config_deletions_are_not_recreated_by_generic_skeleton_sync(): void
+    {
+        $repository = new SkeletonRepository;
+        $project = $this->tmpDir.'/modern-slim';
+        $this->copyDirectory($repository->path(10), $project);
+
+        $result = (new SkeletonStep($repository))->syncProject(
+            $project,
+            10,
+            11,
+            new FindingCollector,
+            false,
+            'modern',
+            true,
+        );
+
+        self::assertSame([], $result['conflicts']);
+        self::assertContains('config/auth.php', $result['deleted']);
+        self::assertFileDoesNotExist($project.'/config/auth.php');
+        self::assertSame(1, count(array_filter(
+            $result['changed'],
+            static fn (string $relative): bool => $relative === 'config/auth.php',
+        )));
+    }
+
+    public function test_modern_conflict_short_circuits_generic_skeleton_sync(): void
+    {
+        $repository = new SkeletonRepository;
+        $project = $this->tmpDir.'/modern-conflict';
+        $this->copyDirectory($repository->path(10), $project);
+
+        $kernelPath = $project.'/app/Http/Kernel.php';
+        $kernel = file_get_contents($kernelPath);
+        self::assertIsString($kernel);
+        $kernel = str_replace(
+            "\n}\n",
+            "\n\n    public function customMiddleware(): void {}\n}\n",
+            $kernel,
+        );
+        self::assertIsInt(file_put_contents($kernelPath, $kernel));
+        $before = $this->fileContents($project);
+        $collector = new FindingCollector;
+
+        $result = (new SkeletonStep($repository))->syncProject(
+            $project,
+            10,
+            11,
+            $collector,
+            false,
+            'modern',
+        );
+
+        self::assertSame([], $result['changed']);
+        self::assertSame([], $result['added']);
+        self::assertSame([], $result['removed']);
+        self::assertSame([], $result['modified']);
+        self::assertSame([], $result['renamed']);
+        self::assertSame([], $result['deleted']);
+        self::assertSame(['app/Http/Kernel.php'], $result['conflicts']);
+        self::assertSame($before, $this->fileContents($project));
+        self::assertFileDoesNotExist($project.'/bootstrap/providers.php');
+    }
+
+    public function test_modern_generic_phpunit_conflict_is_preflighted_before_any_structure_write(): void
+    {
+        $repository = new SkeletonRepository;
+        $project = $this->tmpDir.'/modern-phpunit-conflict';
+        $this->copyDirectory($repository->path(10), $project);
+
+        $path = $project.'/phpunit.xml';
+        $phpunit = file_get_contents($path);
+        self::assertIsString($phpunit);
+        $phpunit = str_replace(
+            '<env name="CACHE_DRIVER" value="array"/>',
+            '<env name="CACHE_DRIVER" value="redis"/>',
+            $phpunit,
+        );
+        self::assertIsInt(file_put_contents($path, $phpunit));
+        $before = $this->fileContents($project);
+
+        $result = (new SkeletonStep($repository))->syncProject(
+            $project,
+            10,
+            11,
+            new FindingCollector,
+            false,
+            'modern',
+        );
+
+        self::assertSame([], $result['changed']);
+        self::assertSame([], $result['added']);
+        self::assertSame([], $result['removed']);
+        self::assertSame([], $result['modified']);
+        self::assertSame([], $result['renamed']);
+        self::assertSame([], $result['deleted']);
+        self::assertSame(['phpunit.xml'], $result['conflicts']);
+        self::assertSame($before, $this->fileContents($project));
+        self::assertFileExists($project.'/app/Http/Kernel.php');
+        self::assertFileDoesNotExist($project.'/bootstrap/providers.php');
+    }
+
+    public function test_custom_legacy_bootstrap_conflict_is_preflighted_before_any_structure_write(): void
+    {
+        $repository = new SkeletonRepository;
+        $project = $this->tmpDir.'/modern-bootstrap-conflict';
+        $this->copyDirectory($repository->path(10), $project);
+
+        $path = $project.'/bootstrap/app.php';
+        $bootstrap = file_get_contents($path);
+        self::assertIsString($bootstrap);
+        self::assertIsInt(file_put_contents($path, $bootstrap."\n// project legacy bootstrap customization\n"));
+        $before = $this->fileContents($project);
+
+        $result = (new SkeletonStep($repository))->syncProject(
+            $project,
+            10,
+            11,
+            new FindingCollector,
+            false,
+            'modern',
+        );
+
+        self::assertSame([], $result['changed']);
+        self::assertSame([], $result['added']);
+        self::assertSame([], $result['removed']);
+        self::assertSame([], $result['modified']);
+        self::assertSame([], $result['renamed']);
+        self::assertSame([], $result['deleted']);
+        self::assertSame(['bootstrap/app.php'], $result['conflicts']);
+        self::assertSame($before, $this->fileContents($project));
+        self::assertFileExists($project.'/app/Http/Kernel.php');
+        self::assertFileDoesNotExist($project.'/bootstrap/providers.php');
+    }
+
     /** @return array<string, string> */
     private function fileContents(string $directory): array
     {

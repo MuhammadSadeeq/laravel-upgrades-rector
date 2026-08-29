@@ -69,12 +69,6 @@ abstract class SingleStepCommand extends Command
             return Command::FAILURE;
         }
 
-        if ($this->stepName() === 'skeleton' && $structure === 'modern') {
-            $style->error('Modern structure mode is not available yet (Phase 6).');
-
-            return Command::FAILURE;
-        }
-
         $constraintPolicy = $this->stringOption($input, 'constraint-policy', 'replace');
 
         if (! in_array($constraintPolicy, ['replace', 'widen'], true)) {
@@ -99,6 +93,12 @@ abstract class SingleStepCommand extends Command
             $style->success(sprintf('Already on Laravel %d — nothing to do.', $targetMajor));
 
             return Command::SUCCESS;
+        }
+
+        if ($structure === 'modern' && ($detected->major !== 10 || $targetMajor !== 11)) {
+            $style->error('Modern structure mode is supported only for the Laravel 10 to 11 transition.');
+
+            return Command::FAILURE;
         }
 
         if ($targetMajor !== $detected->major + 1) {
@@ -169,6 +169,7 @@ abstract class SingleStepCommand extends Command
             ->addOption('annotate', null, InputOption::VALUE_NONE, 'Write advisory TODO comments when applying advisories')
             ->addOption('constraint-policy', null, InputOption::VALUE_REQUIRED, 'Dependency constraint policy (replace or widen)', 'replace')
             ->addOption('structure', null, InputOption::VALUE_REQUIRED, 'Skeleton structure mode (keep or modern)', 'keep')
+            ->addOption('slim-config', null, InputOption::VALUE_NONE, 'Remove only config files identical to the Laravel 10 skeleton in modern mode')
             ->addOption('no-install', null, InputOption::VALUE_NONE, 'Do not install dependencies')
             ->addOption('no-git', null, InputOption::VALUE_NONE, 'Disable git safety for this standalone step')
             ->addOption('allow-dirty', null, InputOption::VALUE_NONE, 'Allow a dirty worktree for this standalone step')
@@ -213,6 +214,7 @@ abstract class SingleStepCommand extends Command
             'annotate' => (bool) $input->getOption('annotate') && ! $planMode,
             'constraintPolicy' => $constraintPolicy,
             'structure' => $structure,
+            'slimConfig' => (bool) $input->getOption('slim-config'),
             'noInteraction' => (bool) $input->getOption('no-interaction'),
             'composerBinary' => $composer,
             'clearCache' => true,

@@ -183,7 +183,7 @@ final class StateStore
             'constraintPolicy', 'forceConfig', 'fromStep', 'git', 'noGit',
             'noInstall', 'noInteraction', 'noPint', 'noTests', 'pint',
             'phpstanBinary', 'phpstanPaths', 'rectorBinary', 'skipSteps',
-            'solverDryRun', 'structure', 'workingDirectory', 'library',
+            'solverDryRun', 'structure', 'slimConfig', 'workingDirectory', 'library',
             'verifyPhpstan',
         ];
         $safe = [];

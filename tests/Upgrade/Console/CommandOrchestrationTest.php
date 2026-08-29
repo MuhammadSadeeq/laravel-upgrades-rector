@@ -166,7 +166,7 @@ final class CommandOrchestrationTest extends TestCase
         self::assertNotNull($manifest->warning);
     }
 
-    public function test_failure_exit_code_is_returned_and_modern_structure_is_rejected(): void
+    public function test_failure_exit_code_is_returned_and_modern_structure_is_allowed_for_ten_to_eleven(): void
     {
         $runtime = new RecordingRuntime(UpgradeRunResult::failed(
             'code', '10->11', 4, [], [], 'code failed',
@@ -181,12 +181,12 @@ final class CommandOrchestrationTest extends TestCase
         self::assertSame(1, count($runtime->runs));
 
         $modern = new CommandTester(new ToCommand($runtime));
-        self::assertSame(1, $modern->execute([
+        self::assertSame(4, $modern->execute([
             'target-major' => '11',
             '--working-dir' => $this->directory,
             '--structure' => 'modern',
         ]));
-        self::assertSame(1, count($runtime->runs));
+        self::assertSame(2, count($runtime->runs));
     }
 
     public function test_plan_command_preserves_common_options(): void

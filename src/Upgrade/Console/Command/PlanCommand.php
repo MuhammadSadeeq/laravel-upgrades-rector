@@ -47,7 +47,7 @@ final class PlanCommand extends Command
         foreach ([
             'from-step', 'skip-step', 'no-git', 'allow-dirty', 'no-install',
             'no-tests', 'skip-tests', 'no-pint', 'annotate', 'constraint-policy',
-            'structure', 'no-interaction', 'working-dir', 'composer', 'reset',
+            'structure', 'slim-config', 'no-interaction', 'working-dir', 'composer', 'reset',
         ] as $option) {
             $value = $input->getOption($option);
 

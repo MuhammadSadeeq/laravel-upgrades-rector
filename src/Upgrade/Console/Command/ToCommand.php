@@ -60,6 +60,7 @@ final class ToCommand extends Command
             ->addOption('annotate', null, InputOption::VALUE_NONE, 'Write advisory TODO comments into PHP source files')
             ->addOption('constraint-policy', null, InputOption::VALUE_REQUIRED, 'Dependency constraint policy (replace or widen)', 'replace')
             ->addOption('structure', null, InputOption::VALUE_REQUIRED, 'Skeleton structure mode (keep or modern)', 'keep')
+            ->addOption('slim-config', null, InputOption::VALUE_NONE, 'Remove only config files identical to the Laravel 10 skeleton in modern mode')
             ->addOption('no-interaction', 'n', InputOption::VALUE_NONE, 'Do not ask for confirmation')
             ->addOption('working-dir', 'd', InputOption::VALUE_REQUIRED, 'Project directory', '.')
             ->addOption('composer', null, InputOption::VALUE_REQUIRED, 'Composer binary or project-contained path')
@@ -94,12 +95,6 @@ final class ToCommand extends Command
             return Command::FAILURE;
         }
 
-        if ($structure === 'modern') {
-            $style->error('Modern structure mode is not available yet (Phase 6).');
-
-            return Command::FAILURE;
-        }
-
         $constraintPolicy = $this->stringOption($input, 'constraint-policy', 'replace');
 
         if (! in_array($constraintPolicy, ['replace', 'widen'], true)) {
@@ -124,6 +119,12 @@ final class ToCommand extends Command
             $style->success(sprintf('Already on Laravel %d — nothing to do.', $targetMajor));
 
             return Command::SUCCESS;
+        }
+
+        if ($structure === 'modern' && ($detected->major !== 10 || $targetMajor !== 11)) {
+            $style->error('Modern structure mode is supported only for the Laravel 10 to 11 transition.');
+
+            return Command::FAILURE;
         }
 
         try {
@@ -300,6 +301,7 @@ final class ToCommand extends Command
             'annotate' => (bool) $input->getOption('annotate') && ! $plan->isPlanMode(),
             'constraintPolicy' => $this->stringOption($input, 'constraint-policy', 'replace'),
             'structure' => $this->stringOption($input, 'structure', 'keep'),
+            'slimConfig' => (bool) $input->getOption('slim-config'),
             'noInteraction' => (bool) $input->getOption('no-interaction'),
             'composerBinary' => $composer,
             'clearCache' => true,

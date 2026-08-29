@@ -25,7 +25,16 @@ final class SkeletonSyncStep implements StepInterface
             ? $structureOption
             : 'keep';
         $forceConfig = $context->option('forceConfig', $context->option('force-config', false)) === true;
+        $slimConfig = $context->option('slimConfig', $context->option('slim-config', false)) === true;
         $collector = new FindingCollector;
+
+        if ($structure === 'modern' && ($context->fromMajor() !== 10 || $context->toMajor() !== 11)) {
+            return StepResult::failed(
+                message: 'Modern structure mode is supported only for the Laravel 10 to 11 transition.',
+                data: ['structure' => $structure, 'slimConfig' => $slimConfig],
+                exitCode: 4,
+            );
+        }
 
         try {
             $sync = $this->skeleton->syncProject(
@@ -35,11 +44,12 @@ final class SkeletonSyncStep implements StepInterface
                 $collector,
                 $context->isPlanMode(),
                 $structure,
+                $slimConfig,
             );
         } catch (Throwable $exception) {
             return StepResult::failed(
                 message: 'Skeleton synchronization failed: '.$exception->getMessage(),
-                data: ['structure' => $structure, 'forceConfig' => $forceConfig],
+                data: ['structure' => $structure, 'forceConfig' => $forceConfig, 'slimConfig' => $slimConfig],
                 exitCode: 4,
             );
         }
@@ -57,6 +67,7 @@ final class SkeletonSyncStep implements StepInterface
                     'findings' => $collector->all(),
                     'structure' => $structure,
                     'forceConfig' => $forceConfig,
+                    'slimConfig' => $slimConfig,
                 ],
                 exitCode: 4,
             );
@@ -73,6 +84,7 @@ final class SkeletonSyncStep implements StepInterface
                 'findings' => $collector->all(),
                 'structure' => $structure,
                 'forceConfig' => $forceConfig,
+                'slimConfig' => $slimConfig,
             ],
         );
     }

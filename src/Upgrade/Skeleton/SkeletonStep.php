@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Skeleton;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\FindingCollector;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Structure\ModernStructureMigrator;
 use RuntimeException;
 
 /**
@@ -39,6 +40,9 @@ final class SkeletonStep
     private ThreeWayMerger $threeWayMerger;
 
     private SkeletonRepository $repository;
+
+    /** Prevents the generic transaction preflight from recursing into modern migration. */
+    private bool $skipModernMigration = false;
 
     public function __construct(
         ?SkeletonRepository $repository = null,
@@ -108,7 +112,7 @@ final class SkeletonStep
     /**
      * Applies the full skeleton policy for one major transition.
      *
-     * @return array{changed: list<string>, added: list<string>, removed: list<string>, modified: list<string>, renamed: array<string, string>, conflicts: list<string>}
+     * @return array{changed: list<string>, added: list<string>, removed: list<string>, modified: list<string>, renamed: array<string, string>, conflicts: list<string>, deleted: list<string>}
      */
     public function syncProject(
         string $projectDirectory,
@@ -116,7 +120,8 @@ final class SkeletonStep
         int $targetMajor,
         ?FindingCollector $collector = null,
         bool $dryRun = false,
-        string $structure = 'keep'
+        string $structure = 'keep',
+        bool $slimConfig = false,
     ): array {
         $fromDirectory = $this->repository->path($fromMajor);
         $toDirectory = $this->repository->path($targetMajor);
@@ -129,6 +134,7 @@ final class SkeletonStep
                 'modified' => [],
                 'renamed' => [],
                 'conflicts' => [],
+                'deleted' => [],
             ];
         }
 
@@ -158,14 +164,104 @@ final class SkeletonStep
                 'modified' => [],
                 'renamed' => [],
                 'conflicts' => [],
+                'deleted' => [],
             ];
         }
 
+        if ($structure === 'modern' && $fromMajor === 10 && $targetMajor === 11 && ! $dryRun && ! $this->skipModernMigration) {
+            // Generic skeleton merges run after modern migration. Probe them
+            // against the untouched tree first so a merge conflict (for
+            // example, a customized phpunit.xml) cannot leave a partially
+            // migrated application behind.
+            $previewCollector = new FindingCollector;
+            $this->skipModernMigration = true;
+
+            try {
+                $preview = $this->syncProject(
+                    $projectDirectory,
+                    $fromMajor,
+                    $targetMajor,
+                    $previewCollector,
+                    true,
+                    $structure,
+                    $slimConfig,
+                );
+            } finally {
+                $this->skipModernMigration = false;
+            }
+
+            if ($preview['conflicts'] !== []) {
+                $collector?->merge($previewCollector->all());
+
+                return [
+                    'changed' => [],
+                    'added' => [],
+                    'removed' => [],
+                    'modified' => [],
+                    'renamed' => [],
+                    'conflicts' => $preview['conflicts'],
+                    'deleted' => [],
+                ];
+            }
+        }
+
+        $modern = ['changed' => [], 'deleted' => [], 'conflicts' => []];
+
+        if ($structure === 'modern' && $fromMajor === 10 && $targetMajor === 11 && ! $this->skipModernMigration) {
+            $modern = (new ModernStructureMigrator($this->repository))->migrate(
+                $projectDirectory,
+                $fromMajor,
+                $targetMajor,
+                $collector,
+                $dryRun,
+                $slimConfig,
+            );
+
+            if ($modern['conflicts'] !== []) {
+                // Modern migration performs a complete preflight. Do not
+                // allow the generic synchronizer to write or delete files
+                // after an unsafe legacy component was discovered.
+                return [
+                    'changed' => [],
+                    'added' => [],
+                    'removed' => [],
+                    'modified' => [],
+                    'renamed' => [],
+                    'conflicts' => $modern['conflicts'],
+                    'deleted' => [],
+                ];
+            }
+        }
+
         $classification = $this->classifier->classify($fromDirectory, $toDirectory);
-        $changed = [];
-        $conflicts = [];
+        $changed = $modern['changed'];
+        $conflicts = $modern['conflicts'];
+        $deleted = $modern['deleted'];
+        $modernManaged = array_values(array_unique(array_merge($modern['changed'], $modern['deleted'])));
+
+        if ($structure === 'modern' && $fromMajor === 10 && $targetMajor === 11) {
+            // ModernStructureMigrator owns these paths for the whole
+            // transition, including later idempotency runs where its result
+            // is empty because the files are already in their final state.
+            $modernManaged = array_values(array_unique(array_merge($modernManaged, [
+                'bootstrap/app.php',
+                'bootstrap/providers.php',
+                'config/app.php',
+                'app/Providers/AppServiceProvider.php',
+                'app/Providers/RouteServiceProvider.php',
+                'app/Http/Kernel.php',
+                'app/Console/Kernel.php',
+                'app/Exceptions/Handler.php',
+                'tests/CreatesApplication.php',
+                'tests/TestCase.php',
+            ])));
+        }
 
         foreach ($classification['added'] as $relative) {
+            if (in_array($relative, $modernManaged, true)) {
+                continue;
+            }
+
             if ($this->isRoute($relative)) {
                 $this->reportRouteChange($collector, $targetMajor, $relative, 'added');
 
@@ -241,6 +337,10 @@ final class SkeletonStep
         }
 
         foreach ($classification['modified'] as $relative) {
+            if (in_array($relative, $modernManaged, true)) {
+                continue;
+            }
+
             if ($this->isRoute($relative)) {
                 $this->reportRouteChange($collector, $targetMajor, $relative, 'modified');
 
@@ -408,6 +508,10 @@ final class SkeletonStep
             }
 
             if (! in_array('config/'.$configName.'.php', $classification['modified'], true)) {
+                if (in_array('config/'.$configName.'.php', $deleted, true)) {
+                    continue;
+                }
+
                 $this->syncConfigFile(
                     $projectPath,
                     $upstreamPath,
@@ -514,6 +618,7 @@ final class SkeletonStep
             'modified' => $modified,
             'renamed' => $renamed,
             'conflicts' => array_values(array_unique($conflicts)),
+            'deleted' => array_values(array_unique($deleted)),
         ];
     }
 
