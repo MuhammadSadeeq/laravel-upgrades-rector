@@ -5,6 +5,39 @@ All notable changes to `laravel-upgrades-rector` will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Changes for the next release will be documented here.
+
+## [2.0.0] — 2026-08-30
+
+The complete upgrade platform release: Laravel upgrade work is now a
+journaled, reviewable workflow rather than a Rector-only code pass.
+
+### Added
+
+- Real Laravel 11, 12, and 13 vendor environments, generated-code load gates,
+  fixture lint and idempotency checks, plus an end-to-end upgrade harness for
+  each supported major transition.
+- Shared, data-driven contract and AST infrastructure, installed-package-aware
+  Carbon 3 handling, and generated per-run Rector configurations.
+- PHPStan advisory analysis with structured findings, project-level checks,
+  canonical JSON/Markdown upgrade reports, and optional source annotations.
+- Journaled `to`, `plan`, `continue`, `report`, `deps`, `skeleton`, `code`,
+  `advise`, `post`, and `verify` commands with preflight checks, Composer
+  planning, safe git checkpoints, and resumable multi-major upgrades.
+- Three-way Laravel skeleton/config synchronization and conservative
+  `.env.example` merging, including conflict and preserved-value reporting.
+- Optional Laravel 10 → 11 structure modernization and ecosystem package
+  compatibility guidance for dependency planning.
+
+### Changed
+
+- Upgrade presets and reports now work from any project working directory and
+  keep advisories out of source by default.
+- Release metadata, changelog links, and annotated-tag checks are validated
+  locally by `composer check-release`; the command never publishes or pushes.
+
 ## [1.1.0] — 2026-08-23
 
 Stop-the-bleeding release: nothing the published package did can corrupt a
@@ -172,7 +205,8 @@ proper CLI command.
   - Laravel 13: CSRF middleware rename, pagination view names, event property
     renames, container/query/eloquent behavior advisories
 
-[Unreleased]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.5...v1.1.0
 [1.0.5]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.3...v1.0.4

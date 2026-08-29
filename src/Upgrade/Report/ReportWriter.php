@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report;
 
+use MuhammadSadeeq\LaravelUpgradesRector\PackageInfo;
+
 /**
  * Renders the versioned upgrade report document (Appendix D).
  *
@@ -304,7 +306,7 @@ final class ReportWriter
     {
         $report = [
             'schemaVersion' => 1,
-            'tool' => 'laravel-upgrades-rector/2.0.0',
+            'tool' => PackageInfo::TOOL,
             'runId' => 'unknown',
             'startedAt' => gmdate(DATE_ATOM),
             'finishedAt' => gmdate(DATE_ATOM),

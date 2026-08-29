@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report;
 
 use JsonException;
+use MuhammadSadeeq\LaravelUpgradesRector\PackageInfo;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\StepExecutionResult;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\UpgradeContext;
 use RuntimeException;
@@ -19,7 +20,7 @@ final class UpgradeReportGenerator
 {
     public const SCHEMA_VERSION = 1;
 
-    public const TOOL = 'laravel-upgrades-rector/2.0.0';
+    public const TOOL = PackageInfo::TOOL;
 
     public function __construct(private readonly ReportWriter $writer = new ReportWriter) {}
 

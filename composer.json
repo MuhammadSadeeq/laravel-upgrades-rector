@@ -81,7 +81,8 @@
         "test-independent": "phpunit --testsuite independent",
         "format": "pint",
         "format-test": "pint --test",
-        "analyse": "phpstan analyse --level max"
+        "analyse": "phpstan analyse --level max",
+        "check-release": "php bin/check-release"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,

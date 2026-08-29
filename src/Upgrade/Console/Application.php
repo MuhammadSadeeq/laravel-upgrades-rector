@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console;
 
+use MuhammadSadeeq\LaravelUpgradesRector\PackageInfo;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\AdviseCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\CodeCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ContinueCommand;
@@ -20,7 +21,7 @@ final class Application extends SymfonyApplication
 {
     public const NAME = 'Laravel Upgrade';
 
-    public const VERSION = '1.1.0';
+    public const VERSION = PackageInfo::VERSION;
 
     public function __construct(
         ?UpgradeRuntimeInterface $runtime = null,

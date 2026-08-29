@@ -1,0 +1,103 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$packageRoot = dirname(__DIR__);
+$root = $packageRoot;
+$tag = null;
+$arguments = array_slice($argv, 1);
+
+for ($index = 0, $count = count($arguments); $index < $count; $index++) {
+    $argument = $arguments[$index];
+
+    if ($argument === '--help' || $argument === '-h') {
+        fwrite(STDOUT, "Usage: bin/check-release [--root PATH|--root=PATH] [--tag TAG|--tag=TAG]\n");
+
+        exit(0);
+    }
+
+    if ($argument === '--root' || $argument === '--tag') {
+        $value = $arguments[++$index] ?? null;
+
+        if (! is_string($value) || $value === '' || str_starts_with($value, '-')) {
+            fwrite(STDERR, sprintf("Missing value for %s.\n", $argument));
+
+            exit(2);
+        }
+
+        if ($argument === '--root') {
+            $root = $value;
+        } else {
+            $tag = $value;
+        }
+
+        continue;
+    }
+
+    if (str_starts_with($argument, '--root=')) {
+        $value = substr($argument, strlen('--root='));
+
+        if ($value === '') {
+            fwrite(STDERR, "Missing value for --root.\n");
+
+            exit(2);
+        }
+
+        $root = $value;
+        continue;
+    }
+
+    if (str_starts_with($argument, '--tag=')) {
+        $value = substr($argument, strlen('--tag='));
+
+        if ($value === '') {
+            fwrite(STDERR, "Missing value for --tag.\n");
+
+            exit(2);
+        }
+
+        $tag = $value;
+        continue;
+    }
+
+    fwrite(STDERR, sprintf("Unknown option: %s\n", $argument));
+
+    exit(2);
+}
+
+$root = realpath($root) ?: $root;
+$packageInfo = $packageRoot.'/src/PackageInfo.php';
+$validator = $packageRoot.'/src/Release/ReleaseValidator.php';
+
+if (! is_file($packageInfo) || ! is_file($validator)) {
+    fwrite(STDERR, "Could not locate package release metadata.\n");
+
+    exit(2);
+}
+
+foreach ([$packageRoot.'/vendor/autoload.php', __DIR__.'/../vendor/autoload.php'] as $autoloader) {
+    if (is_file($autoloader)) {
+        require_once $autoloader;
+
+        break;
+    }
+}
+
+require_once $packageInfo;
+require_once $validator;
+
+$releaseValidator = new \MuhammadSadeeq\LaravelUpgradesRector\Release\ReleaseValidator($root);
+$errors = $releaseValidator->validate($tag);
+
+if ($errors !== []) {
+    fwrite(STDERR, "Release validation failed:\n");
+
+    foreach ($errors as $error) {
+        fwrite(STDERR, "- ".$error."\n");
+    }
+
+    exit(1);
+}
+
+fwrite(STDOUT, sprintf("Release metadata is consistent for %s %s.\n", \MuhammadSadeeq\LaravelUpgradesRector\PackageInfo::NAME, \MuhammadSadeeq\LaravelUpgradesRector\PackageInfo::VERSION));

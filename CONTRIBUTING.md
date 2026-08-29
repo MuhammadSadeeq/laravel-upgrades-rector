@@ -37,13 +37,47 @@ Thank you for considering contributing to Laravel Upgrades Rector. This guide wi
 composer test
 
 # Run specific test suite
-vendor/bin/phpunit --testsuite="Laravel 11 Upgrade Rules"
-vendor/bin/phpunit --testsuite="Laravel 12 Upgrade Rules"
-vendor/bin/phpunit --testsuite="Laravel 13 Upgrade Rules"
+LARAVEL_ENV=11 vendor/bin/phpunit --testsuite=env-11
+LARAVEL_ENV=12 vendor/bin/phpunit --testsuite=env-12
+LARAVEL_ENV=13 vendor/bin/phpunit --testsuite=env-13
+vendor/bin/phpunit --testsuite=independent
 
 # Run static analysis
 composer analyse
+
+# Check formatting and release metadata
+composer format-test
+composer check-release
 ```
+
+The environment suites load the matching real Laravel vendor tree. They must
+run in separate processes because each environment supplies its own framework
+autoloading. `composer test` runs `env-11`, `env-12`, `env-13`, and
+`independent` (which contains the orchestrator, report, and support tests).
+
+## Release checklist
+
+Before preparing a release:
+
+1. Update `src/PackageInfo.php` and add the matching dated section and compare
+   links to `CHANGELOG.md`. Keep an `[Unreleased]` section at the top.
+2. Run `composer validate --strict`, `composer test`, `composer analyse`,
+   `composer format-test`, and `composer check-release`.
+3. Run the end-to-end harness for `10 11`, `11 12`, and `12 13` with
+   `php bin/e2e <from> <to>` and review the generated diffs.
+4. Review the working tree and ensure the release commit contains only the
+   intended source, test, workflow, and changelog changes.
+5. Create an annotated tag (never a lightweight tag):
+
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git show --format=fuller --no-patch vX.Y.Z
+   composer check-release
+   ```
+
+6. Push the commit and tag only after the tag validation succeeds. The release
+   workflow validates the tag object and metadata; it does not publish or push
+   anything.
 
 ### Adding a New Rule
 
