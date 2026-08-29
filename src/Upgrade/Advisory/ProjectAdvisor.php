@@ -24,15 +24,6 @@ use Throwable;
  */
 final class ProjectAdvisor
 {
-    /** @var array<string, array{url: string, key: string}> */
-    private const PACKAGE_GUIDES = [
-        'livewire' => ['url' => 'https://livewire.laravel.com/docs/upgrading', 'key' => 'livewire/livewire'],
-        'jetstream' => ['url' => 'https://jetstream.laravel.com', 'key' => 'laravel/jetstream'],
-        'inertia' => ['url' => 'https://inertiajs.com/upgrade-guide', 'key' => 'inertiajs/inertia-laravel'],
-        'filament' => ['url' => 'https://filamentphp.com/docs/upgrade-guide', 'key' => 'filament/filament'],
-        'nova' => ['url' => 'https://nova.laravel.com/docs/upgrade', 'key' => 'laravel/nova'],
-    ];
-
     /** @var array<int, list<string>> */
     private const REMOVED_SKELETON_FILES = [
         11 => [
@@ -301,22 +292,6 @@ final class ProjectAdvisor
                     $packages[$package['name']] = is_string($package['version'] ?? null) ? $package['version'] : '';
                 }
             }
-        }
-
-        foreach (self::PACKAGE_GUIDES as $key => $guide) {
-            if (! array_key_exists($guide['key'], $packages)) {
-                continue;
-            }
-
-            $version = $packages[$guide['key']];
-            $versionText = $version !== '' ? sprintf(' (%s)', $version) : '';
-            $collector->add(
-                'laravelUpgrade.'.$key.'UpgradeGuide', Finding::SEVERITY_INFO, $this->targetMajor,
-                'composer.lock', 0,
-                sprintf('%s%s is installed and may require its own upgrade process.', $guide['key'], $versionText),
-                sprintf('Review the %s upgrade guide for Laravel %d compatibility.', $guide['key'], $this->targetMajor),
-                $guide['url']
-            );
         }
 
         if (array_key_exists('laravel/boost', $packages)) {

@@ -24,10 +24,13 @@ final class DependencyDecision
         public readonly ?string $proposed,
         public readonly string $action,
         public readonly string $reason,
+        public readonly ?string $installed = null,
+        /** Where the installed version was read from: lock, installed, or null. */
+        public readonly ?string $installedSource = null,
     ) {}
 
     /**
-     * @return array{package: string, section: string, current: string|null, proposed: string|null, action: string, reason: string}
+     * @return array{package: string, section: string, current: string|null, proposed: string|null, action: string, reason: string, installed: string|null, installedSource: string|null}
      */
     public function toArray(): array
     {
@@ -38,6 +41,8 @@ final class DependencyDecision
             'proposed' => $this->proposed,
             'action' => $this->action,
             'reason' => $this->reason,
+            'installed' => $this->installed,
+            'installedSource' => $this->installedSource,
         ];
     }
 }

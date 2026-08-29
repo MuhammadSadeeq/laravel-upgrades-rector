@@ -10,6 +10,8 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ComposerCli;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ConstraintPlanner;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\DependencyDecision;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ManifestReader;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideAnalyzer;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideCatalog;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -103,6 +105,10 @@ HELP
             ));
 
             return 3; // dependency resolution failure
+        } catch (\RuntimeException $exception) {
+            $style->error($exception->getMessage());
+
+            return Command::FAILURE;
         }
     }
 
@@ -122,6 +128,9 @@ HELP
 
         /** @var list<DependencyDecision> $decisions */
         $decisions = $planner->planAll($targetMajor, $manifest, $lockedPackages);
+        $guideAnalysis = (new PackageGuideAnalyzer(new PackageGuideCatalog(
+            dirname(__DIR__, 4).'/resources/compat/package-guides.json',
+        )))->analyze($decisions, $targetMajor, $workingDirectory);
 
         if ($decisions === []) {
             $style->warning('composer.json declares no dependencies — nothing to do.');
@@ -130,6 +139,7 @@ HELP
         }
 
         $this->renderDecisions($style, $targetMajor, $decisions);
+        $this->renderPackageGuides($style, $guideAnalysis->guides);
 
         $bumps = array_filter(
             $decisions,
@@ -267,6 +277,52 @@ HELP
         }
 
         $style->table(['Package', 'Section', 'Current', 'Proposed', 'Reason'], $rows);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $guides
+     */
+    private function renderPackageGuides(SymfonyStyle $style, array $guides): void
+    {
+        if ($guides === []) {
+            return;
+        }
+
+        $style->section('Package upgrade guides');
+        $rows = [];
+
+        foreach ($guides as $guide) {
+            $package = is_string($guide['package'] ?? null) ? $guide['package'] : 'package';
+            $fromMajor = is_int($guide['fromMajor'] ?? null) ? (string) $guide['fromMajor'] : '?';
+            $toMajor = is_int($guide['toMajor'] ?? null) ? (string) $guide['toMajor'] : '?';
+            $guideMajor = is_int($guide['guideMajor'] ?? null) ? (string) $guide['guideMajor'] : '?';
+            $url = is_string($guide['guideUrl'] ?? null) ? $guide['guideUrl'] : '';
+            $items = is_int($guide['items'] ?? null) ? (string) $guide['items'] : '0';
+            $componentCount = $guide['componentCount'] ?? null;
+            $componentLabel = is_string($guide['componentLabel'] ?? null) ? $guide['componentLabel'] : 'components';
+            $count = is_int($componentCount) ? sprintf('%d %s', $componentCount, $componentLabel) : '-';
+            $messages = is_array($guide['messages'] ?? null) ? $guide['messages'] : [];
+            $actions = is_array($guide['actions'] ?? null) ? $guide['actions'] : [];
+            $advice = [];
+            $status = is_string($guide['status'] ?? null) ? $guide['status'] : 'supported';
+            $notes = is_string($guide['notes'] ?? null) ? $guide['notes'] : null;
+
+            if ($status === 'future' && $notes !== null) {
+                $advice[] = 'Manual/future guide: '.$notes;
+            }
+
+            foreach ($messages as $index => $message) {
+                if (! is_string($message) || ! is_string($actions[$index] ?? null)) {
+                    continue;
+                }
+
+                $advice[] = $message.' Action: '.$actions[$index];
+            }
+
+            $rows[] = [$package, $fromMajor.' → '.$toMajor, $guideMajor, $items, $count, implode("\n", $advice), $url];
+        }
+
+        $style->table(['Package', 'Crossing', 'Guide major', 'Items', 'Count', 'Advice', 'Guide'], $rows);
     }
 
     private function resolveTargetMajor(string $argument): ?int

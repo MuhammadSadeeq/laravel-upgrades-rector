@@ -48,16 +48,17 @@ final class ConstraintPlanner
 
         return array_merge(
             $decisions,
-            $this->plan($targetMajor, $manifest, $handledByRemovalPolicy)
+            $this->plan($targetMajor, $manifest, $handledByRemovalPolicy, $lockedPackages)
         );
     }
 
     /**
      * @param  array<string, mixed>  $manifest
      * @param  array<string, true>  $skipPackages
+     * @param  array<string, array<string, mixed>>  $lockedPackages
      * @return list<DependencyDecision>
      */
-    public function plan(int $targetMajor, array $manifest, array $skipPackages = []): array
+    public function plan(int $targetMajor, array $manifest, array $skipPackages = [], array $lockedPackages = []): array
     {
         $decisions = [];
 
@@ -82,7 +83,8 @@ final class ConstraintPlanner
                     $this->matrix,
                     $package,
                     $section,
-                    $constraint
+                    $constraint,
+                    $lockedPackages,
                 );
             }
         }
@@ -90,13 +92,17 @@ final class ConstraintPlanner
         return $decisions;
     }
 
+    /** @param array<string, array<string, mixed>> $lockedPackages */
     private function planPackage(
         int $targetMajor,
         CompatibilityMatrix $matrix,
         string $package,
         string $section,
-        string $currentConstraint
+        string $currentConstraint,
+        array $lockedPackages,
     ): DependencyDecision {
+        $installed = $this->installedVersion($package, $lockedPackages);
+        $installedSource = $this->installedSource($package, $lockedPackages);
         // The php platform requirement is compared against the matrix floor.
         $minimum = $matrix->minimumVersionFor($package, $targetMajor);
 
@@ -107,7 +113,9 @@ final class ConstraintPlanner
                 $currentConstraint,
                 null,
                 DependencyDecision::ACTION_UNKNOWN,
-                'no compatibility data — verify against the package\'s own documentation'
+                'no compatibility data — verify against the package\'s own documentation',
+                $installed,
+                $installedSource,
             );
         }
 
@@ -118,7 +126,9 @@ final class ConstraintPlanner
                 $currentConstraint,
                 null,
                 DependencyDecision::ACTION_KEEP,
-                sprintf('already compatible (%s admits %s)', $currentConstraint, $minimum)
+                sprintf('already compatible (%s admits %s)', $currentConstraint, $minimum),
+                $installed,
+                $installedSource,
             );
         }
 
@@ -128,7 +138,9 @@ final class ConstraintPlanner
             $currentConstraint,
             '^'.$minimum,
             DependencyDecision::ACTION_BUMP,
-            sprintf('requires %s for Laravel %d', $minimum, $targetMajor)
+            sprintf('requires %s for Laravel %d', $minimum, $targetMajor),
+            $installed,
+            $installedSource,
         );
     }
 
@@ -160,7 +172,9 @@ final class ConstraintPlanner
                     $this->currentConstraint($manifest, $package),
                     null,
                     DependencyDecision::ACTION_KEEP,
-                    'kept — still required by '.implode(', ', $requiredBy)
+                    'kept — still required by '.implode(', ', $requiredBy),
+                    $this->installedVersion($package, $lockedPackages),
+                    $this->installedSource($package, $lockedPackages),
                 );
 
                 continue;
@@ -172,7 +186,9 @@ final class ConstraintPlanner
                 $this->currentConstraint($manifest, $package),
                 null,
                 DependencyDecision::ACTION_REMOVE,
-                'no longer needed for Laravel '.$targetMajor.' and unused by other packages'
+                'no longer needed for Laravel '.$targetMajor.' and unused by other packages',
+                $this->installedVersion($package, $lockedPackages),
+                $this->installedSource($package, $lockedPackages),
             );
         }
 
@@ -250,6 +266,31 @@ final class ConstraintPlanner
         }
 
         return null;
+    }
+
+    /**
+     * Lock or Composer installed metadata is the authoritative installed
+     * version source available to the planner. A manifest constraint alone
+     * cannot prove a package major, so unknown/unlocked versions deliberately
+     * remain null.
+     *
+     * @param  array<string, array<string, mixed>>  $lockedPackages
+     */
+    private function installedVersion(string $package, array $lockedPackages): ?string
+    {
+        $version = $lockedPackages[$package]['version'] ?? null;
+
+        return is_string($version) && trim($version) !== '' ? trim($version) : null;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $lockedPackages
+     */
+    private function installedSource(string $package, array $lockedPackages): ?string
+    {
+        $source = $lockedPackages[$package]['_source'] ?? null;
+
+        return $source === 'lock' || $source === 'installed' ? $source : null;
     }
 
     /**

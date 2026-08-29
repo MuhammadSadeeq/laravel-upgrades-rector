@@ -93,6 +93,51 @@ final class DepsCommandIntegrationTest extends TestCase
         self::assertStringNotContainsString('"require": []', $contents);
     }
 
+    public function test_current_ecosystem_major_does_not_print_a_spurious_package_guide(): void
+    {
+        $this->writeComposerJson(<<<'JSON'
+{
+    "require": {
+        "livewire/livewire": "^3.0"
+    }
+}
+JSON
+        );
+        self::assertNotFalse(file_put_contents($this->workspace.'/composer.lock', json_encode([
+            'packages' => [['name' => 'livewire/livewire', 'version' => 'v3.7.0']],
+            'packages-dev' => [],
+        ], JSON_THROW_ON_ERROR)));
+
+        [$exitCode, $output] = $this->runDepsCaptured(11, true);
+
+        self::assertSame(0, $exitCode);
+        self::assertStringContainsString('All dependencies already admit the target major.', $output);
+        self::assertStringNotContainsString('Package upgrade guides', $output);
+    }
+
+    public function test_dry_run_renders_package_guide_actions_not_only_counts_and_urls(): void
+    {
+        $this->writeComposerJson(<<<'JSON'
+{
+    "require": {
+        "laravel/passport": "^11.0"
+    }
+}
+JSON
+        );
+        self::assertNotFalse(file_put_contents($this->workspace.'/composer.lock', json_encode([
+            'packages' => [['name' => 'laravel/passport', 'version' => 'v11.0.0']],
+            'packages-dev' => [],
+        ], JSON_THROW_ON_ERROR)));
+
+        [$exitCode, $output] = $this->runDepsCaptured(13, true);
+
+        self::assertSame(0, $exitCode);
+        self::assertStringContainsString('Package upgrade guides', $output);
+        self::assertStringContainsString('Remove Passport::routes()', $output);
+        self::assertStringContainsString('Call Passport::enablePasswordGrant()', $output);
+    }
+
     public function test_require_and_remove_through_composer_keep_formatting_byte_for_byte(): void
     {
         $manifest = <<<'JSON'

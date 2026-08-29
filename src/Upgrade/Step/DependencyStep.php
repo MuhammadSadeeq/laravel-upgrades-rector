@@ -8,7 +8,10 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ComposerProcessAdapt
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ConstraintPlanner;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\DependencyDecision;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ManifestReader;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideAnalyzer;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideCatalog;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Process\ProcessResult;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report\Finding;
 use Throwable;
 
 /** Computes and, when requested, applies Composer dependency decisions. */
@@ -18,7 +21,14 @@ final class DependencyStep implements StepInterface
         private readonly ConstraintPlanner $planner,
         private readonly ComposerProcessAdapter $composer,
         private readonly ManifestReader $manifestReader = new ManifestReader,
-    ) {}
+        ?PackageGuideAnalyzer $packageGuideAnalyzer = null,
+    ) {
+        $this->packageGuideAnalyzer = $packageGuideAnalyzer ?? new PackageGuideAnalyzer(
+            new PackageGuideCatalog(dirname(__DIR__, 3).'/resources/compat/package-guides.json'),
+        );
+    }
+
+    private readonly PackageGuideAnalyzer $packageGuideAnalyzer;
 
     public function name(): string
     {
@@ -34,10 +44,24 @@ final class DependencyStep implements StepInterface
             return $this->failure('Could not read Composer metadata: '.$exception->getMessage());
         }
 
-        $decisions = $this->planner->planAll($context->toMajor(), $manifest, $lockedPackages);
+        try {
+            $decisions = $this->planner->planAll($context->toMajor(), $manifest, $lockedPackages);
+            $guideAnalysis = $this->packageGuideAnalyzer->analyze(
+                $decisions,
+                $context->toMajor(),
+                $context->workingDirectory,
+            );
+        } catch (Throwable $exception) {
+            return $this->failure('Could not load package upgrade guidance: '.$exception->getMessage());
+        }
+
         $decisionData = array_map(
             static fn (DependencyDecision $decision): array => $decision->toArray(),
             $decisions,
+        );
+        $guideFindings = array_map(
+            static fn (Finding $finding): array => $finding->toArray(),
+            $guideAnalysis->findings,
         );
 
         $composerBinary = $this->composerBinary($context);
@@ -48,6 +72,8 @@ final class DependencyStep implements StepInterface
                 $decisions,
                 $decisionData,
                 $composerBinary,
+                $guideFindings,
+                $guideAnalysis->guides,
             );
         }
 
@@ -130,7 +156,13 @@ final class DependencyStep implements StepInterface
 
         return StepResult::successful(
             message: 'Dependency decisions applied.',
-            data: ['decisions' => $decisionData, 'processes' => $processes],
+            findingsCount: count($guideFindings),
+            data: [
+                'decisions' => $decisionData,
+                'processes' => $processes,
+                'findings' => $guideFindings,
+                'packageGuides' => $guideAnalysis->guides,
+            ],
         );
     }
 
@@ -142,12 +174,16 @@ final class DependencyStep implements StepInterface
      *
      * @param  list<DependencyDecision>  $decisions
      * @param  list<array<string, mixed>>  $decisionData
+     * @param  list<array<string, mixed>>  $guideFindings
+     * @param  list<array<string, mixed>>  $guideData
      */
     private function previewPlan(
         UpgradeContext $context,
         array $decisions,
         array $decisionData,
         ?string $composerBinary,
+        array $guideFindings,
+        array $guideData,
     ): StepResult {
         $bumps = ['require' => [], 'require-dev' => []];
         $removals = [];
@@ -181,7 +217,11 @@ final class DependencyStep implements StepInterface
                     'Composer dependency preview failed: '.$exception->getMessage(),
                     $decisionData,
                     $processes,
-                    ['notSolverPreviewed' => ['removals' => $removals]],
+                    [
+                        'notSolverPreviewed' => ['removals' => $removals],
+                        'findings' => $guideFindings,
+                        'packageGuides' => $guideData,
+                    ],
                 );
             }
 
@@ -192,7 +232,11 @@ final class DependencyStep implements StepInterface
                     'Composer dependency preview failed.',
                     $decisionData,
                     $processes,
-                    ['notSolverPreviewed' => ['removals' => $removals]],
+                    [
+                        'notSolverPreviewed' => ['removals' => $removals],
+                        'findings' => $guideFindings,
+                        'packageGuides' => $guideData,
+                    ],
                 );
             }
         }
@@ -201,13 +245,20 @@ final class DependencyStep implements StepInterface
             try {
                 $solver = $this->composer->solverDryRun($context->workingDirectory, $composerBinary);
             } catch (Throwable $exception) {
-                return $this->failure('Composer solver dry-run failed: '.$exception->getMessage(), $decisionData);
+                return $this->failure(
+                    'Composer solver dry-run failed: '.$exception->getMessage(),
+                    $decisionData,
+                    extra: ['findings' => $guideFindings, 'packageGuides' => $guideData],
+                );
             }
 
             $processes[] = $this->processData($solver);
 
             if (! $solver->isSuccessful()) {
-                return $this->failure('Composer solver dry-run failed.', $decisionData, $processes);
+                return $this->failure('Composer solver dry-run failed.', $decisionData, $processes, [
+                    'findings' => $guideFindings,
+                    'packageGuides' => $guideData,
+                ]);
             }
         }
 
@@ -217,7 +268,10 @@ final class DependencyStep implements StepInterface
                 'decisions' => $decisionData,
                 'processes' => $processes,
                 'notSolverPreviewed' => ['removals' => $removals],
+                'findings' => $guideFindings,
+                'packageGuides' => $guideData,
             ],
+            findingsCount: count($guideFindings),
         );
     }
 

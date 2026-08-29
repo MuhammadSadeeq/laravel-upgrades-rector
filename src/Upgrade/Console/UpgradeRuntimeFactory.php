@@ -10,6 +10,8 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\CompatibilityMatrix;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ComposerProcessAdapter;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ConstraintPlanner;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ManifestReader;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideAnalyzer;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideCatalog;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Git\GitCheckpointService;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Journal\StateStore;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\StepExecutionResult;
@@ -209,11 +211,14 @@ final class UpgradeRuntimeFactory implements SingleStepRuntimeInterface, Upgrade
         $manifestReader = new ManifestReader;
         $matrix = new CompatibilityMatrix($root.'/resources/compat/packages.json');
         $planner = new ConstraintPlanner($matrix, $root.'/resources/compat/removals.json');
+        $packageGuideAnalyzer = new PackageGuideAnalyzer(
+            new PackageGuideCatalog($root.'/resources/compat/package-guides.json'),
+        );
         $composer = new ComposerProcessAdapter($this->processRunner, $this->binaryResolver);
 
         return [
             new PreflightStep($this->processRunner, $root.'/resources/compat/php.json', $this->binaryResolver),
-            new DependencyStep($planner, $composer, $manifestReader),
+            new DependencyStep($planner, $composer, $manifestReader, $packageGuideAnalyzer),
             new InstallStep($composer),
             new SkeletonSyncStep(new SkeletonStep),
             new CodeStep($this->processRunner, new RectorConfigGenerator),

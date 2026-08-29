@@ -35,7 +35,9 @@ final class ManifestReader
     }
 
     /**
-     * Locked packages keyed by name; direct dependencies of both sections.
+     * Locked/installed packages keyed by name; direct dependencies of both
+     * sections. Composer's installed.json is a fallback when a lock snapshot
+     * is unavailable, which keeps package-guide analysis useful after install.
      *
      * @return array<string, array<string, mixed>>
      */
@@ -43,20 +45,40 @@ final class ManifestReader
     {
         $path = rtrim($workingDirectory, '/').'/composer.lock';
 
-        if (! is_file($path)) {
-            return [];
-        }
-
-        /** @var array{packages?: list<array<string, mixed>>, packages-dev?: list<array<string, mixed>>}|null $lock */
-        $lock = null;
-
-        try {
-            $lock = $this->decode($path);
-        } catch (CompatFileNotFoundException) {
-            return [];
-        }
-
         $locked = [];
+
+        if (is_file($path)) {
+            try {
+                $this->appendPackages($locked, $this->decode($path), 'lock');
+            } catch (CompatFileNotFoundException) {
+                // A malformed or unavailable lock must not make the reader
+                // invent a version. The installed metadata is still useful
+                // when Composer has written it and remains version-authoritative
+                // for packages missing from the lock snapshot.
+            }
+        }
+
+        $installedPath = rtrim($workingDirectory, '/').'/vendor/composer/installed.json';
+
+        if (is_file($installedPath)) {
+            try {
+                $this->appendPackages($locked, $this->decode($installedPath), 'installed');
+            } catch (CompatFileNotFoundException) {
+                // Treat unavailable installed metadata as unknown.
+            }
+        }
+
+        return $locked;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $packages
+     * @param  array<string, mixed>  $document
+     */
+    private function appendPackages(array &$packages, array $document, string $source): void
+    {
+        /** @var array{packages?: list<array<string, mixed>>, packages-dev?: list<array<string, mixed>>} $lock */
+        $lock = $document;
 
         foreach (['packages', 'packages-dev'] as $key) {
             $entries = $lock[$key] ?? null;
@@ -74,12 +96,13 @@ final class ManifestReader
 
                 if (is_string($name)) {
                     /** @var array<string, mixed> $package */
-                    $locked[$name] = $package;
+                    if (! isset($packages[$name])) {
+                        $package['_source'] = $source;
+                        $packages[$name] = $package;
+                    }
                 }
             }
         }
-
-        return $locked;
     }
 
     /**

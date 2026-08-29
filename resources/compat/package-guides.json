@@ -1,0 +1,343 @@
+{
+  "$schema": "./package-guides.schema.json",
+  "schemaVersion": 1,
+  "packages": {
+    "inertiajs/inertia-laravel": {
+      "guideUrl": "https://inertiajs.com/upgrade-guide",
+      "majors": {
+        "2": {
+          "items": [
+            {
+              "id": "protocol",
+              "severity": "medium",
+              "message": "Inertia Laravel 2 changes the client/server protocol and request lifecycle.",
+              "action": "Review shared props, deferred props, polling, and the client adapter while following the Inertia 1 to 2 guide."
+            },
+            {
+              "id": "client-adapter",
+              "severity": "low",
+              "message": "The Inertia client adapter must be upgraded alongside the Laravel adapter.",
+              "action": "Upgrade the JavaScript Inertia adapter and re-run browser navigation and form tests."
+            }
+          ]
+        }
+      }
+    },
+    "laravel/cashier": {
+      "guideUrl": "https://laravel.com/docs/11.x/billing",
+      "majors": {
+        "15": {
+          "guideUrl": "https://laravel.com/docs/11.x/billing#upgrading-cashier",
+          "items": [
+            {
+              "id": "ignore-migrations",
+              "severity": "medium",
+              "message": "Cashier 15 no longer supports Cashier::ignoreMigrations().",
+              "action": "Remove the call and publish or maintain the Cashier migrations explicitly."
+            },
+            {
+              "id": "subscription-type",
+              "severity": "medium",
+              "message": "Cashier 15 renamed the subscription name API to the subscription type API.",
+              "action": "Review newSubscriptionName(), subscription name access, and related billing view references for the type rename."
+            },
+            {
+              "id": "invoice-view",
+              "severity": "low",
+              "message": "Cashier 15 uses invoice terminology and views where older releases used receipt terminology.",
+              "action": "Review published Cashier receipt views and update customizations to the invoice view names."
+            }
+          ]
+        },
+        "16": {
+          "status": "future",
+          "notes": "Manual guidance only until the compatibility matrix proposes Cashier 16.",
+          "guideUrl": "https://laravel.com/docs/12.x/billing#upgrading-cashier",
+          "items": [
+            {
+              "id": "billing-contracts",
+              "severity": "medium",
+              "message": "Cashier 16 contains another major billing API upgrade.",
+              "action": "Review Billable models, invoices, webhooks, and payment method flows against the Cashier 16 guide."
+            },
+            {
+              "id": "migrations",
+              "severity": "low",
+              "message": "Cashier 16 may require migration and published-view review after the package major change.",
+              "action": "Compare published Cashier migrations and views before running them in production."
+            }
+          ]
+        }
+      }
+    },
+    "laravel/passport": {
+      "guideUrl": "https://laravel.com/docs/11.x/passport",
+      "majors": {
+        "12": {
+          "guideUrl": "https://laravel.com/docs/11.x/passport#upgrading-passport",
+          "items": [
+            {
+              "id": "routes-removed",
+              "severity": "high",
+              "message": "Passport 12 no longer registers routes through Passport::routes().",
+              "action": "Remove Passport::routes() and verify the OAuth endpoints your application needs are registered by the package."
+            },
+            {
+              "id": "password-grant",
+              "severity": "high",
+              "message": "Passport password grants are no longer enabled implicitly.",
+              "action": "Call Passport::enablePasswordGrant() deliberately if the application still supports the password grant."
+            },
+            {
+              "id": "token-scopes",
+              "severity": "medium",
+              "message": "Passport 12 changes token and scope setup APIs.",
+              "action": "Review token model configuration, scope definitions, and token issuance tests against the Passport 12 guide."
+            }
+          ]
+        },
+        "13": {
+          "guideUrl": "https://laravel.com/docs/13.x/passport#upgrading-passport",
+          "items": [
+            {
+              "id": "oauth-models",
+              "severity": "medium",
+              "message": "Passport 13 includes an OAuth model and token compatibility review.",
+              "action": "Check custom token models, claims, scopes, and serialized authorization data against the Passport 13 guide."
+            },
+            {
+              "id": "endpoints",
+              "severity": "low",
+              "message": "Passport 13 may change the behavior of customized OAuth endpoints.",
+              "action": "Run the complete authorization-code, personal-access-token, and password-grant test matrix."
+            }
+          ]
+        }
+      }
+    },
+    "laravel/sanctum": {
+      "guideUrl": "https://laravel.com/docs/11.x/sanctum",
+      "majors": {
+        "4": {
+          "guideUrl": "https://laravel.com/docs/11.x/sanctum#upgrading-sanctum",
+          "items": [
+            {
+              "id": "stateful-domains",
+              "severity": "medium",
+              "message": "Sanctum 4 changes stateful API authentication configuration.",
+              "action": "Review the stateful domain configuration and browser-authenticated API tests after upgrading Sanctum."
+            },
+            {
+              "id": "migrations",
+              "severity": "low",
+              "message": "Sanctum 4 may require its current migration set to be published and reviewed.",
+              "action": "Publish Sanctum migrations only when the project does not already contain the current personal-access-token schema."
+            }
+          ]
+        }
+      }
+    },
+    "laravel/telescope": {
+      "guideUrl": "https://laravel.com/docs/11.x/telescope",
+      "majors": {
+        "5": {
+          "guideUrl": "https://laravel.com/docs/11.x/telescope#upgrading-telescope",
+          "items": [
+            {
+              "id": "ignore-migrations",
+              "severity": "medium",
+              "message": "Telescope 5 changes how Telescope migrations are managed.",
+              "action": "Review Telescope::ignoreMigrations(), published migrations, and the telescope_entries schema before deployment."
+            },
+            {
+              "id": "migrations",
+              "severity": "low",
+              "message": "Telescope 5 has a new package-major migration surface.",
+              "action": "Publish and compare Telescope migrations before running them against a production database."
+            }
+          ]
+        }
+      }
+    },
+    "laravel/horizon": {
+      "guideUrl": "https://laravel.com/docs/11.x/horizon",
+      "majors": {
+        "5": {
+          "items": [
+            {
+              "id": "supervisors",
+              "severity": "medium",
+              "message": "Horizon 5 requires a review of supervisor balancing and queue worker configuration.",
+              "action": "Compare config/horizon.php, supervisor environments, and worker restart behavior with the Horizon 5 guide."
+            }
+          ]
+        },
+        "6": {
+          "status": "future",
+          "notes": "Manual guidance only until the compatibility matrix proposes Horizon 6.",
+          "guideUrl": "https://laravel.com/docs/13.x/horizon#upgrading-horizon",
+          "items": [
+            {
+              "id": "worker-contracts",
+              "severity": "medium",
+              "message": "Horizon 6 changes worker and monitoring compatibility with the Laravel major.",
+              "action": "Review queue worker options, metrics retention, and deployment restart procedures against the Horizon 6 guide."
+            }
+          ]
+        }
+      }
+    },
+    "livewire/livewire": {
+      "guideUrl": "https://livewire.laravel.com/docs/upgrading",
+      "majors": {
+        "3": {
+          "items": [
+            {
+              "id": "component-upgrade",
+              "severity": "medium",
+              "message": "Livewire 2 to 3 is a component and client-runtime migration.",
+              "action": "Review component lifecycle hooks, wire:model behavior, events, and JavaScript integrations using the Livewire 3 guide."
+            },
+            {
+              "id": "testing",
+              "severity": "low",
+              "message": "Livewire component tests need a major-version compatibility pass.",
+              "action": "Run component browser and Livewire test coverage after updating the Livewire client and server packages."
+            }
+          ],
+          "counter": {
+            "label": "Livewire component files",
+            "paths": ["app/Livewire", "app/Http/Livewire", "resources/views/livewire"],
+            "extensions": ["php", "blade.php"]
+          }
+        }
+      }
+    },
+    "laravel/jetstream": {
+      "guideUrl": "https://jetstream.laravel.com/upgrade.html",
+      "majors": {
+        "5": {
+          "items": [
+            {
+              "id": "stack",
+              "severity": "medium",
+              "message": "Jetstream 4 to 5 changes the application scaffolding and supported frontend stack.",
+              "action": "Review published Jetstream views, Fortify configuration, Livewire/Inertia pages, and authentication flows against the Jetstream 5 guide."
+            },
+            {
+              "id": "published-assets",
+              "severity": "low",
+              "message": "Jetstream published assets are not upgraded by Composer alone.",
+              "action": "Compare published Jetstream resources and re-publish only after preserving intentional customizations."
+            }
+          ]
+        }
+      }
+    },
+    "spatie/laravel-permission": {
+      "guideUrl": "https://spatie.be/docs/laravel-permission/v6/upgrading",
+      "majors": {
+        "6": {
+          "items": [
+            {
+              "id": "illuminate-contracts",
+              "severity": "low",
+              "message": "Spatie Laravel Permission 6 must be checked against the target Illuminate contracts.",
+              "action": "Review published config, models, and permission cache behavior against the package version supporting this Laravel major."
+            }
+          ]
+        }
+      }
+    },
+    "spatie/laravel-medialibrary": {
+      "guideUrl": "https://spatie.be/docs/laravel-medialibrary/v11/upgrading",
+      "majors": {
+        "11": {
+          "items": [
+            {
+              "id": "media-models",
+              "severity": "low",
+              "message": "Spatie Media Library 11 should be checked against the target Illuminate model and filesystem contracts.",
+              "action": "Run media conversions, URL generation, queued jobs, and custom Media model tests after the Laravel upgrade."
+            }
+          ]
+        }
+      }
+    },
+    "spatie/laravel-backup": {
+      "guideUrl": "https://spatie.be/docs/laravel-backup/v10/upgrading",
+      "majors": {
+        "8": {
+          "items": [
+            {
+              "id": "backup-config",
+              "severity": "medium",
+              "message": "Spatie Laravel Backup 8 must be checked against the target Illuminate filesystem and console contracts.",
+              "action": "Review backup destinations, notifications, cleanup strategy, and scheduled backup commands against the package guide."
+            }
+          ]
+        },
+        "9": {
+          "items": [
+            {
+              "id": "backup-config",
+              "severity": "medium",
+              "message": "Spatie Laravel Backup 9 changes backup configuration and filesystem integration.",
+              "action": "Review backup destinations, notifications, cleanup strategy, and scheduled backup commands against the package guide."
+            }
+          ]
+        },
+        "10": {
+          "items": [
+            {
+              "id": "backup-events",
+              "severity": "medium",
+              "message": "Spatie Laravel Backup 10 changes backup events and integration contracts.",
+              "action": "Run backup, restore, cleanup, and notification tests against the Laravel-compatible package release."
+            }
+          ]
+        }
+      }
+    },
+    "spatie/laravel-data": {
+      "guideUrl": "https://spatie.be/docs/laravel-data/v4/upgrading",
+      "majors": {
+        "3": {
+          "items": [
+            {
+              "id": "data-objects",
+              "severity": "low",
+              "message": "Spatie Laravel Data 3 should be checked against the target Illuminate serialization contracts.",
+              "action": "Review custom data casts, validation rules, transformers, and serialized API responses against the package guide."
+            }
+          ]
+        },
+        "4": {
+          "items": [
+            {
+              "id": "data-objects",
+              "severity": "medium",
+              "message": "Spatie Laravel Data 4 changes data object, validation, and transformation behavior.",
+              "action": "Review custom data casts, validation rules, transformers, and serialized API responses against the Data 4 guide."
+            }
+          ]
+        }
+      }
+    },
+    "spatie/laravel-ignition": {
+      "guideUrl": "https://flareapp.io/docs/ignition-for-laravel/upgrading",
+      "majors": {
+        "2": {
+          "items": [
+            {
+              "id": "error-pages",
+              "severity": "low",
+              "message": "Spatie Laravel Ignition 2 should be checked with the target Laravel exception rendering stack.",
+              "action": "Exercise exception pages, custom renderers, and local debugging configuration after the framework upgrade."
+            }
+          ]
+        }
+      }
+    }
+  }
+}

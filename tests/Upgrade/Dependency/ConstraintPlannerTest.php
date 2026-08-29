@@ -87,6 +87,38 @@ final class ConstraintPlannerTest extends TestCase
         self::assertNull($decision->proposed);
     }
 
+    public function test_decision_records_the_authoritative_locked_version_for_guide_analysis(): void
+    {
+        $decision = $this->byName($this->planner->planAll(
+            11,
+            ['require' => ['livewire/livewire' => '^2.0']],
+            ['livewire/livewire' => ['name' => 'livewire/livewire', 'version' => 'v2.12.0']],
+        ))['livewire/livewire'];
+
+        self::assertSame(DependencyDecision::ACTION_BUMP, $decision->action);
+        self::assertSame('v2.12.0', $decision->installed);
+        self::assertSame('^3.0.1', $decision->proposed);
+        self::assertSame('v2.12.0', $decision->toArray()['installed']);
+    }
+
+    public function test_decision_records_whether_version_came_from_lock_or_installed_metadata(): void
+    {
+        $lockDecision = $this->byName($this->planner->planAll(
+            11,
+            ['require' => ['livewire/livewire' => '^2.0']],
+            ['livewire/livewire' => ['name' => 'livewire/livewire', 'version' => 'v2.12.0', '_source' => 'lock']],
+        ))['livewire/livewire'];
+        $installedDecision = $this->byName($this->planner->planAll(
+            11,
+            ['require' => ['livewire/livewire' => '^2.0']],
+            ['livewire/livewire' => ['name' => 'livewire/livewire', 'version' => 'v2.12.0', '_source' => 'installed']],
+        ))['livewire/livewire'];
+
+        self::assertSame('lock', $lockDecision->installedSource);
+        self::assertSame('installed', $installedDecision->installedSource);
+        self::assertSame('installed', $installedDecision->toArray()['installedSource']);
+    }
+
     public function test_require_dev_package_is_bumped_in_section(): void
     {
         $manifest = [

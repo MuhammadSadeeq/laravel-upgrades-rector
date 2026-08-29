@@ -59,22 +59,16 @@ final class ProjectAdvisorTest extends TestCase
             'laravelUpgrade.sessionSerialization', 'laravelUpgrade.cachePrefix',
             'laravelUpgrade.queueDefaultSync', 'laravelUpgrade.afterCommitWithSyncQueue',
             'laravelUpgrade.localDiskDefaultRoot', 'laravelUpgrade.envKeyRenamed',
-            'laravelUpgrade.livewireUpgradeGuide', 'laravelUpgrade.jetstreamUpgradeGuide',
-            'laravelUpgrade.inertiaUpgradeGuide', 'laravelUpgrade.filamentUpgradeGuide',
-            'laravelUpgrade.novaUpgradeGuide', 'laravelUpgrade.boostAvailability',
+            'laravelUpgrade.boostAvailability',
             'laravelUpgrade.skeletonFileRemoved', 'laravelUpgrade.paginationPublishedView',
             'laravelUpgrade.publishedVendorViews', 'laravelUpgrade.laravelInstaller',
         ] as $ruleId) {
             self::assertContains($ruleId, $ruleIds, $ruleId);
         }
 
-        $livewireFindings = array_values(array_filter(
-            $findings,
-            static fn (Finding $finding): bool => $finding->ruleId === 'laravelUpgrade.livewireUpgradeGuide'
-        ));
-        self::assertCount(1, $livewireFindings);
-        $livewire = $livewireFindings[0];
-        self::assertSame('https://livewire.laravel.com/docs/upgrading', $livewire->guideUrl);
+        self::assertNotContains('laravelUpgrade.livewireUpgradeGuide', $ruleIds);
+        self::assertNotContains('laravelUpgrade.jetstreamUpgradeGuide', $ruleIds);
+        self::assertNotContains('laravelUpgrade.inertiaUpgradeGuide', $ruleIds);
         self::assertSame(4, count(array_filter($ruleIds, static fn (string $id): bool => $id === 'laravelUpgrade.envKeyRenamed')));
 
         $removed = array_values(array_filter(
