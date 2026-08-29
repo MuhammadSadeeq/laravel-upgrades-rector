@@ -12,7 +12,7 @@ use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
 
 /**
- * Laravel 11: the default password reset subject changed from
+ * Laravel 13: the default password reset subject changed from
  * "Reset Password" to "Reset Password Notification".
  *
  * @implements Rule<MethodCall>
@@ -32,7 +32,7 @@ final class PasswordResetSubjectRule implements Rule
 
         return [
             RuleErrorBuilder::message(
-                'The default password reset email subject changed in Laravel 11.'
+                'The default password reset email subject changed in Laravel 13.'
             )->identifier('laravelUpgrade.passwordResetSubject')
                 ->tip('Override the subject() method on ResetPassword notification to customise.')
                 ->build(),

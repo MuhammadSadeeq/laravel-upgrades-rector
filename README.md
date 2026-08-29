@@ -1,186 +1,113 @@
-<p align="center">
-  <img src="https://www.sadeeq.dev/images/packages/laravel-upgrades-rector/logo/logo.svg" width="150" alt="Laravel Upgrades Rector Logo">
-</p>
+# Laravel Upgrades Rector
 
-<h1 align="center">Laravel Upgrades Rector</h1>
+Laravel upgrade tooling for Laravel 10 through 13. The package combines a
+journaled CLI orchestrator with Rector transforms, Composer dependency
+planning, Laravel skeleton/config synchronization, and PHPStan advisory
+checks. It helps with the mechanical parts of a major upgrade; application
+behaviour and package-specific migrations still need review.
 
-<p align="center">
-  <a href="https://packagist.org/packages/muhammadsadeeq/laravel-upgrades-rector"><img src="https://img.shields.io/packagist/v/muhammadsadeeq/laravel-upgrades-rector.svg?style=flat-square" alt="Latest Version on Packagist"></a>
-  <a href="https://packagist.org/packages/muhammadsadeeq/laravel-upgrades-rector"><img src="https://img.shields.io/packagist/dt/muhammadsadeeq/laravel-upgrades-rector.svg?style=flat-square" alt="Total Downloads"></a>
-  <a href="https://github.com/muhammadsadeeq/laravel-upgrades-rector/actions"><img src="https://img.shields.io/github/actions/workflow/status/muhammadsadeeq/laravel-upgrades-rector/tests.yml?branch=main&label=tests&style=flat-square" alt="Tests"></a>
-</p>
+## Requirements and installation
 
-<p align="center">
-  <strong>One-command Laravel upgrades</strong> — dependency planning, code transformation, skeleton sync, and PHPStan advisories for Laravel 10 through 13.
-</p>
+- PHP `^8.2` (Laravel 13 also requires PHP 8.3).
+- Composer 2.2 or newer for the orchestrator.
+- Rector `^2.3` (installed by this package).
+- A Laravel 10, 11, or 12 project when targeting Laravel 11, 12, or 13.
 
----
-
-## Installation
+Install it as a development dependency:
 
 ```bash
 composer require --dev muhammadsadeeq/laravel-upgrades-rector
 ```
 
-Requires PHP 8.2+ and Rector ^2.3.
+## Safest quick start
 
-## One-Command Upgrade
+Start from a clean worktree, inspect a complete plan, then apply it:
 
 ```bash
-# Full upgrade flow: preflight → deps → composer update → rector → config sync → advisories → verify
-vendor/bin/laravel-upgrade to 11
+git status --short                         # review until clean
+vendor/bin/laravel-upgrade plan 11         # preview; writes only .laravel-upgrade/plan.json
+vendor/bin/laravel-upgrade to 11           # apply the journaled upgrade
+```
 
-# Preview without touching anything
-vendor/bin/laravel-upgrade plan 11
+The target may be `11`, `12`, or `13`. A multi-major request runs each
+one-major transition in order. The default `to` flow enables git safety and
+checkpoint commits; use `--no-git` when you want to commit the changes
+yourself. A clean worktree is required unless `--allow-dirty` is supplied.
 
-# Resume an interrupted upgrade
+If an apply run stops, fix the reported cause and resume its journal:
+
+```bash
 vendor/bin/laravel-upgrade continue
-
-# Generate UPGRADE-REPORT.md from findings
 vendor/bin/laravel-upgrade report
 ```
 
-## Manual Step-by-Step Flow
+`continue` requires an incomplete `.laravel-upgrade/state.json`. `report`
+regenerates the root `UPGRADE-REPORT.md` from the canonical report. See the
+[full v1 documentation](https://www.sadeeq.dev/docs/laravel-upgrades-rector/v1)
+for the lifecycle, options, rule reference, and manual upgrade work.
+
+## Useful alternatives
+
+Preview or run one transition step at a time with `skeleton`, `code`,
+`advise`, `post`, and `verify`. `deps <major> --dry-run` prints dependency
+decisions and Composer preview commands; `deps <major>` applies the manifest
+changes, validates them, and runs a Composer solver dry-run.
+
+All engine commands accept `--working-dir`, `--composer`, `--no-install`,
+`--no-tests`/`--skip-tests`, `--no-pint`, `--structure=keep|modern`, and
+`--no-interaction`. `to` and `plan` additionally accept `--from-step`,
+repeatable/comma-separated `--skip-step`, `--constraint-policy=replace|widen`,
+`--slim-config`, `--annotate`, `--allow-dirty`, `--no-git`, and `--reset`.
+`--plan` and `--dry-run` are aliases where shown by `--help`.
+
+By default the tool processes existing `app`, `bootstrap`, `config`,
+`database`, `routes`, and `tests` directories. `structure=keep` preserves the
+existing application structure and synchronizes conservatively. The optional
+`structure=modern` migration is only supported for Laravel 10 → 11 and needs
+complete Laravel 10/11 skeleton snapshots; use `--slim-config` only when you
+also want identical Laravel 10 config files removed. Resolve any reported
+modern-structure conflicts before continuing.
+
+## Direct Rector usage
+
+The ready-to-use configs are available when the orchestrator is not needed:
 
 ```bash
-# 1. Plan dependencies (writes nothing)
-vendor/bin/laravel-upgrade deps 11 --dry-run
-
-# 2. Apply dependency changes, then install
-vendor/bin/laravel-upgrade deps 11
-composer update --with-all-dependencies
-
-# 3. Transform application code
-vendor/bin/rector process --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-11.php
-
-# 4. Run PHPStan advisory rules
-vendor/bin/phpstan analyse -c vendor/muhammadsadeeq/laravel-upgrades-rector/resources/phpstan/upgrade-11.neon app/
-
-# 5. Verify
-composer validate --strict && php artisan test
+vendor/bin/rector process --dry-run \
+  --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
+vendor/bin/rector process \
+  --config=vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-13.php
 ```
 
-
-`--dry-run` for `deps` prints the exact `composer require/remove` commands and
-the decision table; it never writes. `rector --dry-run` previews code changes;
-neither dry-run mode mutates any file.
-
-## The `deps` command
-
-`deps <target-major>` reads your `composer.json`, decides per direct dependency
-whether it already admits versions supporting the target major, must be bumped,
-or can be removed (`doctrine/dbal`, `spatie/once` on the path to Laravel 11 —
-only when no other locked package still requires them). Decisions come from a
-vendored compatibility matrix (`resources/compat/packages.json`) evaluated with
-composer/semver; unknown packages are flagged for manual review instead of
-guessed. After editing, it validates strictly and rehearses `composer update`
-as a dry run so solver conflicts surface before you commit.
-
-## Rule Types
-
-| Type | Count | What it does |
-|------|-------|--------------|
-| Rector transform rules | 20 in sets | Rewrite AST nodes when the upgrade can be applied safely |
-| PHPStan advisory rules | 24 in neon configs | Structured findings with file/line/severity for behaviour changes needing human review |
-
-Every generated contract signature was verified against real `laravel/framework`
-sources. Every fixture output is re-applied to itself to prove idempotency.
-Sets contain only transform rules — all advisory checks live in the PHPStan layer.
-
-## Supported Versions
-
-| Upgrade Path | Rules registered |
-|--------------|------------------|
-| Laravel 12 &rarr; 13 | 15 + CSRF class renames |
-| Laravel 11 &rarr; 12 | 6 |
-| Laravel 10 &rarr; 11 | 21 (+ gated Carbon 3 set) |
-
-Carbon 3 rules ship in their own set, included by the Laravel 11/12 presets,
-and activate only when `nesbot/carbon` `^3` is actually installed.
-
-## Manual steps per version
-
-The tool cannot do these for you; check them before upgrading:
-
-**To Laravel 11**
-- SQLite ≥ 3.26 and curl ≥ 7.34 on the deploy environment.
-- Publish framework migrations when installed:
-  `php artisan vendor:publish --tag=sanctum-migrations` / `passport-migrations` /
-  `telescope-migrations` / `cashier-migrations` / `spark-migrations`.
-- Passport 11+: call `Passport::enablePasswordGrant()` if you use password grants;
-  `Passport::routes()` is gone.
-- Cashier 15: `ignoreMigrations()` removed; `newSubscriptionName()` → `newSubscriptionType()`;
-  `$subscription->name` → `$subscription->type`.
-- The application structure (slim skeleton) migration is optional and not automated.
-- Livewire 3 / Jetstream 5 / Inertia have their own upgrade guides.
-
-**To Laravel 12**
-- Bump `php` to `^8.2` if you have not already (the `deps` command does this).
-- Carbon: `create*()` now returns `null` instead of `false`; compare accordingly.
-- horizon/octane/pest-plugin-laravel majors are computed by `deps`.
-
-**To Laravel 13**
-- PHP ≥ 8.3 required.
-- `config/session.php`: `'serialization' => 'json'` is the new default — switching
-  invalidates every active session; migrate during a maintenance window.
-- User-defined global `array_first()`/`array_last()` helpers collide with the new
-  framework polyfills — rename yours or remove them.
-- Republish vendor views if you customized `resources/views/vendor/**`
-  (e.g. pagination `default.blade.php` → `bootstrap-3.blade.php`).
-- Update the global Laravel installer (`composer global update laravel/installer`).
-
-## Custom Configuration
+For a custom project config, opt into a set explicitly. Version upgrade sets
+do not include generic modernization; add `LaravelUpgradeSetList::MODERNIZE`
+only when that separate, opinionated cleanup is wanted.
 
 ```php
-<?php
-
-use Rector\Config\RectorConfig;
 use MuhammadSadeeq\LaravelUpgradesRector\Set\LaravelUpgradeSetList;
+use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withSets([
-        LaravelUpgradeSetList::LARAVEL_13,
-        // LARAVEL_11, LARAVEL_12, LARAVEL_13 for single-version upgrades
-        // UP_TO_LARAVEL_12, UP_TO_LARAVEL_13 for cumulative upgrades
-    ])
-    ->withPaths([
-        __DIR__ . '/app',
-        __DIR__ . '/bootstrap',
-        __DIR__ . '/config',
-        __DIR__ . '/database',
-    ]);
+    ->withSets([LaravelUpgradeSetList::LARAVEL_13])
+    ->withPaths([__DIR__.'/app', __DIR__.'/bootstrap', __DIR__.'/config']);
 ```
 
-## Documentation
+## Verification
 
-**[Full Documentation](https://www.sadeeq.dev/docs/laravel-upgrades-rector)** — Detailed rule reference, example transformations, architecture overview, and troubleshooting.
-
-## Testing
+The full flow verifies Composer, changed PHP syntax, changed class loading,
+Laravel boot/routes/config cache, and `php artisan test` (unless disabled).
+Run the same checks explicitly after reviewing the diff when appropriate:
 
 ```bash
-composer test        # runs all 4 env suites
-composer analyse     # PHPStan level max
-vendor/bin/pint --test   # code style
-
-# Per-environment testing (requires tests/env/laravel-N composer install)
-LARAVEL_ENV=11 php vendor/bin/phpunit --testsuite env-11
+composer validate --strict
+php artisan test
 ```
 
-Current verification: 330+ tests across 4 environment suites, every fixture
-re-applied to itself for idempotency, sample-parse gate over rule definitions,
-code-style gates over src/, and PHPStan at max level with zero errors.
+The `advise` step runs the package PHPStan upgrade config and project-level
+checks. Use `--annotate` only if you deliberately want its findings copied as
+idempotent TODO markers into PHP source files; the default is report-only.
 
-## Contributing
+## Contributing and license
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## Credits
-
-- [Muhammad Sadeeq](https://github.com/muhammadsadeeq)
-- [Rector Team](https://github.com/rectorphp/rector)
-- [Laravel Team](https://laravel.com)
-- [All Contributors](../../contributors)
-
-## License
-
-The MIT License (MIT). Please see [LICENSE.md](LICENSE.md) for more information.
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). This
+package is released under the [MIT License](LICENSE.md).
