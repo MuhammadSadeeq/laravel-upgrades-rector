@@ -115,6 +115,13 @@ file simply yields no policy findings.
 - `resources/compat/package-guides.json`: only add verified guide items. It is
   validated by `package-guides.schema.json`; every major has non-empty
   `items`, and a `future` major also needs non-empty `notes`.
+- `resources/compat/support.json`: add the adjacent source-to-target path and
+  source PHP/security-fix facts to the rolling maximum-three window. Run
+  `composer check-support-policy` after editing it. When a fourth path is
+  implemented, a maintainer must review the retirement predicate (replacement
+  path creates window pressure and the oldest source is past security EOL)
+  before removing the oldest path; this decision cannot be inferred safely
+  from Git state alone.
 
 ## 4. Register transforms, advisories, and support bounds
 
@@ -133,9 +140,12 @@ is PHP 8.2. Use `carbon-3.php` only when installed Carbon metadata satisfies
 
 Update all target gates before invoking the CLI:
 
-- `UpgradePlan.php`: `MAX_SUPPORTED_TARGET` and source/target validation.
-- `ToCommand.php`, `SingleStepCommand.php`: target regexes and messages.
-- `DepsCommand.php` and `PhpStanConfigGenerator.php`: supported-major lists.
+- `resources/compat/support.json`: the single source of truth for the
+  implemented adjacent paths, target lists, source PHP floors, and security
+  dates; validate it with `composer check-support-policy`.
+- `UpgradePlan.php`, `ToCommand.php`, `SingleStepCommand.php`, `DepsCommand.php`,
+  and `PhpStanConfigGenerator.php`: consume the central policy rather than
+  maintaining independent supported-major lists.
 - `SkeletonBuilder.php` and `RectorConfigGenerator.php`: snapshot and PHP maps.
 - Target branches in `ProjectAdvisor.php`, `VerifyStep.php`,
   `PublishedViewChecker.php`, and `PostStep.php`, only for verified behavior.
@@ -275,10 +285,16 @@ php bin/e2e 13 14
   turn advisory findings into automatic syntax rewrites.
 - A partial skeleton cannot establish upstream deletions, and a PHPStan neon
   file without matching rule classes/tests is incomplete.
-- `bin/check-guide-drift` (P7-03) and `bin/build-compat-matrix` (P7-04) are
-  planned Phase 7 tools, but neither exists in this checkout.
-  Guide and compatibility refreshes are manual until those tools are built;
-  do not document them as available commands.
+- `bin/check-guide-drift` and `bin/build-compat-matrix` are available
+  maintainer tools. Use `php bin/check-guide-drift --offline` for a checked-in
+  guide/skeleton drift check and `php bin/build-compat-matrix --offline --check`
+  for a read-only compatibility-matrix check. Use their fixture or remote
+  modes only when the source data has been reviewed; `--write` on the matrix
+  is intentionally explicit.
+- The PHP 8.1 smoke job in `.github/workflows/tests.yml` resolves a temporary
+  runtime-only Composer manifest without dev requirements, then checks the
+  support policy and CLI help. The normal 8.2+ matrix runs the full test and
+  analysis commands; do not add PHPUnit 11 to the PHP 8.1 job.
 
 Current supported examples are `vendor/bin/laravel-upgrade plan 13`,
 `to 13`, `continue`, `report`, `deps 13 --dry-run`, and
