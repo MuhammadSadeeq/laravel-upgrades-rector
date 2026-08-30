@@ -1,0 +1,257 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$packageRoot = dirname(__DIR__);
+$root = $packageRoot;
+$fixtureDirectory = null;
+$offline = false;
+$refresh = false;
+$output = null;
+$seen = [];
+
+$arguments = array_slice($argv, 1);
+
+for ($index = 0, $count = count($arguments); $index < $count; $index++) {
+    $argument = $arguments[$index];
+
+    if ($argument === '--help' || $argument === '-h') {
+        fwrite(STDOUT, <<<'HELP'
+Usage: bin/check-guide-drift [options]
+
+Checks Laravel 11/12/13 upgrade-guide headings, the Carbon 3 migration page,
+and Laravel 10/11/12/13/14 skeleton tags against checked-in resources.
+
+Options:
+  --root PATH             Repository root (default: this package root)
+  --fixture-dir PATH      Read all upstream sources from local fixture files
+  --offline               Use checked-in guides and MANIFEST.json as sources
+  --refresh               Explicitly replace guide snapshots from fetched sources
+  --output PATH           Write guide-drift.json and guide-drift.md (or a file)
+  -h, --help              Show this help
+
+Fixture files may be named upgrade-11.md, upgrade-12.md, upgrade-13.md,
+carbon-3.md, and laravel-tags.json (tags may be a JSON list of names or
+objects with a name field). Body-only guide changes are intentionally ignored;
+heading and skeleton-tag changes return exit code 1.
+HELP);
+
+        exit(0);
+    }
+
+    if (in_array($argument, ['--root', '--fixture-dir', '--source-dir', '--output'], true)) {
+        $optionKey = $argument === '--source-dir' ? '--fixture-dir' : $argument;
+
+        if (isset($seen[$optionKey])) {
+            fwrite(STDERR, sprintf("Option %s may only be specified once.\n", $argument));
+
+            exit(2);
+        }
+
+        $seen[$optionKey] = true;
+        $value = $arguments[++$index] ?? null;
+
+        if (! is_string($value) || $value === '' || str_starts_with($value, '-')) {
+            fwrite(STDERR, sprintf("Missing value for %s.\n", $argument));
+
+            exit(2);
+        }
+
+        if ($argument === '--root') {
+            $root = $value;
+        } elseif ($argument === '--output') {
+            $output = $value;
+        } else {
+            $fixtureDirectory = $value;
+        }
+
+        continue;
+    }
+
+    $equalsOption = null;
+
+    foreach (['--root=', '--fixture-dir=', '--source-dir=', '--output='] as $prefix) {
+        if (str_starts_with($argument, $prefix)) {
+            $equalsOption = $prefix === '--source-dir=' ? '--fixture-dir' : rtrim($prefix, '=');
+
+            break;
+        }
+    }
+
+    if ($equalsOption !== null) {
+        if (isset($seen[$equalsOption])) {
+            fwrite(STDERR, sprintf("Option %s may only be specified once.\n", rtrim($equalsOption, '=')));
+
+            exit(2);
+        }
+
+        $seen[$equalsOption] = true;
+    }
+
+    if (str_starts_with($argument, '--root=')) {
+        $thisValue = optionValue($argument, '--root=');
+
+        if ($thisValue === null) {
+            fwrite(STDERR, "Missing value for --root.\n");
+
+            exit(2);
+        }
+
+        $root = $thisValue;
+    } elseif (str_starts_with($argument, '--fixture-dir=')) {
+        $thisValue = optionValue($argument, '--fixture-dir=');
+
+        if ($thisValue === null) {
+            fwrite(STDERR, "Missing value for --fixture-dir.\n");
+
+            exit(2);
+        }
+
+        $fixtureDirectory = $thisValue;
+    } elseif (str_starts_with($argument, '--source-dir=')) {
+        $thisValue = optionValue($argument, '--source-dir=');
+
+        if ($thisValue === null) {
+            fwrite(STDERR, "Missing value for --source-dir.\n");
+
+            exit(2);
+        }
+
+        $fixtureDirectory = $thisValue;
+    } elseif (str_starts_with($argument, '--output=')) {
+        $thisValue = optionValue($argument, '--output=');
+
+        if ($thisValue === null) {
+            fwrite(STDERR, "Missing value for --output.\n");
+
+            exit(2);
+        }
+
+        $output = $thisValue;
+    } elseif ($argument === '--offline') {
+        if (isset($seen[$argument])) {
+            fwrite(STDERR, "Option --offline may only be specified once.\n");
+
+            exit(2);
+        }
+
+        $seen[$argument] = true;
+        $offline = true;
+    } elseif ($argument === '--refresh') {
+        if (isset($seen[$argument])) {
+            fwrite(STDERR, "Option --refresh may only be specified once.\n");
+
+            exit(2);
+        }
+
+        $seen[$argument] = true;
+        $refresh = true;
+    } else {
+        fwrite(STDERR, sprintf("Unknown option: %s\n", $argument));
+
+        exit(2);
+    }
+}
+
+if ($offline && $fixtureDirectory !== null) {
+    fwrite(STDERR, "--offline cannot be combined with --fixture-dir.\n");
+
+    exit(2);
+}
+
+if ($refresh && $offline) {
+    fwrite(STDERR, "--refresh cannot be combined with --offline.\n");
+
+    exit(2);
+}
+
+foreach ([$packageRoot.'/vendor/autoload.php', __DIR__.'/../vendor/autoload.php'] as $autoloader) {
+    if (is_file($autoloader)) {
+        require_once $autoloader;
+
+        break;
+    }
+}
+
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\GuideDrift\FixtureSourceFetcher;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\GuideDrift\GuideDriftChecker;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\GuideDrift\GuideDriftReportWriter;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\GuideDrift\HttpSourceFetcher;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\GuideDrift\OfflineSourceFetcher;
+
+try {
+    $fetcher = $fixtureDirectory !== null
+        ? new FixtureSourceFetcher($fixtureDirectory)
+        : ($offline ? new OfflineSourceFetcher($root) : new HttpSourceFetcher);
+    $checker = new GuideDriftChecker($root, $fetcher);
+    $report = $checker->run($refresh);
+
+    if ($output !== null) {
+        $paths = (new GuideDriftReportWriter)->write($report, $output);
+        fwrite(STDOUT, sprintf("Reports written to %s and %s.\n", $paths['json'], $paths['markdown']));
+    }
+
+    $status = (string) ($report['status'] ?? 'error');
+    $drift = is_array($report['drift'] ?? null) ? $report['drift'] : [];
+    $errors = is_array($report['errors'] ?? null) ? $report['errors'] : [];
+
+    if ($status === 'error') {
+        fwrite(STDERR, "Guide drift check failed:\n");
+
+        foreach ($errors as $error) {
+            fwrite(STDERR, '- '.(string) $error."\n");
+        }
+
+        exit(2);
+    }
+
+    if ($status === 'drift') {
+        fwrite(STDOUT, sprintf("Guide drift detected (%d meaningful change%s).\n", count($drift), count($drift) === 1 ? '' : 's'));
+
+        foreach ($drift as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            fwrite(STDOUT, '- '.(string) ($item['type'] ?? 'unknown').': '.(string) ($item['target'] ?? $item['major'] ?? 'unknown')."\n");
+        }
+
+        exit(1);
+    }
+
+    fwrite(STDOUT, $refresh ? "Guide snapshots refreshed; no drift detected.\n" : "Guide drift check is clean.\n");
+
+    exit(0);
+} catch (Throwable $exception) {
+    // Keep an operational failure observable to CI when --output was
+    // requested. The checker normally returns this shape itself, but this
+    // also covers invalid roots, missing autoloaders, and writer failures.
+    if ($output !== null && class_exists(GuideDriftReportWriter::class)) {
+        try {
+            (new GuideDriftReportWriter)->write([
+                'schemaVersion' => 1,
+                'status' => 'error',
+                'sources' => [],
+                'drift' => [],
+                'errors' => [$exception->getMessage()],
+            ], $output);
+        } catch (Throwable $writeException) {
+            fwrite(STDERR, $writeException->getMessage().PHP_EOL);
+        }
+    }
+
+    fwrite(STDERR, $exception->getMessage().PHP_EOL);
+
+    exit(2);
+}
+
+/**
+ * @return non-empty-string|null
+ */
+function optionValue(string $argument, string $prefix): ?string
+{
+    $value = substr($argument, strlen($prefix));
+
+    return $value === '' || str_starts_with($value, '-') ? null : $value;
+}

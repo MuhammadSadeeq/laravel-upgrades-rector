@@ -1,0 +1,138 @@
+name: Guide drift
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: guide-drift-${{ github.repository }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Check upstream guides and skeleton tags
+        id: drift
+        shell: bash
+        run: |
+          set +e
+          php bin/check-guide-drift --output .guide-drift
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ ! -s .guide-drift/guide-drift.json ] || [ ! -s .guide-drift/guide-drift.md ]; then
+            mkdir -p .guide-drift
+            if [ ! -s .guide-drift/guide-drift.json ]; then
+              printf '%s\n' '{"schemaVersion":1,"status":"error","sources":{},"drift":[],"errors":["Guide drift command did not produce a report (exit code '$status')."]}' > .guide-drift/guide-drift.json
+            fi
+            if [ ! -s .guide-drift/guide-drift.md ]; then
+              printf '%s\n' '# Guide drift report' '' 'Status: **error**.' '' '## Errors' '' "- Guide drift command did not produce a report (exit code $status)." > .guide-drift/guide-drift.md
+            fi
+          fi
+          if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then
+            exit 2
+          fi
+          exit 0
+
+      - name: Ensure drift report artifact exists
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p .guide-drift
+          if [ ! -s .guide-drift/guide-drift.json ]; then
+            printf '%s\n' '{"schemaVersion":1,"status":"error","sources":{},"drift":[],"errors":["Guide drift check did not run or did not produce a report."]}' > .guide-drift/guide-drift.json
+          fi
+          if [ ! -s .guide-drift/guide-drift.md ]; then
+            printf '%s\n' '# Guide drift report' '' 'Status: **error**.' '' '## Errors' '' '- Guide drift check did not run or did not produce a report.' > .guide-drift/guide-drift.md
+          fi
+
+      - name: Upload drift reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guide-drift-report
+          path: .guide-drift/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Open or update the single drift issue
+        if: steps.drift.outputs.status == '1'
+        uses: actions/github-script@v7
+        env:
+          REPORT_PATH: .guide-drift/guide-drift.json
+          MARKDOWN_PATH: .guide-drift/guide-drift.md
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+            const body = fs.readFileSync(process.env.MARKDOWN_PATH, 'utf8');
+            const title = '[Maintenance] Laravel guide drift';
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => !issue.pull_request && issue.title === title);
+            const nextBody = `${body}\n\n<!-- guide-drift-report -->\nReport schema: ${report.schemaVersion}`;
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: nextBody,
+              });
+              core.info(`Updated issue #${existing.number}.`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: nextBody,
+              });
+              core.info(`Opened issue #${created.data.number}.`);
+            }
+
+      - name: Close the drift issue when clean
+        if: steps.drift.outputs.status == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '[Maintenance] Laravel guide drift';
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            for (const issue of issues.filter((item) => !item.pull_request && item.title === title)) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+              core.info(`Closed issue #${issue.number}.`);
+            }
+
+      - name: Mark drift as a failed maintenance check
+        if: steps.drift.outputs.status == '1'
+        run: exit 1

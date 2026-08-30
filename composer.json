@@ -82,7 +82,8 @@
         "format": "pint",
         "format-test": "pint --test",
         "analyse": "phpstan analyse --level max",
-        "check-release": "php bin/check-release"
+        "check-release": "php bin/check-release",
+        "check-guide-drift": "php bin/check-guide-drift"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
