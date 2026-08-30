@@ -37,6 +37,8 @@ final class PhpStanConfigGenerator
         array $databaseDrivers = [],
         ?string $queueDefault = null,
         ?string $sessionSerialization = null,
+        bool $localDiskRootConfigured = false,
+        ?bool $localDiskIsDefault = null,
     ): string {
         if (! $this->supportPolicy->isSupportedTarget($targetMajor)) {
             throw new RuntimeException(sprintf('Unsupported Laravel advisory target %d.', $targetMajor));
@@ -72,7 +74,9 @@ final class PhpStanConfigGenerator
             ));
         $queue = $queueDefault === null ? 'null' : $this->neonString($queueDefault);
         $serialization = $sessionSerialization === null ? 'null' : $this->neonString($sessionSerialization);
-        $afterCommitService = $targetMajor === 11
+        $localDisk = $localDiskRootConfigured ? 'true' : 'false';
+        $localDiskDefault = $localDiskIsDefault === null ? 'null' : ($localDiskIsDefault ? 'true' : 'false');
+        $contextServices = $targetMajor === 11
             ? <<<NEON
 
 services:
@@ -80,7 +84,15 @@ services:
         arguments:
             queueDefault: {$queue}
 NEON
-            : '';
+            : ($targetMajor === 12 ? <<<NEON
+
+services:
+    localDiskDefaultRootRule:
+        arguments:
+            localDiskRootConfigured: {$localDisk}
+            localDiskIsDefault: {$localDiskDefault}
+NEON
+                : '');
         $contents = <<<NEON
 includes:
 {$includeLines}
@@ -89,7 +101,9 @@ parametersSchema:
     laravelUpgrade: structure({
         databaseDrivers: listOf(string()),
         queueDefault: schema(string(), nullable()),
-        sessionSerialization: schema(string(), nullable())
+        sessionSerialization: schema(string(), nullable()),
+        localDiskRootConfigured: bool(),
+        localDiskIsDefault: schema(bool(), nullable())
     })
 
 parameters:
@@ -97,7 +111,9 @@ parameters:
         databaseDrivers: {$drivers}
         queueDefault: {$queue}
         sessionSerialization: {$serialization}
-{$afterCommitService}
+        localDiskRootConfigured: {$localDisk}
+        localDiskIsDefault: {$localDiskDefault}
+{$contextServices}
 
 NEON;
 

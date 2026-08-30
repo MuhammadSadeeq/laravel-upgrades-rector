@@ -14,6 +14,15 @@ use PHPStan\Testing\RuleTestCase;
  */
 abstract class Laravel13RuleTestCase extends RuleTestCase
 {
+    protected function setUp(): void
+    {
+        if (getenv('LARAVEL_ENV') !== '13') {
+            self::markTestSkipped('Laravel 13 PHPStan rule tests require LARAVEL_ENV=13.');
+        }
+
+        parent::setUp();
+    }
+
     /** @return list<string> */
     public static function getAdditionalConfigFiles(): array
     {

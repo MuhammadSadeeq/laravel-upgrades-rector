@@ -150,7 +150,6 @@ final class ProjectAdvisor
         }
 
         $this->scanCachePrefix($collector);
-        $this->scanLocalDiskRoot($collector);
     }
 
     private function scanCachePrefix(FindingCollector $collector): void
@@ -172,32 +171,6 @@ final class ProjectAdvisor
             'Review cache key compatibility before and after the upgrade.',
             'https://laravel.com/docs/11.x/upgrade#cache-prefix'
         );
-    }
-
-    private function scanLocalDiskRoot(FindingCollector $collector): void
-    {
-        if ($this->targetMajor < 12) {
-            return;
-        }
-
-        $contents = $this->readFile($this->configDirectory.'/filesystems.php');
-
-        if ($contents === null) {
-            return;
-        }
-
-        $localDisk = preg_match('/[\'\"]local[\'\"]\s*=>\s*\[(?<body>.*?)\]/s', $contents, $match) === 1;
-        $hasRoot = $localDisk && preg_match('/[\'\"]root[\'\"]\s*=>/', $match['body']) === 1;
-        $usesLocalDisk = $this->projectContains('/Storage\s*::\s*disk\s*\(\s*[\'\"]local[\'\"]|Filesystem\s*::\s*disk\s*\(\s*[\'\"]local[\'\"]/');
-
-        if (($localDisk && ! $hasRoot) || (! $localDisk && $usesLocalDisk)) {
-            $collector->add(
-                'laravelUpgrade.localDiskDefaultRoot', Finding::SEVERITY_MEDIUM, $this->targetMajor,
-                'config/filesystems.php', $this->lineForPattern($contents, '/[\'\"]local[\'\"]\s*=>/'),
-                'The local disk has no explicit root and Laravel 12 defaults it to storage_path("app/private").',
-                'Define disks.local.root explicitly to preserve storage/app behaviour.'
-            );
-        }
     }
 
     private function scanQueueContext(FindingCollector $collector, ?string $envContents): void

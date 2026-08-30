@@ -42,9 +42,9 @@ final class PassportRoutesRemovedRule implements Rule
             return [];
         }
 
-        $raw = ltrim($class->toString(), '\\');
+        $raw = ltrim($scope->resolveName($class), '\\');
 
-        if (! in_array($raw, ['Passport', 'Laravel\Passport\Passport'], true)) {
+        if ($raw !== 'Laravel\Passport\Passport') {
             return [];
         }
 

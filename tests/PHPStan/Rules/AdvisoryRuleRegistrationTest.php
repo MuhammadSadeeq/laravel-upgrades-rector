@@ -6,6 +6,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\PHPStan\Rules;
 
 use PHPStan\Rules\Rule;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Process\Process;
 
 final class AdvisoryRuleRegistrationTest extends TestCase
 {
@@ -117,6 +118,23 @@ final class AdvisoryRuleRegistrationTest extends TestCase
         ] as $class) {
             self::assertStringNotContainsString('Rules\\'.$class, $contents);
         }
+    }
+
+    public function test_laravel_12_packaged_neon_loads_without_generated_project_context(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $process = new Process([
+            $root.'/vendor/bin/phpstan',
+            'analyse',
+            '-c',
+            $root.'/resources/phpstan/upgrade-12.neon',
+            $root.'/src/PHPStan/Rules/LocalDiskDefaultRootRule.php',
+            '--no-progress',
+            '--debug',
+        ], $root);
+        $process->run();
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput().$process->getOutput());
     }
 
     public function test_laravel_13_neon_registers_exactly_laravel_13_rules(): void

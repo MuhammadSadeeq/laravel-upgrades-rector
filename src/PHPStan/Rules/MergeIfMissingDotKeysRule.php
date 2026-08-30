@@ -12,6 +12,7 @@ use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\ObjectType;
 
 /**
  * Laravel 12: mergeIfMissing() now supports nested array merging with dot
@@ -28,7 +29,10 @@ final class MergeIfMissingDotKeysRule implements Rule
 
     public function processNode(Node $node, Scope $scope): array
     {
-        if (! $node->name instanceof Identifier || $node->name->toLowerString() !== 'mergeifmissing') {
+        if (! $node->name instanceof Identifier
+            || $node->name->toLowerString() !== 'mergeifmissing'
+            || ! (new ObjectType('Illuminate\\Http\\Request'))
+                ->isSuperTypeOf($scope->getType($node->var))->yes()) {
             return [];
         }
 

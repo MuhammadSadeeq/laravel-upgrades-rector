@@ -27,7 +27,7 @@ final class PassportRoutesRemovedRuleTest extends Laravel11RuleTestCase
     {
         $this->analyse([__DIR__.'/Fixture/passport-routes-qualified.php'], [[
             'Passport::routes() was removed in Passport 12. Routes are now auto-registered.',
-            7,
+            9,
             'Remove the call; run vendor:publish --tag=passport-migrations.',
         ]]);
     }

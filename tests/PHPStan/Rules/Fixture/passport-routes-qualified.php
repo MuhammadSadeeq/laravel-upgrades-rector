@@ -2,7 +2,9 @@
 
 namespace App;
 
+use Laravel\Passport\Passport as PassportFacade;
+
 function registerQualifiedPassportRoutes(): void
 {
-    \Laravel\Passport\Passport::routes();
+    PassportFacade::routes();
 }

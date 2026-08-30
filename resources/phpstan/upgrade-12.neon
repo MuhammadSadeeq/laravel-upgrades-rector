@@ -31,6 +31,6 @@ services:
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\SchemaInspectionAllSchemasRule
         tags: [phpstan.rules.rule]
-    -
+    localDiskDefaultRootRule:
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\LocalDiskDefaultRootRule
         tags: [phpstan.rules.rule]

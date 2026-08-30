@@ -94,6 +94,8 @@ final class AdvisoryStep implements StepInterface
                 $facts['databaseDrivers'],
                 $facts['queueDefault'],
                 $facts['sessionSerialization'],
+                $facts['localDiskRootConfigured'],
+                $facts['localDiskIsDefault'],
             );
             $request = new ProcessRequest(
                 array_merge([
@@ -262,7 +264,7 @@ final class AdvisoryStep implements StepInterface
     }
 
     /**
-     * @return array{databaseDrivers: list<string>, queueDefault: ?string, sessionSerialization: ?string}
+     * @return array{databaseDrivers: list<string>, queueDefault: ?string, sessionSerialization: ?string, localDiskRootConfigured: bool, localDiskIsDefault: bool}
      */
     private function projectFacts(UpgradeContext $context): array
     {
@@ -319,11 +321,57 @@ final class AdvisoryStep implements StepInterface
             $sessionSerialization = $match[1];
         }
 
+        $filesystemsConfig = $this->readProjectFile($context->workingDirectory.'/config/filesystems.php');
+        $localDiskRootConfigured = $this->hasLocalDiskRoot($filesystemsConfig);
+        $localDiskIsDefault = $this->localDiskIsDefault(
+            $filesystemsConfig,
+            $env,
+            $context->option('localDiskIsDefault'),
+        );
+
         return [
             'databaseDrivers' => $databaseDrivers,
             'queueDefault' => $queueDefault,
             'sessionSerialization' => $sessionSerialization,
+            'localDiskRootConfigured' => $localDiskRootConfigured,
+            'localDiskIsDefault' => $localDiskIsDefault,
         ];
+    }
+
+    private function localDiskIsDefault(?string $filesystemsConfig, ?string $env, mixed $option): bool
+    {
+        if (is_bool($option)) {
+            return $option;
+        }
+
+        $configuredDefault = null;
+        $fallbackDefault = null;
+
+        if ($filesystemsConfig !== null
+            && preg_match('/[\'\"]default[\'\"]\s*=>\s*[\'\"]([^\'\"]+)[\'\"]/i', $filesystemsConfig, $match) === 1) {
+            $configuredDefault = $match[1];
+        } elseif ($filesystemsConfig !== null
+            && preg_match('/[\'\"]default[\'\"]\s*=>\s*env\s*\(\s*[\'\"]FILESYSTEM_DISK[\'\"]\s*(?:,\s*[\'\"]([^\'\"]+)[\'\"])?\s*\)/i', $filesystemsConfig, $match) === 1) {
+            $fallbackDefault = $match[1] ?? null;
+        }
+
+        if ($env !== null && preg_match('/^\s*FILESYSTEM_DISK\s*=\s*["\']?([^\s"\']+)/im', $env, $match) === 1) {
+            $configuredDefault = $match[1];
+        }
+
+        $default = $configuredDefault ?? $fallbackDefault ?? 'local';
+
+        return strtolower($default) === 'local';
+    }
+
+    private function hasLocalDiskRoot(?string $filesystemsConfig): bool
+    {
+        if ($filesystemsConfig === null
+            || preg_match('/[\'"]local[\'"]\s*=>\s*\[(?<body>.*?)\]/s', $filesystemsConfig, $match) !== 1) {
+            return false;
+        }
+
+        return preg_match('/[\'"]root[\'"]\s*=>/', $match['body']) === 1;
     }
 
     /**

@@ -44,6 +44,30 @@ final class PhpStanConfigGeneratorTest extends TestCase
         }
     }
 
+    public function test_local_disk_context_is_generated_only_for_laravel_12(): void
+    {
+        $generator = new PhpStanConfigGenerator(dirname(__DIR__, 3));
+
+        foreach ([11, 12, 13] as $targetMajor) {
+            $path = $generator->generate(
+                $this->directory,
+                $targetMajor,
+                $this->directory.'/local-disk-'.$targetMajor,
+                localDiskRootConfigured: true,
+                localDiskIsDefault: false,
+            );
+            $contents = (string) file_get_contents($path);
+
+            if ($targetMajor === 12) {
+                self::assertStringContainsString('localDiskDefaultRootRule:', $contents);
+                self::assertStringContainsString('localDiskRootConfigured: true', $contents);
+                self::assertStringContainsString('localDiskIsDefault: false', $contents);
+            } else {
+                self::assertStringNotContainsString('localDiskDefaultRootRule:', $contents);
+            }
+        }
+    }
+
     private function removeDirectory(string $directory): void
     {
         foreach (glob($directory.'/*') ?: [] as $path) {

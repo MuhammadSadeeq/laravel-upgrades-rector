@@ -14,6 +14,15 @@ use PHPStan\Testing\RuleTestCase;
  */
 abstract class Laravel11RuleTestCase extends RuleTestCase
 {
+    protected function setUp(): void
+    {
+        if (getenv('LARAVEL_ENV') !== '11') {
+            self::markTestSkipped('Laravel 11 PHPStan rule tests require LARAVEL_ENV=11.');
+        }
+
+        parent::setUp();
+    }
+
     /** @return list<string> */
     public static function getAdditionalConfigFiles(): array
     {

@@ -58,7 +58,7 @@ final class ProjectAdvisorTest extends TestCase
             'laravelUpgrade.sqliteConnection', 'laravelUpgrade.databaseDrivers',
             'laravelUpgrade.sessionSerialization', 'laravelUpgrade.cachePrefix',
             'laravelUpgrade.queueDefaultSync', 'laravelUpgrade.afterCommitWithSyncQueue',
-            'laravelUpgrade.localDiskDefaultRoot', 'laravelUpgrade.envKeyRenamed',
+            'laravelUpgrade.envKeyRenamed',
             'laravelUpgrade.boostAvailability',
             'laravelUpgrade.skeletonFileRemoved', 'laravelUpgrade.paginationPublishedView',
             'laravelUpgrade.publishedVendorViews', 'laravelUpgrade.laravelInstaller',

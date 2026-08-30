@@ -148,6 +148,47 @@ final class AdvisoryStepTest extends TestCase
         self::assertGreaterThanOrEqual(2, count(file($findingsPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: []));
     }
 
+    public function test_laravel_12_generation_passes_local_disk_root_context(): void
+    {
+        file_put_contents($this->projectDirectory.'/config/filesystems.php', "<?php\nreturn ['default' => env('FILESYSTEM_DISK', 'local'), 'disks' => ['local' => ['driver' => 'local']]];\n");
+        $runner = new AdvisoryFakeProcessRunner([
+            new ProcessResult([], 0, $this->phpstanJson()),
+            new ProcessResult([], 0, $this->phpstanJson()),
+            new ProcessResult([], 0, $this->phpstanJson()),
+            new ProcessResult([], 0, $this->phpstanJson()),
+        ]);
+        $step = $this->step($runner);
+
+        $missingRoot = $step->execute($this->context(planMode: false, fromMajor: 11, toMajor: 12));
+        self::assertTrue($missingRoot->isSuccessful(), $missingRoot->message);
+        $missingRootConfig = (string) file_get_contents($this->projectDirectory.'/.laravel-upgrade/phpstan-12.neon');
+        self::assertStringContainsString('localDiskRootConfigured: false', $missingRootConfig);
+        self::assertStringContainsString('localDiskIsDefault: true', $missingRootConfig);
+
+        file_put_contents($this->projectDirectory.'/.env', "FILESYSTEM_DISK=s3\n");
+        $s3Default = $step->execute($this->context(planMode: false, fromMajor: 11, toMajor: 12));
+        self::assertTrue($s3Default->isSuccessful(), $s3Default->message);
+        $s3DefaultConfig = (string) file_get_contents($this->projectDirectory.'/.laravel-upgrade/phpstan-12.neon');
+        self::assertStringContainsString('localDiskIsDefault: false', $s3DefaultConfig);
+
+        $optionDefault = $step->execute($this->context(
+            ['localDiskIsDefault' => true],
+            planMode: false,
+            fromMajor: 11,
+            toMajor: 12,
+        ));
+        self::assertTrue($optionDefault->isSuccessful(), $optionDefault->message);
+        $optionDefaultConfig = (string) file_get_contents($this->projectDirectory.'/.laravel-upgrade/phpstan-12.neon');
+        self::assertStringContainsString('localDiskIsDefault: true', $optionDefaultConfig);
+
+        file_put_contents($this->projectDirectory.'/config/filesystems.php', "<?php\nreturn ['default' => 's3', 'disks' => ['local' => ['driver' => 'local', 'root' => storage_path('app')]]];\n");
+        unlink($this->projectDirectory.'/.env');
+        $explicitRoot = $step->execute($this->context(planMode: false, fromMajor: 11, toMajor: 12));
+        self::assertTrue($explicitRoot->isSuccessful(), $explicitRoot->message);
+        $explicitRootConfig = (string) file_get_contents($this->projectDirectory.'/.laravel-upgrade/phpstan-12.neon');
+        self::assertStringContainsString('localDiskRootConfigured: true', $explicitRootConfig);
+    }
+
     public function test_advisor_findings_are_merged_without_duplicate_locations(): void
     {
         mkdir($this->projectDirectory.'/resources/views/vendor/widgets', 0777, true);
@@ -281,11 +322,15 @@ final class AdvisoryStepTest extends TestCase
     /**
      * @param  array<string, mixed>  $options
      */
-    private function context(array $options = [], bool $planMode = false): UpgradeContext
-    {
+    private function context(
+        array $options = [],
+        bool $planMode = false,
+        int $fromMajor = 10,
+        int $toMajor = 11,
+    ): UpgradeContext {
         return new UpgradeContext(
             $this->projectDirectory,
-            new UpgradePlan(10, 11, $planMode),
+            new UpgradePlan($fromMajor, $toMajor, $planMode),
             'advisory-test',
             $options,
         );

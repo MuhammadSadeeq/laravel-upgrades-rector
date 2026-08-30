@@ -65,7 +65,9 @@
             "@test-env-11",
             "@test-env-12",
             "@test-env-13",
-            "@test-phpstan",
+            "@test-phpstan-11",
+            "@test-phpstan-12",
+            "@test-phpstan-13",
             "@test-independent"
         ],
         "test-env-11": [
@@ -80,7 +82,14 @@
             "LARAVEL_ENV=13 phpunit --testsuite env-13",
             "LARAVEL_ENV=13 phpunit tests/Support/GeneratedCodeLoadsTest.php"
         ],
-        "test-phpstan": "LARAVEL_ENV=11 phpunit --testsuite phpstan",
+        "test-phpstan": [
+            "@test-phpstan-11",
+            "@test-phpstan-12",
+            "@test-phpstan-13"
+        ],
+        "test-phpstan-11": "LARAVEL_ENV=11 phpunit --testsuite phpstan",
+        "test-phpstan-12": "LARAVEL_ENV=12 phpunit --testsuite phpstan",
+        "test-phpstan-13": "LARAVEL_ENV=13 phpunit --testsuite phpstan",
         "test-independent": "phpunit --testsuite independent",
         "format": "pint",
         "format-test": "pint --test",
