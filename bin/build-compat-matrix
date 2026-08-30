@@ -1,0 +1,285 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$packageRoot = dirname(__DIR__);
+$root = $packageRoot;
+$fixtureDirectory = null;
+$offline = false;
+$mode = null;
+$output = null;
+$now = null;
+$seen = [];
+$arguments = array_slice($argv, 1);
+
+for ($index = 0, $count = count($arguments); $index < $count; $index++) {
+    $argument = $arguments[$index];
+
+    if ($argument === '-h' || $argument === '--help') {
+        fwrite(STDOUT, <<<'HELP'
+Usage: bin/build-compat-matrix [options]
+
+Recomputes resources/compat/packages.json from Packagist p2 metadata.
+Choose one explicit mode: --check is read-only, while --write persists
+changes atomically. --dry-run is a read-only alias for --check.
+
+Options:
+  --root PATH             Repository root (default: this package root)
+  --output PATH           Matrix path (default: resources/compat/packages.json)
+  --fixture-dir PATH      Read p2 responses from local fixture files
+  --offline               Use tests/fixtures/compat (or .compat-fixtures)
+  --write                 Persist the refreshed matrix
+  --check                 Check for a diff without writing
+  --dry-run               Alias for --check; print the proposed path
+  --now YYYY-MM-DD        Date used for generatedAt when values change
+  -h, --help              Show this help
+
+Fixture names may mirror the Packagist path (vendor/name.json), use
+p2/vendor/name.json, or be flattened as vendor-name.json. A page URL may
+also be represented as vendor-name-page-N.json.
+HELP);
+        exit(0);
+    }
+
+    if (in_array($argument, ['--root', '--output', '--fixture-dir', '--source-dir', '--now'], true)) {
+        $key = $argument === '--source-dir' ? '--fixture-dir' : $argument;
+
+        if (isset($seen[$key])) {
+            fwrite(STDERR, sprintf("Option %s may only be specified once.\n", $argument));
+            exit(2);
+        }
+
+        $seen[$key] = true;
+        $value = $arguments[++$index] ?? null;
+
+        if (! is_string($value) || $value === '' || str_starts_with($value, '-')) {
+            fwrite(STDERR, sprintf("Missing value for %s.\n", $argument));
+            exit(2);
+        }
+
+        if ($key === '--root') {
+            $root = $value;
+        } elseif ($key === '--output') {
+            $output = $value;
+        } elseif ($key === '--now') {
+            $now = $value;
+        } else {
+            $fixtureDirectory = $value;
+        }
+
+        continue;
+    }
+
+    $handledEquals = false;
+
+    foreach (['--root=', '--output=', '--fixture-dir=', '--source-dir=', '--now='] as $prefix) {
+        if (! str_starts_with($argument, $prefix)) {
+            continue;
+        }
+
+        $key = $prefix === '--source-dir=' ? '--fixture-dir' : rtrim($prefix, '=');
+
+        if (isset($seen[$key])) {
+            fwrite(STDERR, sprintf("Option %s may only be specified once.\n", $key));
+            exit(2);
+        }
+
+        $seen[$key] = true;
+        $value = substr($argument, strlen($prefix));
+
+        if ($value === '' || str_starts_with($value, '-')) {
+            fwrite(STDERR, sprintf("Missing value for %s.\n", $key));
+            exit(2);
+        }
+
+        if ($key === '--root') {
+            $root = $value;
+        } elseif ($key === '--output') {
+            $output = $value;
+        } elseif ($key === '--now') {
+            $now = $value;
+        } else {
+            $fixtureDirectory = $value;
+        }
+
+        $handledEquals = true;
+        break;
+    }
+
+    if ($handledEquals) {
+        continue;
+    }
+
+    if (in_array($argument, ['--write', '--check', '--dry-run', '--offline'], true)) {
+        if ($argument === '--offline') {
+            if (isset($seen['--offline'])) {
+                fwrite(STDERR, "Option --offline may only be specified once.\n");
+                exit(2);
+            }
+
+            $seen['--offline'] = true;
+            $offline = true;
+        } else {
+            if (isset($seen[$argument])) {
+                fwrite(STDERR, sprintf("Option %s may only be specified once.\n", $argument));
+                exit(2);
+            }
+
+            if ($mode !== null) {
+                fwrite(STDERR, "Only one of --write, --check, or --dry-run may be used.\n");
+                exit(2);
+            }
+
+            $seen[$argument] = true;
+            $mode = $argument === '--write' ? 'write' : 'check';
+        }
+
+        continue;
+    }
+
+    fwrite(STDERR, sprintf("Unknown option: %s\n", $argument));
+    exit(2);
+}
+
+if ($mode === null) {
+    fwrite(STDERR, "Exactly one of --write, --check, or --dry-run is required.\n");
+    exit(2);
+}
+
+if ($offline && $fixtureDirectory !== null) {
+    fwrite(STDERR, "Option --offline cannot be combined with --fixture-dir.\n");
+    exit(2);
+}
+
+if ($now !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $now) !== 1) {
+    fwrite(STDERR, "Option --now must use YYYY-MM-DD.\n");
+    exit(2);
+}
+
+foreach ([$packageRoot.'/vendor/autoload.php', __DIR__.'/../vendor/autoload.php'] as $autoloader) {
+    if (is_file($autoloader)) {
+        require_once $autoloader;
+        break;
+    }
+}
+
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\CompatibilityMatrixBuilder;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\FixturePackagistTransport;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackagistClient;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\GuideDrift\SafePath;
+
+/**
+ * Resolve a CLI path without normalizing through symlinks. SafePath then
+ * checks every existing component. This is a preflight policy, not a claim
+ * that portable PHP can eliminate a concurrent TOCTOU race.
+ */
+function absoluteCliPath(string $path, string $description): string
+{
+    if ($path === '' || str_contains($path, "\0") || preg_match('~(^|/)\.\.(/|$)~', $path) === 1) {
+        throw new RuntimeException(sprintf('Unsafe %s path "%s".', $description, $path));
+    }
+
+    if (str_starts_with($path, '/')) {
+        return $path;
+    }
+
+    $workingDirectory = getcwd();
+
+    if ($workingDirectory === false) {
+        throw new RuntimeException(sprintf('Could not resolve the working directory for %s path.', $description));
+    }
+
+    return $workingDirectory.'/'.$path;
+}
+
+try {
+    $rootPath = absoluteCliPath($root, 'repository root');
+    SafePath::assertNoSymlinkComponents($rootPath, 'repository root');
+    $resolvedRoot = realpath($rootPath);
+
+    if ($resolvedRoot === false || ! is_dir($resolvedRoot)) {
+        throw new RuntimeException(sprintf('Repository root "%s" does not exist or is a symlink.', $root));
+    }
+
+    $resolvedRoot = rtrim($resolvedRoot, '/');
+    $matrixPath = $output ?? 'resources/compat/packages.json';
+
+    if (! str_starts_with($matrixPath, '/')) {
+        SafePath::assertInsideRoot($resolvedRoot, $matrixPath, 'compatibility matrix');
+        $matrixPath = $resolvedRoot.'/'.$matrixPath;
+        SafePath::assertNoSymlinkComponents($matrixPath, 'compatibility matrix');
+    } else {
+        $matrixPath = absoluteCliPath($matrixPath, 'compatibility matrix');
+        SafePath::assertNoSymlinkComponents($matrixPath, 'compatibility matrix');
+        $matrixReal = realpath(dirname($matrixPath));
+
+        if (($matrixReal !== false && $matrixReal !== $resolvedRoot && ! str_starts_with($matrixReal, $resolvedRoot.'/'))
+            || ($matrixReal === false && ! str_starts_with($matrixPath, $resolvedRoot.'/'))) {
+            throw new RuntimeException('The compatibility matrix path must remain inside --root.');
+        }
+    }
+
+    if ($offline) {
+        foreach ([$resolvedRoot.'/tests/fixtures/compat', $resolvedRoot.'/.compat-fixtures'] as $candidate) {
+            if (is_dir($candidate)) {
+                $fixtureDirectory = $candidate;
+                break;
+            }
+        }
+
+        if ($fixtureDirectory === null) {
+            throw new RuntimeException('Offline mode requires tests/fixtures/compat or .compat-fixtures.');
+        }
+    }
+
+    $client = $fixtureDirectory === null
+        ? new PackagistClient
+        : new PackagistClient(\Closure::fromCallable(new FixturePackagistTransport($fixtureDirectory)));
+    $phpPath = $resolvedRoot.'/resources/compat/php.json';
+    $builder = new CompatibilityMatrixBuilder($matrixPath, $phpPath, $client);
+    $date = null;
+
+    if ($now !== null) {
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $now, new \DateTimeZone('UTC'));
+        $dateErrors = \DateTimeImmutable::getLastErrors();
+
+        if ($date === false || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))) {
+            throw new RuntimeException('Option --now is not a valid calendar date.');
+        }
+    }
+
+    $candidate = $builder->build($date);
+    $proposed = $builder->render($candidate);
+    // Repeat the destination preflight immediately before the read. This
+    // narrows, but cannot remove, the window for a concurrent path swap.
+    SafePath::assertNoSymlinkComponents($matrixPath, 'compatibility matrix');
+    $current = is_file($matrixPath) ? file_get_contents($matrixPath) : false;
+
+    if ($current === false) {
+        throw new RuntimeException(sprintf('Could not read compatibility matrix "%s".', $matrixPath));
+    }
+
+    if ($current === $proposed) {
+        fwrite(STDOUT, "Compatibility matrix is up to date; no diff.\n");
+        exit(0);
+    }
+
+    if ($mode === 'write') {
+        $changed = $builder->write($candidate);
+
+        if (! $changed) {
+            fwrite(STDOUT, "Compatibility matrix is up to date; no diff.\n");
+            exit(0);
+        }
+
+        fwrite(STDOUT, sprintf("Compatibility matrix refreshed: %s\n", $matrixPath));
+        exit(0);
+    }
+
+    fwrite(STDOUT, sprintf("Compatibility matrix differs; run with --write to persist (%s).\n", $matrixPath));
+    exit(1);
+} catch (Throwable $exception) {
+    fwrite(STDERR, $exception->getMessage().PHP_EOL);
+    exit(2);
+}

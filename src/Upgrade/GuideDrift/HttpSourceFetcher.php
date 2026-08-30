@@ -41,15 +41,40 @@ final class HttpSourceFetcher implements SourceFetcher
             try {
                 $response = ($this->transport)($url, $maxBytes);
             } catch (Throwable $exception) {
-                throw new RuntimeException(sprintf('Could not fetch "%s": %s', $url, $exception->getMessage()), 0, $exception);
+                if ($exception instanceof HttpSourceException) {
+                    throw $exception;
+                }
+
+                throw new HttpSourceException(
+                    sprintf('Could not fetch "%s": %s', $url, $exception->getMessage()),
+                    null,
+                    [],
+                    false,
+                    null,
+                    null,
+                    $exception,
+                );
             }
+
+            if (! is_array($response) || ! is_int($response['status'] ?? null) || ! is_string($response['body'] ?? null)) {
+                throw new RuntimeException(sprintf('HTTP transport returned a malformed response for "%s".', $url));
+            }
+
+            $headers = array_key_exists('headers', $response) ? $response['headers'] : [];
+
+            if (! is_array($headers) || array_filter($headers, static fn (mixed $header): bool => ! is_string($header)) !== []) {
+                throw new RuntimeException(sprintf('HTTP transport returned malformed headers for "%s".', $url));
+            }
+
+            /** @var list<string> $headerValues */
+            $headerValues = array_values($headers);
 
             return $this->validateResponse(
                 $url,
                 $maxBytes,
                 $response['status'],
                 $response['body'],
-                $response['headers'] ?? [],
+                $headerValues,
             );
         }
 
@@ -65,7 +90,13 @@ final class HttpSourceFetcher implements SourceFetcher
         $handle = curl_init($url);
 
         if ($handle === false) {
-            throw new RuntimeException(sprintf('Could not initialise an HTTP client for "%s".', $url));
+            throw new HttpSourceException(
+                sprintf('Could not initialise an HTTP client for "%s".', $url),
+                null,
+                [],
+                false,
+                'client',
+            );
         }
 
         $body = '';
@@ -107,6 +138,7 @@ final class HttpSourceFetcher implements SourceFetcher
 
         $result = curl_exec($handle);
         $error = curl_error($handle);
+        $errno = curl_errno($handle);
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         curl_close($handle);
 
@@ -115,7 +147,16 @@ final class HttpSourceFetcher implements SourceFetcher
         }
 
         if ($result === false) {
-            throw new RuntimeException(sprintf('Could not fetch "%s": %s', $url, $error !== '' ? $error : 'unknown HTTP error'));
+            $transient = $this->isTransientCurlError($errno);
+
+            throw new HttpSourceException(
+                sprintf('Could not fetch "%s": %s', $url, $error !== '' ? $error : 'unknown HTTP error'),
+                $status > 0 ? $status : null,
+                $this->normalizeHeaders($headers),
+                $transient,
+                $transient ? 'transport' : null,
+                $this->headerValue($headers, 'retry-after'),
+            );
         }
 
         return $this->validateResponse($url, $maxBytes, $status, $body, $headers);
@@ -151,7 +192,16 @@ final class HttpSourceFetcher implements SourceFetcher
         }
 
         if ($stream === false) {
-            throw new RuntimeException(sprintf('Could not fetch "%s": %s', $url, $warning ?? 'unknown HTTP error'));
+            $message = $warning ?? 'unknown HTTP error';
+            $transient = $this->isTransientTransportError($message);
+
+            throw new HttpSourceException(
+                sprintf('Could not fetch "%s": %s', $url, $message),
+                null,
+                [],
+                $transient,
+                $transient ? 'transport' : null,
+            );
         }
 
         $defined = get_defined_vars();
@@ -172,7 +222,14 @@ final class HttpSourceFetcher implements SourceFetcher
                 $chunk = fread($stream, 8192);
 
                 if ($chunk === false) {
-                    throw new RuntimeException(sprintf('Could not read source "%s".', $url));
+                    throw new HttpSourceException(
+                        sprintf('Could not read source "%s".', $url),
+                        $status > 0 ? $status : null,
+                        $this->normalizeHeaders($headers),
+                        true,
+                        'transport',
+                        $this->headerValue($headers, 'retry-after'),
+                    );
                 }
 
                 $body .= $chunk;
@@ -199,10 +256,12 @@ final class HttpSourceFetcher implements SourceFetcher
 
         if ($status < 200 || $status >= 300) {
             $message = sprintf('Source "%s" returned HTTP status %d.', $url, $status);
-            $remaining = $this->headerValue($headers, 'x-ratelimit-remaining');
+            $normalizedHeaders = $this->normalizeHeaders($headers);
+            $remaining = $normalizedHeaders['x-ratelimit-remaining'] ?? null;
+            $retryAfter = $normalizedHeaders['retry-after'] ?? null;
+            $transientReason = $this->transientReason($status, $remaining);
 
             if (($status === 403 || $status === 429) && $remaining === '0') {
-                $retryAfter = $this->headerValue($headers, 'retry-after');
                 $message .= ' API rate limit exhausted.';
 
                 if ($retryAfter !== null && $retryAfter !== '') {
@@ -210,7 +269,14 @@ final class HttpSourceFetcher implements SourceFetcher
                 }
             }
 
-            throw new RuntimeException($message);
+            throw new HttpSourceException(
+                $message,
+                $status,
+                $normalizedHeaders,
+                $transientReason !== null,
+                $transientReason,
+                $retryAfter,
+            );
         }
 
         if ($body === '') {
@@ -248,5 +314,54 @@ final class HttpSourceFetcher implements SourceFetcher
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @return array<string, string>
+     */
+    private function normalizeHeaders(array $headers): array
+    {
+        $normalized = [];
+
+        foreach ($headers as $header) {
+            if (preg_match('/^([^:]+):\s*(.*)$/', $header, $matches) !== 1) {
+                continue;
+            }
+
+            $normalized[strtolower(trim($matches[1]))] = trim($matches[2]);
+        }
+
+        return $normalized;
+    }
+
+    private function transientReason(int $status, ?string $remaining): ?string
+    {
+        if ($status === 403 && $remaining !== '0') {
+            return null;
+        }
+
+        if (($status === 403 && $remaining === '0') || $status === 429) {
+            return 'rate_limit';
+        }
+
+        if (in_array($status, [408, 425], true) || ($status >= 500 && $status <= 599)) {
+            return 'http_status';
+        }
+
+        return null;
+    }
+
+    private function isTransientCurlError(int $errno): bool
+    {
+        // DNS resolution, connection setup and operation timeout failures.
+        return in_array($errno, [5, 6, 7, 28], true);
+    }
+
+    private function isTransientTransportError(string $message): bool
+    {
+        $message = preg_replace('~https?://\S+~i', '', $message) ?? $message;
+
+        return preg_match('/timed? ?out|timeout|could not resolve|name or service not known|temporary failure in name resolution|failed to (?:open stream|connect)|connection refused|network is unreachable/i', $message) === 1;
     }
 }

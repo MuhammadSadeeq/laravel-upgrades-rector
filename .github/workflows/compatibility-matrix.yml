@@ -1,0 +1,106 @@
+name: Compatibility matrix
+
+on:
+  schedule:
+    - cron: '23 5 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: compatibility-matrix-${{ github.repository }}
+  cancel-in-progress: true
+
+# The refresh job never receives a write-capable token. Only the dependent PR
+# job gets the narrowly scoped permissions needed after artifact validation.
+permissions: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
+        with:
+          php-version: '8.3'
+          extensions: curl, mbstring, zip
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Refresh compatibility matrix
+        run: php bin/build-compat-matrix --write
+
+      - name: Validate refreshed matrix
+        run: |
+          git diff --check
+          test -f resources/compat/packages.json
+          php -r '$data = json_decode(file_get_contents("resources/compat/packages.json"), true, 512, JSON_THROW_ON_ERROR); if (!is_array($data) || !isset($data["packages"]) || !is_array($data["packages"])) { throw new RuntimeException("Invalid compatibility matrix artifact"); }'
+          git diff -- resources/compat/packages.json
+
+      - name: Upload refreshed matrix
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compatibility-matrix
+          path: resources/compat/packages.json
+          if-no-files-found: error
+          retention-days: 30
+
+  propose:
+    needs: refresh
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Download refreshed matrix
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: compatibility-matrix
+          path: artifact
+
+      - name: Validate and install refreshed matrix
+        run: |
+          test -f artifact/packages.json
+          test "$(find artifact -type f | wc -l | tr -d ' ')" = 1
+          test "$(find artifact -type l | wc -l | tr -d ' ')" = 0
+          php bin/validate-compat-matrix-artifact --baseline resources/compat/packages.json artifact/packages.json
+          install -m 0644 artifact/packages.json resources/compat/packages.json
+          git diff --check
+
+      - name: Skip empty refresh
+        id: diff
+        run: |
+          if git diff --quiet -- resources/compat/packages.json; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update refresh PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412 # v7.0.9
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: refresh compatibility matrix'
+          title: 'chore: refresh compatibility matrix'
+          body: |
+            Automated monthly refresh from Packagist p2 metadata.
+
+            The builder validates all responses before atomically writing `resources/compat/packages.json`.
+          branch: maintenance/compatibility-matrix
+          delete-branch: true
+          add-paths: resources/compat/packages.json

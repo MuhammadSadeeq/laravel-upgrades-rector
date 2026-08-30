@@ -21,8 +21,9 @@ final class SafePath
     private function __construct() {}
 
     /**
-     * Assert that a repository-relative path never traverses a symlink and,
-     * when it exists, resolves below the declared root.
+     * During a path preflight, reject a repository-relative path that follows
+     * a known symlink or resolves outside the declared root. This is not a
+     * descriptor-relative or race-proof filesystem confinement primitive.
      */
     public static function assertInsideRoot(string $root, string $relative, string $description): void
     {

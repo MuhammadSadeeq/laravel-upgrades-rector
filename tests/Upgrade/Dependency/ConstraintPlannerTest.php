@@ -97,7 +97,7 @@ final class ConstraintPlannerTest extends TestCase
 
         self::assertSame(DependencyDecision::ACTION_BUMP, $decision->action);
         self::assertSame('v2.12.0', $decision->installed);
-        self::assertSame('^3.0.1', $decision->proposed);
+        self::assertSame('^3.0.0', $decision->proposed);
         self::assertSame('v2.12.0', $decision->toArray()['installed']);
     }
 

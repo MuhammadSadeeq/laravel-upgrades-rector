@@ -1,0 +1,72 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\CompatibilityMatrixArtifactValidator;
+
+$arguments = array_slice($argv, 1);
+$baseline = 'resources/compat/packages.json';
+$baselineSeen = false;
+$candidate = null;
+
+for ($index = 0, $count = count($arguments); $index < $count; $index++) {
+    $argument = $arguments[$index];
+
+    if ($argument === '--help' || $argument === '-h') {
+        fwrite(STDOUT, "Usage: bin/validate-compat-matrix-artifact [--baseline PATH] ARTIFACT\n");
+        exit(0);
+    }
+
+    if ($argument === '--baseline' || str_starts_with($argument, '--baseline=')) {
+        if ($baselineSeen) {
+            fwrite(STDERR, "Option --baseline may only be specified once.\n");
+            exit(2);
+        }
+
+        if ($argument === '--baseline') {
+            $value = $arguments[++$index] ?? null;
+        } else {
+            $value = substr($argument, strlen('--baseline='));
+        }
+
+        if (! is_string($value) || $value === '' || str_starts_with($value, '-')) {
+            fwrite(STDERR, "Missing value for --baseline.\n");
+            exit(2);
+        }
+
+        $baseline = $value;
+        $baselineSeen = true;
+
+        continue;
+    }
+
+    if (str_starts_with($argument, '-')) {
+        fwrite(STDERR, sprintf("Unknown option: %s\n", $argument));
+        exit(2);
+    }
+
+    if ($candidate !== null) {
+        fwrite(STDERR, "Exactly one artifact path is required.\n");
+        exit(2);
+    }
+
+    $candidate = $argument;
+}
+
+if ($candidate === null) {
+    fwrite(STDERR, "An artifact path is required.\n");
+    exit(2);
+}
+
+require_once dirname(__DIR__).'/src/Upgrade/GuideDrift/SafePath.php';
+require_once dirname(__DIR__).'/src/Upgrade/Dependency/CompatibilityMatrixArtifactValidator.php';
+
+try {
+    (new CompatibilityMatrixArtifactValidator)->validate($baseline, $candidate);
+    fwrite(STDOUT, "Compatibility matrix artifact is valid.\n");
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, $exception->getMessage().PHP_EOL);
+    exit(2);
+}

@@ -31,7 +31,8 @@
         "composer/semver": "^3.4",
         "symfony/console": "^6.4 || ^7.0",
         "symfony/process": "^6.4 || ^7.0",
-        "symplify/rule-doc-generator-contracts": "^11.0"
+        "symplify/rule-doc-generator-contracts": "^11.0",
+        "composer/metadata-minifier": "^1.0"
     },
     "require-dev": {
         "phpstan/phpstan": "^1.10 || ^2.0",
@@ -83,7 +84,8 @@
         "format-test": "pint --test",
         "analyse": "phpstan analyse --level max",
         "check-release": "php bin/check-release",
-        "check-guide-drift": "php bin/check-guide-drift"
+        "check-guide-drift": "php bin/check-guide-drift",
+        "build-compat-matrix": "php bin/build-compat-matrix --write"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
