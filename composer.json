@@ -26,7 +26,7 @@
         }
     ],
     "require": {
-        "php": "^8.2",
+        "php": "^8.1",
         "rector/rector": "^2.3",
         "composer/semver": "^3.4",
         "symfony/console": "^6.4 || ^7.0",
@@ -83,6 +83,7 @@
         "format": "pint",
         "format-test": "pint --test",
         "analyse": "phpstan analyse --level max",
+        "check-support-policy": "php bin/check-support-policy",
         "check-release": "php bin/check-release",
         "check-guide-drift": "php bin/check-guide-drift",
         "build-compat-matrix": "php bin/build-compat-matrix --write"

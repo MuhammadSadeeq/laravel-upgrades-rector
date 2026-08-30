@@ -37,6 +37,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepResult;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\UpgradeContext as StepUpgradeContext;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\VerifyStep;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 
 /**
  * Default dependency graph for `to`, `plan`, and `continue`.
@@ -79,7 +80,7 @@ final class UpgradeRuntimeFactory implements SingleStepRuntimeInterface, Upgrade
         $git = new GitCheckpointService($this->processRunner, $this->binaryResolver);
         $report = new UpgradeReportGenerator;
         $steps = $this->stepFactory === null
-            ? $this->realSteps($git, $report)
+            ? $this->realSteps($git, $report, $plan->supportPolicy())
             : ($this->stepFactory)($this->processRunner, $this->binaryResolver, $git);
 
         return new UpgradeRunner(
@@ -121,7 +122,7 @@ final class UpgradeRuntimeFactory implements SingleStepRuntimeInterface, Upgrade
         $git = new GitCheckpointService($this->processRunner, $this->binaryResolver);
         $report = new UpgradeReportGenerator;
         $steps = $this->stepFactory === null
-            ? $this->realSteps($git, $report)
+            ? $this->realSteps($git, $report, $plan->supportPolicy())
             : ($this->stepFactory)($this->processRunner, $this->binaryResolver, $git);
         $selected = null;
 
@@ -205,7 +206,7 @@ final class UpgradeRuntimeFactory implements SingleStepRuntimeInterface, Upgrade
     }
 
     /** @return list<StepInterface> */
-    private function realSteps(GitCheckpointService $git, UpgradeReportGenerator $report): array
+    private function realSteps(GitCheckpointService $git, UpgradeReportGenerator $report, SupportPolicy $supportPolicy): array
     {
         $root = dirname(__DIR__, 3);
         $manifestReader = new ManifestReader;
@@ -222,7 +223,7 @@ final class UpgradeRuntimeFactory implements SingleStepRuntimeInterface, Upgrade
             new InstallStep($composer),
             new SkeletonSyncStep(new SkeletonStep),
             new CodeStep($this->processRunner, new RectorConfigGenerator),
-            new AdvisoryStep($this->processRunner, new PhpStanConfigGenerator),
+            new AdvisoryStep($this->processRunner, new PhpStanConfigGenerator($root, $supportPolicy)),
             new PostStep($this->processRunner, $root.'/resources/compat/post-install-steps.json', $this->binaryResolver),
             new VerifyStep($this->processRunner, $this->binaryResolver),
             new CommitStep($git, $report),

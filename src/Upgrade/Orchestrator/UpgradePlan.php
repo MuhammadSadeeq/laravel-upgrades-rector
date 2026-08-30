@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator;
 
 use InvalidArgumentException;
+use LogicException;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 
 /**
  * The validated, side-effect-free description of an upgrade run.
@@ -40,21 +42,35 @@ final class UpgradePlan
         public readonly bool $planMode = false,
         ?string $fromStep = null,
         string|array $skipSteps = [],
+        ?SupportPolicy $supportPolicy = null,
     ) {
-        if ($targetMajor < self::MIN_SUPPORTED_TARGET || $targetMajor > self::MAX_SUPPORTED_TARGET) {
+        $usingDefaultPolicy = $supportPolicy === null;
+        $supportPolicy ??= SupportPolicy::default();
+        $supportedTargets = $supportPolicy->targetMajors();
+
+        // Keep the historical constants source-compatible for callers that
+        // read them, while ensuring they cannot silently drift from the
+        // packaged policy document.
+        if ($usingDefaultPolicy
+            && ($supportPolicy->minTargetMajor() !== self::MIN_SUPPORTED_TARGET
+                || $supportPolicy->maxTargetMajor() !== self::MAX_SUPPORTED_TARGET)
+        ) {
+            throw new LogicException('UpgradePlan compatibility constants do not match the support policy.');
+        }
+
+        if (! $supportPolicy->isSupportedTarget($targetMajor)) {
             throw new InvalidArgumentException(sprintf(
-                'Unsupported Laravel target major %d; supported targets are %d through %d.',
+                'Unsupported Laravel target major %d; supported targets are %s.',
                 $targetMajor,
-                self::MIN_SUPPORTED_TARGET,
-                self::MAX_SUPPORTED_TARGET,
+                implode(', ', $supportedTargets),
             ));
         }
 
-        if ($currentMajor < 10 || $currentMajor > self::MAX_SUPPORTED_TARGET) {
+        if (! $supportPolicy->supportsMajor($currentMajor)) {
             throw new InvalidArgumentException(sprintf(
-                'Unsupported current Laravel major %d; supported source majors are 10 through %d.',
+                'Unsupported current Laravel major %d; supported majors are %s.',
                 $currentMajor,
-                self::MAX_SUPPORTED_TARGET,
+                implode(', ', $supportPolicy->supportedMajors()),
             ));
         }
 
@@ -80,6 +96,7 @@ final class UpgradePlan
 
         $this->fromStep = $fromStep;
         $this->skipSteps = $normalizedSkipSteps;
+        $this->supportPolicy = $supportPolicy;
     }
 
     public readonly ?string $fromStep;
@@ -87,9 +104,16 @@ final class UpgradePlan
     /** @var list<string> */
     public readonly array $skipSteps;
 
+    private readonly SupportPolicy $supportPolicy;
+
+    public function supportPolicy(): SupportPolicy
+    {
+        return $this->supportPolicy;
+    }
+
     /**
-     * Return each intermediate target exactly once. For example, 10 → 13 is
-     * [11, 12, 13], never a direct 13 jump.
+     * Return each intermediate target exactly once, never as a direct jump
+     * over an implemented adjacent path.
      *
      * @return list<int>
      */

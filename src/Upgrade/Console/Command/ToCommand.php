@@ -12,6 +12,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeFactory;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Journal\StateStore;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradePlan;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,9 +27,13 @@ final class ToCommand extends Command
         private readonly UpgradeRuntimeInterface $runtime = new UpgradeRuntimeFactory,
         private readonly ProjectVersionDetector $versionDetector = new ProjectVersionDetector,
         private readonly PlanFileWriter $planWriter = new PlanFileWriter,
+        ?SupportPolicy $supportPolicy = null,
     ) {
         parent::__construct();
+        $this->supportPolicy = $supportPolicy ?? SupportPolicy::default();
     }
+
+    private readonly SupportPolicy $supportPolicy;
 
     protected function configure(): void
     {
@@ -81,7 +86,10 @@ final class ToCommand extends Command
         $targetMajor = $this->targetMajor($input);
 
         if ($targetMajor === null) {
-            $style->error('Target major must be one of: 11, 12, 13.');
+            $style->error(sprintf(
+                'Target major must be one of: %s.',
+                implode(', ', $this->supportPolicy->targetMajors()),
+            ));
 
             return Command::FAILURE;
         }
@@ -131,7 +139,7 @@ final class ToCommand extends Command
             $skipSteps = $this->skipSteps($input->getOption('skip-step'));
             $fromStep = $input->getOption('from-step');
             $fromStep = is_string($fromStep) && $fromStep !== '' ? $fromStep : null;
-            $plan = new UpgradePlan($detected->major, $targetMajor, $planMode, $fromStep, $skipSteps);
+            $plan = new UpgradePlan($detected->major, $targetMajor, $planMode, $fromStep, $skipSteps, $this->supportPolicy);
         } catch (InvalidArgumentException $exception) {
             $style->error($exception->getMessage());
 
@@ -244,11 +252,13 @@ final class ToCommand extends Command
     {
         $value = $input->getArgument('target-major');
 
-        if (! is_scalar($value) || preg_match('/^(11|12|13)$/', (string) $value) !== 1) {
+        if (! is_scalar($value) || preg_match('/^\d+$/', (string) $value) !== 1) {
             return null;
         }
 
-        return (int) $value;
+        $major = (int) $value;
+
+        return $this->supportPolicy->isSupportedTarget($major) ? $major : null;
     }
 
     /** @return list<string> */

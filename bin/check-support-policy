@@ -1,0 +1,39 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
+
+foreach ([__DIR__.'/../vendor/autoload.php', __DIR__.'/../../../autoload.php'] as $autoloader) {
+    if (is_file($autoloader)) {
+        require $autoloader;
+
+        break;
+    }
+}
+
+if (! class_exists(SupportPolicy::class)) {
+    fwrite(STDERR, 'Could not locate the Composer autoloader. Run `composer install --no-dev` first.'.PHP_EOL);
+
+    exit(1);
+}
+
+try {
+    $policy = SupportPolicy::default();
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Support policy validation failed: '.$exception->getMessage().PHP_EOL);
+
+    exit(1);
+}
+
+fwrite(STDOUT, sprintf(
+    'Support policy is valid: %s (PHP %s; targets %s).%s',
+    implode(', ', array_map(
+        static fn (array $path): string => $path['source'].'->'.$path['target'],
+        $policy->paths(),
+    )),
+    $policy->packagePhpConstraint(),
+    implode(', ', $policy->targetMajors()),
+    PHP_EOL,
+));

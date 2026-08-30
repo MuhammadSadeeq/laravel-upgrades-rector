@@ -8,6 +8,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\PlanFileWriter;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\ProjectVersionDetector;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeFactory;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeInterface;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputArgument;
@@ -21,9 +22,13 @@ final class PlanCommand extends Command
         private readonly UpgradeRuntimeInterface $runtime = new UpgradeRuntimeFactory,
         private readonly ProjectVersionDetector $versionDetector = new ProjectVersionDetector,
         private readonly PlanFileWriter $planWriter = new PlanFileWriter,
+        ?SupportPolicy $supportPolicy = null,
     ) {
         parent::__construct();
+        $this->supportPolicy = $supportPolicy ?? SupportPolicy::default();
     }
+
+    private readonly SupportPolicy $supportPolicy;
 
     protected function configure(): void
     {
@@ -58,7 +63,7 @@ final class PlanCommand extends Command
             $arguments['--'.$option] = $value;
         }
 
-        $to = new ToCommand($this->runtime, $this->versionDetector, $this->planWriter);
+        $to = new ToCommand($this->runtime, $this->versionDetector, $this->planWriter, $this->supportPolicy);
 
         return $to->run(new ArrayInput($arguments), $output);
     }

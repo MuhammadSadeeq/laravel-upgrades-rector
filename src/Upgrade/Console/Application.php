@@ -15,6 +15,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ReportCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\SkeletonCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ToCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\VerifyCommand;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use Symfony\Component\Console\Application as SymfonyApplication;
 
 final class Application extends SymfonyApplication
@@ -26,6 +27,7 @@ final class Application extends SymfonyApplication
     public function __construct(
         ?UpgradeRuntimeInterface $runtime = null,
         ?SingleStepRuntimeInterface $stepRuntime = null,
+        ?SupportPolicy $supportPolicy = null,
     ) {
         parent::__construct(self::NAME, self::VERSION);
 
@@ -33,16 +35,18 @@ final class Application extends SymfonyApplication
         $stepRuntime ??= $runtime instanceof SingleStepRuntimeInterface
             ? $runtime
             : new UpgradeRuntimeFactory;
+        $supportPolicy ??= SupportPolicy::default();
+        $versionDetector = new ProjectVersionDetector;
 
-        $this->add(new ContinueCommand($runtime));
-        $this->add(new DepsCommand);
-        $this->add(new SkeletonCommand($stepRuntime));
-        $this->add(new CodeCommand($stepRuntime));
-        $this->add(new AdviseCommand($stepRuntime));
-        $this->add(new PostCommand($stepRuntime));
-        $this->add(new VerifyCommand($stepRuntime));
-        $this->add(new ToCommand($runtime));
-        $this->add(new PlanCommand($runtime));
+        $this->add(new ContinueCommand($runtime, $supportPolicy));
+        $this->add(new DepsCommand($supportPolicy));
+        $this->add(new SkeletonCommand($stepRuntime, $versionDetector, $supportPolicy));
+        $this->add(new CodeCommand($stepRuntime, $versionDetector, $supportPolicy));
+        $this->add(new AdviseCommand($stepRuntime, $versionDetector, $supportPolicy));
+        $this->add(new PostCommand($stepRuntime, $versionDetector, $supportPolicy));
+        $this->add(new VerifyCommand($stepRuntime, $versionDetector, $supportPolicy));
+        $this->add(new ToCommand($runtime, $versionDetector, supportPolicy: $supportPolicy));
+        $this->add(new PlanCommand($runtime, $versionDetector, supportPolicy: $supportPolicy));
         $this->add(new ReportCommand);
     }
 }

@@ -12,6 +12,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\DependencyDecision;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\ManifestReader;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideAnalyzer;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Dependency\PackageGuideCatalog;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -37,7 +38,13 @@ final class DepsCommand extends Command
      */
     protected static $defaultDescription = 'Compute (or apply) composer.json dependency changes for a Laravel major upgrade';
 
-    private const SUPPORTED_MAJORS = [11, 12, 13];
+    public function __construct(?SupportPolicy $supportPolicy = null)
+    {
+        parent::__construct();
+        $this->supportPolicy = $supportPolicy ?? SupportPolicy::default();
+    }
+
+    private readonly SupportPolicy $supportPolicy;
 
     protected function configure(): void
     {
@@ -81,7 +88,7 @@ HELP
             $style->error(sprintf(
                 'Unsupported target major "%s". Supported: %s.',
                 $targetArgumentString,
-                implode(', ', self::SUPPORTED_MAJORS)
+                implode(', ', $this->supportPolicy->targetMajors())
             ));
 
             return Command::FAILURE;
@@ -333,7 +340,7 @@ HELP
 
         $major = (int) $argument;
 
-        return in_array($major, self::SUPPORTED_MAJORS, true) ? $major : null;
+        return $this->supportPolicy->isSupportedTarget($major) ? $major : null;
     }
 
     private function indent(string $text): string

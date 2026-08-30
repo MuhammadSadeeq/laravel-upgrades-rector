@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Upgrade\Console;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Application;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ContinueCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\PlanCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\Command\ToCommand;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\ProjectVersionDetector;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\SingleStepRuntimeInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeFactory;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Git\GitCheckpointService;
@@ -20,6 +22,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Process\ProcessRunner;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepResult;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\UpgradeContext;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -208,6 +211,84 @@ final class CommandOrchestrationTest extends TestCase
         self::assertTrue($runtime->runs[0]['options']['noTests']);
     }
 
+    public function test_to_command_passes_a_shifted_policy_into_the_constructed_plan(): void
+    {
+        file_put_contents($this->directory.'/composer.json', json_encode([
+            'require' => ['laravel/framework' => '^11.0'],
+        ], JSON_PRETTY_PRINT)."\n");
+        file_put_contents($this->directory.'/vendor/composer/installed.json', json_encode([
+            'packages' => [['name' => 'laravel/framework', 'version' => 'v11.0.0']],
+        ]));
+        $policy = SupportPolicy::fromArray([
+            '$schema' => SupportPolicy::SCHEMA,
+            'schemaVersion' => 1,
+            'maxPathCount' => 3,
+            'paths' => [
+                ['source' => 11, 'target' => 12],
+                ['source' => 12, 'target' => 13],
+                ['source' => 13, 'target' => 14],
+            ],
+            'sources' => [
+                11 => ['phpMinimum' => '8.2.0', 'securityFixUntil' => '2026-03-12'],
+                12 => ['phpMinimum' => '8.2.0', 'securityFixUntil' => '2027-02-24'],
+                13 => ['phpMinimum' => '8.3.0', 'securityFixUntil' => '2028-02-24'],
+            ],
+        ]);
+        $runtime = new RecordingRuntime;
+
+        self::assertSame(0, (new CommandTester(new ToCommand(
+            $runtime,
+            new ProjectVersionDetector,
+            supportPolicy: $policy,
+        )))->execute([
+            'target-major' => '14',
+            '--plan' => true,
+            '--working-dir' => $this->directory,
+            '--no-interaction' => true,
+        ]));
+
+        self::assertCount(1, $runtime->runs);
+        self::assertSame(14, $runtime->runs[0]['plan']->targetMajor);
+        self::assertSame($policy, $runtime->runs[0]['plan']->supportPolicy());
+    }
+
+    public function test_application_passes_a_custom_policy_to_registered_commands(): void
+    {
+        file_put_contents($this->directory.'/composer.json', json_encode([
+            'require' => ['laravel/framework' => '^11.0'],
+        ], JSON_PRETTY_PRINT)."\n");
+        file_put_contents($this->directory.'/vendor/composer/installed.json', json_encode([
+            'packages' => [['name' => 'laravel/framework', 'version' => 'v11.0.0']],
+        ]));
+        $policy = SupportPolicy::fromArray([
+            '$schema' => SupportPolicy::SCHEMA,
+            'schemaVersion' => 1,
+            'maxPathCount' => 3,
+            'paths' => [
+                ['source' => 11, 'target' => 12],
+                ['source' => 12, 'target' => 13],
+                ['source' => 13, 'target' => 14],
+            ],
+            'sources' => [
+                11 => ['phpMinimum' => '8.2.0', 'securityFixUntil' => '2026-03-12'],
+                12 => ['phpMinimum' => '8.2.0', 'securityFixUntil' => '2027-02-24'],
+                13 => ['phpMinimum' => '8.3.0', 'securityFixUntil' => '2028-02-24'],
+            ],
+        ]);
+        $runtime = new RecordingRuntime;
+        $application = new Application($runtime, new ApplicationRecordingSingleStepRuntime, $policy);
+
+        self::assertSame(0, (new CommandTester($application->find('to')))->execute([
+            'target-major' => '14',
+            '--plan' => true,
+            '--working-dir' => $this->directory,
+            '--no-interaction' => true,
+        ]));
+
+        self::assertCount(1, $runtime->runs);
+        self::assertSame($policy, $runtime->runs[0]['plan']->supportPolicy());
+    }
+
     public function test_continue_reconstructs_target_and_persists_safe_override(): void
     {
         $store = new StateStore($this->directory);
@@ -306,6 +387,20 @@ final class RecordingRuntime implements UpgradeRuntimeInterface
         $result = $this->result ?? UpgradeRunResult::successful([], []);
 
         return $result;
+    }
+}
+
+final class ApplicationRecordingSingleStepRuntime implements SingleStepRuntimeInterface
+{
+    public function runStep(
+        string $step,
+        UpgradePlan $plan,
+        string $workingDirectory,
+        array $options = [],
+    ): StepResult {
+        unset($step, $plan, $workingDirectory, $options);
+
+        return StepResult::successful();
     }
 }
 

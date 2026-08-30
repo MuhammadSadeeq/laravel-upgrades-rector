@@ -8,10 +8,13 @@ behaviour and package-specific migrations still need review.
 
 ## Requirements and installation
 
-- PHP `^8.2` (Laravel 13 also requires PHP 8.3).
+- PHP `^8.1` (Laravel 13 also requires PHP 8.3).
 - Composer 2.2 or newer for the orchestrator.
 - Rector `^2.3` (installed by this package).
 - A Laravel 10, 11, or 12 project when targeting Laravel 11, 12, or 13.
+
+The package keeps a rolling window of the three newest adjacent upgrade paths;
+see the [full support and retirement policy](https://www.sadeeq.dev/docs/laravel-upgrades-rector/v1#support-window-and-retirement) for details.
 
 Install it as a development dependency:
 

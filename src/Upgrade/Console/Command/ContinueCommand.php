@@ -10,6 +10,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeFactory;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeInterface;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Journal\StateStore;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradePlan;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -19,10 +20,15 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /** Resumes an interrupted schema-v1 upgrade from its first incomplete step. */
 final class ContinueCommand extends Command
 {
-    public function __construct(private readonly UpgradeRuntimeInterface $runtime = new UpgradeRuntimeFactory)
-    {
+    public function __construct(
+        private readonly UpgradeRuntimeInterface $runtime = new UpgradeRuntimeFactory,
+        ?SupportPolicy $supportPolicy = null,
+    ) {
         parent::__construct();
+        $this->supportPolicy = $supportPolicy ?? SupportPolicy::default();
     }
+
+    private readonly SupportPolicy $supportPolicy;
 
     protected function configure(): void
     {
@@ -96,7 +102,7 @@ final class ContinueCommand extends Command
         }
 
         try {
-            $plan = new UpgradePlan($current, $target, false, $fromStep, $skipSteps);
+            $plan = new UpgradePlan($current, $target, false, $fromStep, $skipSteps, $this->supportPolicy);
         } catch (InvalidArgumentException $exception) {
             $style->error('The upgrade journal cannot be resumed: '.$exception->getMessage());
 

@@ -10,6 +10,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\SingleStepRuntimeInterf
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Console\UpgradeRuntimeFactory;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Orchestrator\UpgradePlan;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Step\StepResult;
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -23,9 +24,13 @@ abstract class SingleStepCommand extends Command
     public function __construct(
         private readonly SingleStepRuntimeInterface $runtime = new UpgradeRuntimeFactory,
         private readonly ProjectVersionDetector $versionDetector = new ProjectVersionDetector,
+        ?SupportPolicy $supportPolicy = null,
     ) {
         parent::__construct();
+        $this->supportPolicy = $supportPolicy ?? SupportPolicy::default();
     }
+
+    private readonly SupportPolicy $supportPolicy;
 
     abstract protected function stepName(): string;
 
@@ -55,7 +60,10 @@ abstract class SingleStepCommand extends Command
         $targetMajor = $this->targetMajor($input);
 
         if ($targetMajor === null) {
-            $style->error('Target major must be one of: 11, 12, 13.');
+            $style->error(sprintf(
+                'Target major must be one of: %s.',
+                implode(', ', $this->supportPolicy->targetMajors()),
+            ));
 
             return Command::FAILURE;
         }
@@ -112,7 +120,7 @@ abstract class SingleStepCommand extends Command
         }
 
         try {
-            $plan = new UpgradePlan($detected->major, $targetMajor, $planMode);
+            $plan = new UpgradePlan($detected->major, $targetMajor, $planMode, supportPolicy: $this->supportPolicy);
             $result = $this->runtime->runStep(
                 $this->stepName(),
                 $plan,
@@ -189,11 +197,13 @@ abstract class SingleStepCommand extends Command
     {
         $value = $input->getArgument('target-major');
 
-        if (! is_scalar($value) || preg_match('/^(11|12|13)$/', (string) $value) !== 1) {
+        if (! is_scalar($value) || preg_match('/^\d+$/', (string) $value) !== 1) {
             return null;
         }
 
-        return (int) $value;
+        $major = (int) $value;
+
+        return $this->supportPolicy->isSupportedTarget($major) ? $major : null;
     }
 
     /** @return array<string, mixed> */

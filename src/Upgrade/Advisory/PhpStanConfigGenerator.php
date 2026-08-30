@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Advisory;
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\SupportPolicy;
 use RuntimeException;
 
 /**
@@ -17,7 +18,14 @@ use RuntimeException;
  */
 final class PhpStanConfigGenerator
 {
-    public function __construct(private readonly string $packageRoot = __DIR__.'/../../..') {}
+    public function __construct(
+        private readonly string $packageRoot = __DIR__.'/../../..',
+        ?SupportPolicy $supportPolicy = null,
+    ) {
+        $this->supportPolicy = $supportPolicy ?? SupportPolicy::default();
+    }
+
+    private readonly SupportPolicy $supportPolicy;
 
     /**
      * @param  list<string>  $databaseDrivers
@@ -30,7 +38,7 @@ final class PhpStanConfigGenerator
         ?string $queueDefault = null,
         ?string $sessionSerialization = null,
     ): string {
-        if (! in_array($targetMajor, [11, 12, 13], true)) {
+        if (! $this->supportPolicy->isSupportedTarget($targetMajor)) {
             throw new RuntimeException(sprintf('Unsupported Laravel advisory target %d.', $targetMajor));
         }
 
