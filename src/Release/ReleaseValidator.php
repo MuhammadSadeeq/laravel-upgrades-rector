@@ -110,7 +110,15 @@ final class ReleaseValidator
         $previous = $this->previousVersion($changelog, $version);
 
         if ($previous === null) {
-            $errors[] = sprintf('CHANGELOG.md has no previous release before %s.', $version);
+            $expectedRelease = self::REPOSITORY_URL.'/releases/tag/v'.$version;
+
+            if ($releaseLink !== $expectedRelease) {
+                $errors[] = sprintf(
+                    'CHANGELOG.md [%s] link must be "%s".',
+                    $version,
+                    $expectedRelease,
+                );
+            }
         } else {
             $expectedRelease = self::REPOSITORY_URL.'/compare/v'.$previous.'...v'.$version;
 

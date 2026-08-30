@@ -59,8 +59,13 @@ autoloading. `composer test` runs `env-11`, `env-12`, `env-13`, and
 
 Before preparing a release:
 
-1. Update `src/PackageInfo.php` and add the matching dated section and compare
-   links to `CHANGELOG.md`. Keep an `[Unreleased]` section at the top.
+Version bumps represent actual public releases only; keep development changes
+in `[Unreleased]` until a release is ready.
+
+1. Update `src/PackageInfo.php` and add the matching dated section and release
+   link to `CHANGELOG.md`: use a release-tag URL for the first release and a
+   compare link to the previous release thereafter. Keep an `[Unreleased]`
+   section at the top.
 2. Run `composer validate --strict`, `composer test`, `composer analyse`,
    `composer format-test`, and `composer check-release`.
 3. Run the end-to-end harness for `10 11`, `11 12`, and `12 13` with

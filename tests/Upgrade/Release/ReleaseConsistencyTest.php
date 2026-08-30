@@ -24,7 +24,7 @@ final class ReleaseConsistencyTest extends TestCase
     public function test_cli_and_report_surfaces_use_the_canonical_package_version(): void
     {
         self::assertSame('muhammadsadeeq/laravel-upgrades-rector', PackageInfo::NAME);
-        self::assertSame('2.0.0', PackageInfo::VERSION);
+        self::assertSame('1.0.0', PackageInfo::VERSION);
         self::assertSame(PackageInfo::VERSION, Application::VERSION);
         self::assertSame(PackageInfo::TOOL, UpgradeReportGenerator::TOOL);
 
@@ -50,6 +50,75 @@ final class ReleaseConsistencyTest extends TestCase
 
         self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
         self::assertStringContainsString(PackageInfo::VERSION, $process->getOutput());
+    }
+
+    public function test_initial_release_uses_a_github_tag_link(): void
+    {
+        $directory = $this->repositoryFixture();
+
+        try {
+            self::assertSame([], (new ReleaseValidator($directory))->validate());
+
+            $changelogPath = $directory.'/CHANGELOG.md';
+            $changelog = (string) file_get_contents($changelogPath);
+            $updated = str_replace(
+                '[1.0.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/releases/tag/v1.0.0',
+                '[1.0.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v0.9.0...v1.0.0',
+                $changelog,
+            );
+            file_put_contents($changelogPath, $updated);
+
+            $errors = (new ReleaseValidator($directory))->validate();
+
+            self::assertStringContainsString(
+                'CHANGELOG.md [1.0.0] link must be "https://github.com/muhammadsadeeq/laravel-upgrades-rector/releases/tag/v1.0.0".',
+                implode("\n", $errors),
+            );
+        } finally {
+            $this->removeDirectory($directory);
+        }
+    }
+
+    public function test_future_release_uses_a_compare_link_to_the_previous_release(): void
+    {
+        $directory = $this->repositoryFixture();
+
+        try {
+            $changelogPath = $directory.'/CHANGELOG.md';
+            $changelog = (string) file_get_contents($changelogPath);
+            $changelog = str_replace(
+                '## [1.0.0] — 2026-08-30',
+                "## [1.1.0] — 2026-08-31\n\nFuture release.\n\n## [1.0.0] — 2026-08-30",
+                $changelog,
+            );
+            $changelog = str_replace(
+                '[Unreleased]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.0...HEAD',
+                '[Unreleased]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.1.0...HEAD',
+                $changelog,
+            );
+            $changelog .= "\n[1.1.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.0...v1.1.0\n";
+            file_put_contents($changelogPath, $changelog);
+
+            self::assertSame([], (new ReleaseValidator($directory, '1.1.0'))->validate());
+
+            file_put_contents(
+                $changelogPath,
+                str_replace(
+                    '[1.1.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.0...v1.1.0',
+                    '[1.1.0]: https://github.com/muhammadsadeeq/laravel-upgrades-rector/releases/tag/v1.1.0',
+                    $changelog,
+                ),
+            );
+
+            $errors = (new ReleaseValidator($directory, '1.1.0'))->validate();
+
+            self::assertStringContainsString(
+                'CHANGELOG.md [1.1.0] link must be "https://github.com/muhammadsadeeq/laravel-upgrades-rector/compare/v1.0.0...v1.1.0".',
+                implode("\n", $errors),
+            );
+        } finally {
+            $this->removeDirectory($directory);
+        }
     }
 
     public function test_checker_accepts_both_root_option_forms_for_an_alternate_repository(): void
@@ -113,16 +182,16 @@ final class ReleaseConsistencyTest extends TestCase
     public function test_changelog_release_date_must_be_exact_and_calendar_valid(): void
     {
         foreach ([
-            'missing' => "## [2.0.0]\n",
-            'invalid' => '## [2.0.0] — 2026-02-30',
-            'suffix' => '## [2.0.0] — 2026-08-30 trailing',
+            'missing' => "## [1.0.0]\n",
+            'invalid' => '## [1.0.0] — 2026-02-30',
+            'suffix' => '## [1.0.0] — 2026-08-30 trailing',
         ] as $label => $replacement) {
             $directory = $this->repositoryFixture();
 
             try {
                 $changelogPath = $directory.'/CHANGELOG.md';
                 $changelog = (string) file_get_contents($changelogPath);
-                $updated = str_replace('## [2.0.0] — 2026-08-30', $replacement, $changelog);
+                $updated = str_replace('## [1.0.0] — 2026-08-30', $replacement, $changelog);
                 file_put_contents($changelogPath, $updated);
 
                 $errors = (new ReleaseValidator($directory))->validate();
@@ -145,7 +214,7 @@ final class ReleaseConsistencyTest extends TestCase
             $this->git($directory, ['config', 'user.name', 'Release Test']);
             $this->git($directory, ['add', 'composer.json', 'CHANGELOG.md']);
             $this->git($directory, ['commit', '-qm', 'fixture']);
-            $this->git($directory, ['tag', '-a', 'v2.0.0', '-m', 'Release v2.0.0']);
+            $this->git($directory, ['tag', '-a', 'v1.0.0', '-m', 'Release v1.0.0']);
 
             self::assertSame([], (new ReleaseValidator($directory))->validate());
         } finally {
@@ -163,7 +232,7 @@ final class ReleaseConsistencyTest extends TestCase
             $this->git($directory, ['config', 'user.name', 'Release Test']);
             $this->git($directory, ['add', 'composer.json', 'CHANGELOG.md']);
             $this->git($directory, ['commit', '-qm', 'fixture']);
-            $this->git($directory, ['tag', 'v2.0.0']);
+            $this->git($directory, ['tag', 'v1.0.0']);
 
             $errors = (new ReleaseValidator($directory))->validate();
 
@@ -184,12 +253,12 @@ final class ReleaseConsistencyTest extends TestCase
             $this->git($directory, ['config', 'user.name', 'Release Test']);
             $this->git($directory, ['add', 'composer.json', 'CHANGELOG.md']);
             $this->git($directory, ['commit', '-qm', 'release']);
-            $this->git($directory, ['tag', '-a', 'v2.0.0', '-m', 'Release v2.0.0']);
+            $this->git($directory, ['tag', '-a', 'v1.0.0', '-m', 'Release v1.0.0']);
             file_put_contents($directory.'/composer.json', (string) file_get_contents($directory.'/composer.json')."\n");
             $this->git($directory, ['add', 'composer.json']);
             $this->git($directory, ['commit', '-qm', 'post-release change']);
 
-            $errors = (new ReleaseValidator($directory))->validate('v2.0.0');
+            $errors = (new ReleaseValidator($directory))->validate('v1.0.0');
 
             self::assertStringContainsString('point at HEAD', implode("\n", $errors));
         } finally {

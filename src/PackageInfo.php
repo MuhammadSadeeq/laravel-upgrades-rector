@@ -15,7 +15,7 @@ final class PackageInfo
 {
     public const NAME = 'muhammadsadeeq/laravel-upgrades-rector';
 
-    public const VERSION = '2.0.0';
+    public const VERSION = '1.0.0';
 
     public const TOOL = self::NAME.'/'.self::VERSION;
 
