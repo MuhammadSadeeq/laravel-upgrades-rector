@@ -231,8 +231,8 @@ final class ProjectAdvisor
             $collector->add(
                 'laravelUpgrade.afterCommitWithSyncQueue', Finding::SEVERITY_MEDIUM, $this->targetMajor,
                 'config/queue.php', $this->lineForPattern($queue, '/\bafterCommit\b|\$afterCommit\b|[\'\"]after_commit[\'\"]\s*=>/i'),
-                'After-commit dispatch behavior is being used with the synchronous default queue.',
-                'Verify each after-commit job and listener explicitly; the sync driver does not provide deferred queue semantics.'
+                'Laravel 11 synchronous queue jobs now respect after-commit settings.',
+                'Review transaction timing; use beforeCommit() or remove afterCommit when immediate execution is required.'
             );
         }
     }

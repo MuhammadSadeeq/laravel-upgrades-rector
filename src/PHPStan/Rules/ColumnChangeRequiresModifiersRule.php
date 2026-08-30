@@ -41,7 +41,10 @@ final class ColumnChangeRequiresModifiersRule implements Rule
 
         $type = $scope->getType($node->var);
 
-        if (! (new ObjectType('Illuminate\Database\Schema\Blueprint'))->isSuperTypeOf($type)->yes()) {
+        $isBlueprint = (new ObjectType('Illuminate\Database\Schema\Blueprint'))->isSuperTypeOf($type)->yes();
+        $isColumnDefinition = (new ObjectType('Illuminate\Database\Schema\ColumnDefinition'))->isSuperTypeOf($type)->yes();
+
+        if (! $isBlueprint && ! $isColumnDefinition) {
             return [];
         }
 

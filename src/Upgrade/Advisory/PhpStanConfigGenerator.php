@@ -72,6 +72,15 @@ final class PhpStanConfigGenerator
             ));
         $queue = $queueDefault === null ? 'null' : $this->neonString($queueDefault);
         $serialization = $sessionSerialization === null ? 'null' : $this->neonString($sessionSerialization);
+        $afterCommitService = $targetMajor === 11
+            ? <<<NEON
+
+services:
+    afterCommitWithSyncQueueRule:
+        arguments:
+            queueDefault: {$queue}
+NEON
+            : '';
         $contents = <<<NEON
 includes:
 {$includeLines}
@@ -88,6 +97,7 @@ parameters:
         databaseDrivers: {$drivers}
         queueDefault: {$queue}
         sessionSerialization: {$serialization}
+{$afterCommitService}
 
 NEON;
 

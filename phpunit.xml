@@ -21,6 +21,9 @@
         <testsuite name="env-13">
             <directory>tests/Rector/Laravel13</directory>
         </testsuite>
+        <testsuite name="phpstan">
+            <directory>tests/PHPStan</directory>
+        </testsuite>
         <testsuite name="independent">
             <directory>tests/Support</directory>
             <directory>tests/Upgrade</directory>

@@ -36,11 +36,13 @@ final class PassportRoutesRemovedRule implements Rule
             return [];
         }
 
-        if (! $node->class instanceof Name) {
+        $class = $node->class;
+
+        if (! $class instanceof Name) {
             return [];
         }
 
-        $raw = ltrim($node->class->toString(), '\\');
+        $raw = ltrim($class->toString(), '\\');
 
         if (! in_array($raw, ['Passport', 'Laravel\Passport\Passport'], true)) {
             return [];

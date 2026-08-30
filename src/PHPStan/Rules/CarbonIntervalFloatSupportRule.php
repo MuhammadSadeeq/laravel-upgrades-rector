@@ -50,7 +50,7 @@ final class CarbonIntervalFloatSupportRule implements Rule
 
         return [
             RuleErrorBuilder::message(
-                'CarbonInterval now supports float values in Laravel 13 / Carbon 3.'
+                'CarbonInterval now supports float values in Carbon 3.'
             )->identifier('laravelUpgrade.carbonIntervalFloat')
                 ->tip('Verify that fractional intervals behave as expected.')
                 ->build(),

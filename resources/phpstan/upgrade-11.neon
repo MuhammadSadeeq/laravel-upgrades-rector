@@ -36,7 +36,7 @@ services:
     -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\CarbonUntypedDiffRule
         tags: [phpstan.rules.rule]
-    -
+    afterCommitWithSyncQueueRule:
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\AfterCommitWithSyncQueueRule
         tags: [phpstan.rules.rule]
     -
