@@ -8,9 +8,11 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\ObjectType;
 
 /**
  * MySQL/MariaDB: upsert() with an empty uniqueBy array no longer works —
@@ -31,15 +33,14 @@ final class UpsertEmptyUniqueByRule implements Rule
             return [];
         }
 
-        $args = $node->getArgs();
-
-        if (count($args) < 2) {
+        if (! $this->isQueryBuilder($node, $scope)) {
             return [];
         }
 
-        $uniqueBy = $args[1]->value;
+        $uniqueBy = $this->uniqueByArgument($node);
 
-        if ($uniqueBy instanceof Array_ && count($uniqueBy->items) === 0) {
+        if ($uniqueBy instanceof Array_ && $uniqueBy->items === []
+            || $uniqueBy instanceof String_ && $uniqueBy->value === '') {
             return [
                 RuleErrorBuilder::message(
                     'upsert() with an empty uniqueBy array is not supported by MySQL/MariaDB.'
@@ -50,5 +51,29 @@ final class UpsertEmptyUniqueByRule implements Rule
         }
 
         return [];
+    }
+
+    private function isQueryBuilder(MethodCall $call, Scope $scope): bool
+    {
+        $type = $scope->getType($call->var);
+
+        return (new ObjectType('Illuminate\\Database\\Query\\Builder'))->isSuperTypeOf($type)->yes()
+            || (new ObjectType('Illuminate\\Database\\Eloquent\\Builder'))->isSuperTypeOf($type)->yes();
+    }
+
+    private function uniqueByArgument(MethodCall $call): ?Node
+    {
+        foreach ($call->getArgs() as $index => $argument) {
+            if ($argument->name instanceof Identifier
+                && $argument->name->toLowerString() === 'uniqueby') {
+                return $argument->value;
+            }
+
+            if ($index === 1) {
+                return $argument->value;
+            }
+        }
+
+        return null;
     }
 }

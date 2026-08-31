@@ -4,6 +4,7 @@
         "tests/E2E/plants",
         "tests/env",
         "resources",
-        "tests/Rector"
+        "tests/Rector",
+        "tests/PHPStan/Rules/Fixture/ModelBootSyntax"
     ]
 }

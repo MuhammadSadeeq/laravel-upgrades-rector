@@ -10,6 +10,7 @@ use PhpParser\Node\Identifier;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\ObjectType;
 
 /**
  * MySQL: DELETE ... JOIN with ORDER BY / LIMIT is no longer supported by
@@ -31,6 +32,10 @@ final class DeleteJoinOrderLimitRule implements Rule
             return [];
         }
 
+        if (! $this->isQueryBuilder($node, $scope)) {
+            return [];
+        }
+
         $hasJoin = false;
         $hasOrderOrLimit = false;
 
@@ -47,7 +52,7 @@ final class DeleteJoinOrderLimitRule implements Rule
                 $hasJoin = true;
             }
 
-            if ($method === 'orderby' || $method === 'limit') {
+            if (str_starts_with($method, 'orderby') || $method === 'limit') {
                 $hasOrderOrLimit = true;
             }
 
@@ -65,5 +70,13 @@ final class DeleteJoinOrderLimitRule implements Rule
         }
 
         return [];
+    }
+
+    private function isQueryBuilder(MethodCall $call, Scope $scope): bool
+    {
+        $type = $scope->getType($call->var);
+
+        return (new ObjectType('Illuminate\\Database\\Query\\Builder'))->isSuperTypeOf($type)->yes()
+            || (new ObjectType('Illuminate\\Database\\Eloquent\\Builder'))->isSuperTypeOf($type)->yes();
     }
 }

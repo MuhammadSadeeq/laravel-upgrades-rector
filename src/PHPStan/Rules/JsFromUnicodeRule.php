@@ -35,7 +35,7 @@ final class JsFromUnicodeRule implements Rule
             return [];
         }
 
-        $raw = ltrim($node->class->toString(), '\\');
+        $raw = ltrim($scope->resolveName($node->class), '\\');
 
         if (! in_array($raw, ['Js', 'Illuminate\Support\Js'], true)) {
             return [];

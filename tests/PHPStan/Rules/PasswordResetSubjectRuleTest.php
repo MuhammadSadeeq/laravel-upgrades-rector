@@ -14,14 +14,32 @@ final class PasswordResetSubjectRuleTest extends Laravel13RuleTestCase
         return new PasswordResetSubjectRule;
     }
 
-    public function test_message_and_identifier_are_for_laravel_13(): void
+    public function test_old_subject_in_mail_message_is_reported(): void
     {
         $errors = $this->gatherAnalyserErrors([__DIR__.'/Fixture/password-reset-subject.php']);
 
         self::assertCount(1, $errors);
-        self::assertSame('The default password reset email subject changed in Laravel 13.', $errors[0]->getMessage());
+        self::assertSame('The default password reset subject changed from "Reset Password Notification" to "Reset your password" in Laravel 13.', $errors[0]->getMessage());
         self::assertSame('laravelUpgrade.passwordResetSubject', $errors[0]->getIdentifier());
-        self::assertSame('Override the subject() method on ResetPassword notification to customise.', $errors[0]->getTip());
-        self::assertSame(10, $errors[0]->getLine());
+        self::assertSame('Update tests, assertions, or translation overrides from "Reset Password Notification" to "Reset your password".', $errors[0]->getTip());
+        self::assertSame(9, $errors[0]->getLine());
+    }
+
+    public function test_new_subject_and_unrelated_strings_are_safe(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/password-reset-subject-safe.php'], []);
+    }
+
+    public function test_old_subject_in_array_and_return_positions_is_reported(): void
+    {
+        $errors = $this->gatherAnalyserErrors([__DIR__.'/Fixture/password-reset-subject-edge.php']);
+
+        self::assertCount(2, $errors);
+        self::assertSame('laravelUpgrade.passwordResetSubject', $errors[0]->getIdentifier());
+        self::assertSame('Update tests, assertions, or translation overrides from "Reset Password Notification" to "Reset your password".', $errors[0]->getTip());
+        self::assertSame(9, $errors[0]->getLine());
+        self::assertSame('laravelUpgrade.passwordResetSubject', $errors[1]->getIdentifier());
+        self::assertSame('Update tests, assertions, or translation overrides from "Reset Password Notification" to "Reset your password".', $errors[1]->getTip());
+        self::assertSame(14, $errors[1]->getLine());
     }
 }

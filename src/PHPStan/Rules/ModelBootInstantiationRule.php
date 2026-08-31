@@ -33,11 +33,8 @@ final class ModelBootInstantiationRule implements Rule
             return [];
         }
 
-        $scope = $node->getAttribute(AttributeKey::SCOPE);
-
-        if (! $scope instanceof Scope) {
-            return [];
-        }
+        $nodeScope = $node->getAttribute(AttributeKey::SCOPE);
+        $scope = $nodeScope instanceof Scope ? $nodeScope : $scope;
 
         $classReflection = $scope->getClassReflection();
 
@@ -60,6 +57,10 @@ final class ModelBootInstantiationRule implements Rule
             return [];
         }
 
+        if (! $this->isSameModel($instantiatedName, $classReflection, $scope, $node->class)) {
+            return [];
+        }
+
         return [
             RuleErrorBuilder::message(
                 sprintf('Model instantiation (%s) inside boot() changed behaviour in Laravel 13.', $instantiatedName)
@@ -67,5 +68,21 @@ final class ModelBootInstantiationRule implements Rule
                 ->tip('Move model creation out of boot() or use a static factory method.')
                 ->build(),
         ];
+    }
+
+    private function isSameModel(
+        string $instantiatedName,
+        ClassReflection $classReflection,
+        Scope $scope,
+        Name $className,
+    ): bool {
+        if (in_array(strtolower($instantiatedName), ['self', 'static'], true)) {
+            return true;
+        }
+
+        return strcasecmp(
+            ltrim($scope->resolveName($className), '\\'),
+            ltrim($classReflection->getName(), '\\'),
+        ) === 0;
     }
 }

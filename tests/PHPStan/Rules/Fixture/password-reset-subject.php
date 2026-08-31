@@ -1,11 +1,15 @@
 <?php
 
-final class PasswordResetNotification
+namespace App\Laravel13RuleFixtures;
+
+use Illuminate\Notifications\Messages\MailMessage;
+
+function passwordResetSubject(MailMessage $message): mixed
 {
-    public function subject(string $subject): void {}
+    return consumePasswordSubject($message->subject('Reset Password Notification'));
 }
 
-function passwordResetSubject(): void
+function consumePasswordSubject(mixed $subject): mixed
 {
-    (new PasswordResetNotification)->subject('Reset Password');
+    return $subject;
 }
