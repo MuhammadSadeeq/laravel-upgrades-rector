@@ -72,6 +72,10 @@
         "file": "config/database.php"
     },
     {
+        "ruleId": "laravelUpgrade.eloquentCastsMethodConflict",
+        "file": "app/Models/Tag.php"
+    },
+    {
         "ruleId": "laravelUpgrade.envExampleMissingFromEnvironment",
         "file": ".env"
     },
