@@ -1,7 +1,5 @@
 # Rules that must appear in the rector "applied rules" output for 12 -> 13.
 RenameClassRector
 RenameValidateCsrfTokensMethodRector
-UpdateCacheStoreContractRector
-UpdateCacheRepositoryContractRector
-UpdateQueueContractMethodsRector
+ImplementMissingInterfaceMethodsRector
 UpdatePaginationViewNamesRector

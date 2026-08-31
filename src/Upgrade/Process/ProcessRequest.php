@@ -16,11 +16,13 @@ final class ProcessRequest
 {
     /**
      * @param  list<string>  $arguments
+     * @param  array<string, string>|null  $environment
      */
     public function __construct(
         public readonly array $arguments,
         public readonly string $workingDirectory,
         public readonly ?float $timeout = 300.0,
+        public readonly ?array $environment = null,
     ) {
         if ($arguments === [] || $arguments[0] === '') {
             throw new InvalidArgumentException('A process request needs an executable.');

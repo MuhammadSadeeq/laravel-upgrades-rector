@@ -167,10 +167,9 @@ final class DependencyStep implements StepInterface
     }
 
     /**
-     * Plan mode previews bumps through Composer's non-mutating require
-     * operation. Dev requirements need their own invocation because Composer
-     * applies --dev to the entire require request. Removals are reported but
-     * intentionally not passed to the solver preview.
+     * Plan mode previews all manifest changes through one isolated Composer
+     * workspace. A single solver invocation is required because production
+     * and development requirements can constrain one another.
      *
      * @param  list<DependencyDecision>  $decisions
      * @param  list<array<string, mixed>>  $decisionData
@@ -186,6 +185,7 @@ final class DependencyStep implements StepInterface
         array $guideData,
     ): StepResult {
         $bumps = ['require' => [], 'require-dev' => []];
+        $removalsBySection = ['require' => [], 'require-dev' => []];
         $removals = [];
 
         foreach ($decisions as $decision) {
@@ -194,22 +194,20 @@ final class DependencyStep implements StepInterface
             }
 
             if ($decision->action === DependencyDecision::ACTION_REMOVE) {
+                $removalsBySection[$decision->section][] = $decision->package;
                 $removals[] = $decision->package;
             }
         }
 
         $processes = [];
+        $hasPreviewChanges = $removals !== [] || $bumps['require'] !== [] || $bumps['require-dev'] !== [];
 
-        foreach ($bumps as $section => $constraints) {
-            if ($constraints === []) {
-                continue;
-            }
-
+        if ($hasPreviewChanges) {
             try {
-                $preview = $this->composer->previewRequirements(
+                $preview = $this->composer->previewRequirementsTogether(
                     $context->workingDirectory,
-                    $constraints,
-                    $section === 'require-dev',
+                    $bumps,
+                    $removalsBySection,
                     $composerBinary,
                 );
             } catch (Throwable $exception) {
@@ -218,7 +216,11 @@ final class DependencyStep implements StepInterface
                     $decisionData,
                     $processes,
                     [
-                        'notSolverPreviewed' => ['removals' => $removals],
+                        'solverPreview' => [
+                            'combined' => true,
+                            'requirements' => $bumps,
+                            'removals' => $removals,
+                        ],
                         'findings' => $guideFindings,
                         'packageGuides' => $guideData,
                     ],
@@ -233,7 +235,11 @@ final class DependencyStep implements StepInterface
                     $decisionData,
                     $processes,
                     [
-                        'notSolverPreviewed' => ['removals' => $removals],
+                        'solverPreview' => [
+                            'combined' => true,
+                            'requirements' => $bumps,
+                            'removals' => $removals,
+                        ],
                         'findings' => $guideFindings,
                         'packageGuides' => $guideData,
                     ],
@@ -241,7 +247,7 @@ final class DependencyStep implements StepInterface
             }
         }
 
-        if ($processes === [] && $context->option('solverDryRun', false) === true) {
+        if (! $hasPreviewChanges && $context->option('solverDryRun', false) === true) {
             try {
                 $solver = $this->composer->solverDryRun($context->workingDirectory, $composerBinary);
             } catch (Throwable $exception) {
@@ -267,7 +273,11 @@ final class DependencyStep implements StepInterface
             data: [
                 'decisions' => $decisionData,
                 'processes' => $processes,
-                'notSolverPreviewed' => ['removals' => $removals],
+                'solverPreview' => [
+                    'combined' => $hasPreviewChanges,
+                    'requirements' => $bumps,
+                    'removals' => $removals,
+                ],
                 'findings' => $guideFindings,
                 'packageGuides' => $guideData,
             ],

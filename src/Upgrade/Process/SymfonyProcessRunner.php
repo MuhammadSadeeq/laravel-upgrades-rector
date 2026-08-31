@@ -11,7 +11,7 @@ final class SymfonyProcessRunner implements ProcessRunner
 {
     public function run(ProcessRequest $request): ProcessResult
     {
-        $process = new Process($request->arguments, $request->workingDirectory);
+        $process = new Process($request->arguments, $request->workingDirectory, $request->environment);
         $process->setTimeout($request->timeout);
         $process->run();
 

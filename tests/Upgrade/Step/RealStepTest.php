@@ -32,12 +32,16 @@ final class RealStepTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (['composer.json', 'composer.lock'] as $file) {
+        foreach (['composer.json', 'composer.lock', 'auth.json', 'composer.phar'] as $file) {
             $path = $this->workingDirectory.'/'.$file;
 
             if (is_file($path)) {
                 unlink($path);
             }
+        }
+
+        foreach (['packages', 'tools'] as $directory) {
+            $this->removeDirectory($this->workingDirectory.'/'.$directory);
         }
 
         if (is_dir($this->workingDirectory)) {
@@ -150,39 +154,265 @@ final class RealStepTest extends TestCase
     {
         file_put_contents($this->workingDirectory.'/composer.json', '{"require":{"php":"^8.2","laravel/framework":"^10.0","doctrine/dbal":"^3.6"}}');
         $before = file_get_contents($this->workingDirectory.'/composer.json');
-        $runner = new FakeProcessRunner([new ProcessResult([], 0, 'previewed')]);
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'previewed'));
         $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
 
         self::assertTrue($result->isSuccessful(), $result->message.' '.json_encode($result->data));
         self::assertSame($before, file_get_contents($this->workingDirectory.'/composer.json'));
         self::assertCount(1, $runner->requests);
         self::assertSame(
-            ['require', 'laravel/framework:^11.0.0', '--dry-run', '--with-all-dependencies', '--no-interaction'],
-            array_slice($runner->requests[0]->arguments, -5),
+            ['update', '--dry-run', '--with-all-dependencies', '--no-interaction'],
+            array_slice($runner->requests[0]->arguments, -4),
         );
+        self::assertNotSame($this->workingDirectory, $runner->workingDirectory);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
         self::assertNotContains('doctrine/dbal:^3.6', $runner->requests[0]->arguments);
         self::assertNotEmpty($result->data['decisions']);
-        $notSolverPreviewed = $result->data['notSolverPreviewed'] ?? null;
-        self::assertIsArray($notSolverPreviewed);
-        self::assertSame(['doctrine/dbal'], $notSolverPreviewed['removals'] ?? null);
+        $solverPreview = $result->data['solverPreview'] ?? null;
+        self::assertIsArray($solverPreview);
+        self::assertTrue($solverPreview['combined'] ?? false);
+        self::assertSame(['doctrine/dbal'], $solverPreview['removals'] ?? null);
     }
 
-    public function test_plan_dependency_step_uses_a_separate_dev_preview(): void
+    public function test_plan_dependency_step_uses_one_combined_preview_for_both_sections(): void
     {
         file_put_contents($this->workingDirectory.'/composer.json', '{"require":{"laravel/framework":"^10.0"},"require-dev":{"phpunit/phpunit":"^9.0"}}');
-        $runner = new FakeProcessRunner([
-            new ProcessResult([], 0, 'require preview'),
-            new ProcessResult([], 0, 'dev preview'),
-        ]);
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'combined preview'));
         $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
 
         self::assertTrue($result->isSuccessful());
-        self::assertCount(2, $runner->requests);
-        self::assertSame('require', $runner->requests[0]->arguments[1]);
-        self::assertSame('require', $runner->requests[1]->arguments[1]);
-        self::assertContains('phpunit/phpunit:^10.1.0', $runner->requests[1]->arguments);
-        self::assertContains('--dev', $runner->requests[1]->arguments);
+        self::assertCount(1, $runner->requests);
+        self::assertSame('update', $runner->requests[0]->arguments[1]);
+        $require = $runner->manifest['require'] ?? null;
+        $requireDev = $runner->manifest['require-dev'] ?? null;
+        self::assertIsArray($require);
+        self::assertIsArray($requireDev);
+        self::assertSame('^11.0.0', $require['laravel/framework'] ?? null);
+        self::assertSame('^10.1.0', $requireDev['phpunit/phpunit'] ?? null);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
         self::assertSame(file_get_contents($this->workingDirectory.'/composer.json'), '{"require":{"laravel/framework":"^10.0"},"require-dev":{"phpunit/phpunit":"^9.0"}}');
+    }
+
+    public function test_plan_preview_coordinated_production_and_dev_bumps_are_checksum_neutral(): void
+    {
+        file_put_contents($this->workingDirectory.'/composer.json', '{"require":{"php":"^8.1","laravel/framework":"^10.0"},"require-dev":{"nunomaduro/collision":"^7.0"}}');
+        file_put_contents($this->workingDirectory.'/composer.lock', '{"packages":[],"packages-dev":[]}');
+        $before = $this->treeChecksums();
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'combined preview'));
+
+        $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        self::assertSame($before, $this->treeChecksums());
+        $require = $runner->manifest['require'] ?? null;
+        $requireDev = $runner->manifest['require-dev'] ?? null;
+        self::assertIsArray($require);
+        self::assertIsArray($requireDev);
+        self::assertSame('^8.2.0', $require['php'] ?? null);
+        self::assertSame('^11.0.0', $require['laravel/framework'] ?? null);
+        self::assertSame('^8.1.0', $requireDev['nunomaduro/collision'] ?? null);
+        self::assertTrue($runner->lockExisted);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
+    }
+
+    public function test_plan_preview_cleans_temporary_workspace_after_solver_failure(): void
+    {
+        file_put_contents($this->workingDirectory.'/composer.json', '{"require":{"laravel/framework":"^10.0"},"require-dev":{"nunomaduro/collision":"^7.0"}}');
+        $before = $this->treeChecksums();
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 3, '', 'solver failed'));
+
+        $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
+
+        self::assertTrue($result->isFailed());
+        self::assertSame(3, $result->exitCode);
+        self::assertSame($before, $this->treeChecksums());
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
+    }
+
+    public function test_plan_preview_preserves_json_shapes_lock_auth_and_isolated_environment(): void
+    {
+        $manifest = <<<'JSON'
+{
+    "require": {
+        "laravel/framework": "^10.0"
+    },
+    "require-dev": {},
+    "config": {
+        "allow-plugins": {}
+    }
+}
+JSON;
+        $lock = "{\n    \"packages\": [],\n    \"packages-dev\": []\n}\n";
+        $auth = "{\n    \"http-basic\": {\n        \"repo.example\": {\n            \"username\": \"preview-user\",\n            \"password\": \"preview-secret\"\n        }\n    }\n}\n";
+        file_put_contents($this->workingDirectory.'/composer.json', $manifest);
+        file_put_contents($this->workingDirectory.'/composer.lock', $lock);
+        file_put_contents($this->workingDirectory.'/auth.json', $auth);
+        $before = $this->treeChecksums();
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'previewed'));
+        $oldComposer = getenv('COMPOSER');
+        $oldComposerAuth = getenv('COMPOSER_AUTH');
+        $oldComposerHome = getenv('COMPOSER_HOME');
+        putenv('COMPOSER='.$this->workingDirectory.'/composer.json');
+        putenv('COMPOSER_AUTH={"token":"sentinel-secret"}');
+        putenv('COMPOSER_HOME=/private/sentinel-composer-home');
+        $authDuringPreview = false;
+        $homeDuringPreview = false;
+
+        try {
+            $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
+            $authDuringPreview = getenv('COMPOSER_AUTH');
+            $homeDuringPreview = getenv('COMPOSER_HOME');
+        } finally {
+            $this->restoreEnvironmentVariable('COMPOSER', $oldComposer);
+            $this->restoreEnvironmentVariable('COMPOSER_AUTH', $oldComposerAuth);
+            $this->restoreEnvironmentVariable('COMPOSER_HOME', $oldComposerHome);
+        }
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        self::assertSame($before, $this->treeChecksums());
+        self::assertStringContainsString('"require-dev": {}', $runner->manifestJson);
+        self::assertStringContainsString('"allow-plugins": {}', $runner->manifestJson);
+        self::assertSame($lock, $runner->lockContents);
+        self::assertSame($auth, $runner->authContents);
+        self::assertSame(0600, $runner->authMode);
+        self::assertSame($runner->workingDirectory.'/composer.json', $runner->environment['COMPOSER'] ?? null);
+        self::assertArrayNotHasKey('COMPOSER_AUTH', $runner->environment);
+        self::assertArrayNotHasKey('COMPOSER_HOME', $runner->environment);
+        self::assertSame($runner->workingDirectory.'/cache', $runner->environment['COMPOSER_CACHE_DIR'] ?? null);
+        self::assertArrayNotHasKey('COMPOSER_CONFIG_DIR', $runner->environment);
+        self::assertSame('{"token":"sentinel-secret"}', $authDuringPreview);
+        self::assertSame('/private/sentinel-composer-home', $homeDuringPreview);
+        self::assertSame(0700, $runner->workingDirectoryMode);
+        self::assertStringNotContainsString('preview-secret', $result->message);
+        self::assertStringNotContainsString('sentinel-secret', json_encode($result->data, JSON_THROW_ON_ERROR));
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
+    }
+
+    public function test_plan_preview_canonicalizes_relative_path_repositories_without_changing_options(): void
+    {
+        $packageDirectory = $this->workingDirectory.'/packages/shared';
+        mkdir($packageDirectory, 0777, true);
+        file_put_contents($packageDirectory.'/composer.json', '{"name":"acme/shared","version":"1.0.0"}');
+        file_put_contents($this->workingDirectory.'/composer.json', <<<'JSON'
+{
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/shared",
+            "options": {
+                "symlink": false,
+                "versions": {
+                    "acme/shared": "1.0.0"
+                }
+            }
+        }
+    ],
+    "require": {
+        "laravel/framework": "^10.0"
+    }
+}
+JSON);
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'previewed'));
+
+        $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        $repositories = $runner->manifest['repositories'] ?? null;
+        self::assertIsArray($repositories);
+        $repository = $repositories[0] ?? null;
+        self::assertIsArray($repository);
+        self::assertSame(realpath($packageDirectory), $repository['url'] ?? null);
+        self::assertSame([
+            'symlink' => false,
+            'versions' => ['acme/shared' => '1.0.0'],
+        ], $repository['options'] ?? null);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
+    }
+
+    public function test_plan_preview_canonicalizes_relative_path_repositories_in_an_object_map(): void
+    {
+        $packageDirectory = $this->workingDirectory.'/packages/shared';
+        mkdir($packageDirectory, 0777, true);
+        file_put_contents($packageDirectory.'/composer.json', '{"name":"acme/shared","version":"1.0.0"}');
+        file_put_contents($this->workingDirectory.'/composer.json', <<<'JSON'
+{
+    "repositories": {
+        "local": {
+            "type": "path",
+            "url": "packages/shared",
+            "options": {
+                "symlink": false
+            }
+        }
+    },
+    "require": {
+        "laravel/framework": "^10.0"
+    }
+}
+JSON);
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'previewed'));
+
+        $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        $repositories = $runner->manifest['repositories'] ?? null;
+        self::assertIsArray($repositories);
+        $repository = $repositories['local'] ?? null;
+        self::assertIsArray($repository);
+        self::assertSame(realpath($packageDirectory), $repository['url'] ?? null);
+        self::assertSame(['symlink' => false], $repository['options'] ?? null);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
+    }
+
+    public function test_plan_preview_resolves_a_relative_explicit_composer_binary_against_the_project(): void
+    {
+        mkdir($this->workingDirectory.'/tools', 0777, true);
+        file_put_contents($this->workingDirectory.'/tools/composer', '#!/bin/sh\n');
+        file_put_contents($this->workingDirectory.'/composer.json', '{"require":{"laravel/framework":"^10.0"}}');
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'previewed'));
+
+        $result = $this->dependencyStep($runner)->execute($this->context([
+            'composerBinary' => 'tools/composer',
+        ], planMode: true));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        self::assertSame(realpath($this->workingDirectory.'/tools/composer'), $runner->requests[0]->arguments[0]);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
+    }
+
+    public function test_plan_preview_resolves_a_relative_composer_binary_from_environment(): void
+    {
+        mkdir($this->workingDirectory.'/tools', 0777, true);
+        file_put_contents($this->workingDirectory.'/tools/composer', '#!/bin/sh\n');
+        file_put_contents($this->workingDirectory.'/composer.json', '{"require":{"laravel/framework":"^10.0"}}');
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'previewed'));
+        $oldComposerBinary = getenv('COMPOSER_BINARY');
+        putenv('COMPOSER_BINARY=tools/composer');
+
+        try {
+            $result = $this->dependencyStep($runner)->execute($this->context(planMode: true));
+        } finally {
+            $this->restoreEnvironmentVariable('COMPOSER_BINARY', $oldComposerBinary);
+        }
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        self::assertSame(realpath($this->workingDirectory.'/tools/composer'), $runner->requests[0]->arguments[0]);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
+    }
+
+    public function test_plan_preview_resolves_a_bare_project_composer_file(): void
+    {
+        file_put_contents($this->workingDirectory.'/composer.phar', '#!/usr/bin/env php\n');
+        file_put_contents($this->workingDirectory.'/composer.json', '{"require":{"laravel/framework":"^10.0"}}');
+        $runner = new InspectingPreviewRunner(new ProcessResult([], 0, 'previewed'));
+
+        $result = $this->dependencyStep($runner)->execute($this->context([
+            'composerBinary' => 'composer.phar',
+        ], planMode: true));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        self::assertSame(realpath($this->workingDirectory.'/composer.phar'), $runner->requests[0]->arguments[0]);
+        self::assertDirectoryDoesNotExist($runner->workingDirectory);
     }
 
     public function test_apply_dependency_step_runs_no_update_commands_then_validation_and_solver(): void
@@ -268,6 +498,69 @@ final class RealStepTest extends TestCase
         );
     }
 
+    /** @return array<string, string> */
+    private function treeChecksums(): array
+    {
+        $checksums = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($this->workingDirectory, \FilesystemIterator::SKIP_DOTS),
+        );
+
+        foreach ($iterator as $fileInfo) {
+            /** @var \SplFileInfo $fileInfo */
+            if (! $fileInfo->isFile()) {
+                continue;
+            }
+
+            $relative = str_replace($this->workingDirectory.'/', '', $fileInfo->getPathname());
+            $checksums[$relative] = md5_file($fileInfo->getPathname()) ?: '';
+        }
+
+        ksort($checksums);
+
+        return $checksums;
+    }
+
+    private function restoreEnvironmentVariable(string $name, string|false $value): void
+    {
+        if ($value === false) {
+            putenv($name);
+
+            return;
+        }
+
+        putenv($name.'='.$value);
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            return;
+        }
+
+        $entries = scandir($directory);
+
+        if ($entries === false) {
+            return;
+        }
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $path = $directory.'/'.$entry;
+
+            if (is_dir($path) && ! is_link($path)) {
+                $this->removeDirectory($path);
+            } elseif (is_file($path) || is_link($path)) {
+                unlink($path);
+            }
+        }
+
+        rmdir($directory);
+    }
+
     private function preflight(
         FakeProcessRunner $runner,
         ?int $phpVersionId = null,
@@ -285,7 +578,7 @@ final class RealStepTest extends TestCase
         );
     }
 
-    private function dependencyStep(FakeProcessRunner $runner): DependencyStep
+    private function dependencyStep(ProcessRunner $runner): DependencyStep
     {
         return new DependencyStep(
             new ConstraintPlanner(
@@ -329,5 +622,89 @@ final class FakeProcessRunner implements ProcessRunner
         }
 
         return new ProcessResult($request->arguments, $result->exitCode, $result->output, $result->errorOutput);
+    }
+}
+
+/** @internal */
+final class InspectingPreviewRunner implements ProcessRunner
+{
+    /** @var list<ProcessRequest> */
+    public array $requests = [];
+
+    /** @var array<string, mixed> */
+    public array $manifest = [];
+
+    public string $manifestJson = '';
+
+    public string $lockContents = '';
+
+    public string $authContents = '';
+
+    public int $authMode = 0;
+
+    /** @var array<string, string> */
+    public array $environment = [];
+
+    public bool $lockExisted = false;
+
+    public string $workingDirectory = '';
+
+    public int $workingDirectoryMode = 0;
+
+    public function __construct(private readonly ProcessResult $result) {}
+
+    public function run(ProcessRequest $request): ProcessResult
+    {
+        $this->requests[] = $request;
+        $this->workingDirectory = $request->workingDirectory;
+        $manifestJson = file_get_contents($request->workingDirectory.'/composer.json');
+
+        if (! is_string($manifestJson)) {
+            throw new RuntimeException('Preview manifest could not be read.');
+        }
+
+        $this->manifestJson = $manifestJson;
+        $manifest = json_decode($manifestJson, true, 512, JSON_THROW_ON_ERROR);
+
+        if (! is_array($manifest)) {
+            throw new RuntimeException('Preview manifest is not an object.');
+        }
+
+        $stringKeyManifest = [];
+
+        foreach ($manifest as $key => $value) {
+            if (is_string($key)) {
+                $stringKeyManifest[$key] = $value;
+            }
+        }
+
+        $this->manifest = $stringKeyManifest;
+        $this->lockExisted = is_file($request->workingDirectory.'/composer.lock');
+        $this->lockContents = $this->readOptionalFile($request->workingDirectory.'/composer.lock');
+        $this->authContents = $this->readOptionalFile($request->workingDirectory.'/auth.json');
+        $authPermissions = is_file($request->workingDirectory.'/auth.json')
+            ? fileperms($request->workingDirectory.'/auth.json')
+            : false;
+        $this->authMode = is_int($authPermissions) ? $authPermissions & 0777 : 0;
+        $this->environment = $request->environment ?? [];
+        $permissions = fileperms($request->workingDirectory);
+        $this->workingDirectoryMode = is_int($permissions) ? $permissions & 0777 : 0;
+
+        return new ProcessResult($request->arguments, $this->result->exitCode, $this->result->output, $this->result->errorOutput);
+    }
+
+    private function readOptionalFile(string $path): string
+    {
+        if (! is_file($path)) {
+            return '';
+        }
+
+        $contents = file_get_contents($path);
+
+        if (! is_string($contents)) {
+            throw new RuntimeException('Preview artifact could not be read.');
+        }
+
+        return $contents;
     }
 }

@@ -40,4 +40,24 @@ final class ThreeWayMergerTest extends TestCase
         self::assertStringContainsString('theirs', $result['content']);
         self::assertNotSame("one\ntheirs\n", $result['content']);
     }
+
+    public function test_laravel_12_bootstrap_customization_merges_with_laravel_13_exception_changes(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $base = file_get_contents($root.'/resources/skeletons/12/bootstrap/app.php');
+        $ours = file_get_contents($root.'/tests/E2E/plants/12/bootstrap/app.php');
+        $theirs = file_get_contents($root.'/resources/skeletons/13/bootstrap/app.php');
+
+        self::assertIsString($base);
+        self::assertIsString($ours);
+        self::assertIsString($theirs);
+
+        $result = (new ThreeWayMerger)->mergeWithStatus($ours, $base, $theirs);
+
+        self::assertFalse($result['conflicted']);
+        self::assertStringContainsString('validateCsrfTokens', $result['content']);
+        self::assertStringContainsString('shouldRenderJsonWhen', $result['content']);
+        self::assertStringContainsString("'webhook/*'", $result['content']);
+        self::assertStringNotContainsString('<<<<<<<', $result['content']);
+    }
 }

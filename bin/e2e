@@ -3,7 +3,6 @@
 
 declare(strict_types=1);
 
-
 use Symfony\Component\Process\Process;
 
 /**
@@ -12,10 +11,15 @@ use Symfony\Component\Process\Process;
  * Usage: php bin/e2e <from-major> <to-major>
  *
  * Creates a real Laravel application, plants realistic upgrade-triggering
- * files, installs this package from the local checkout, runs the documented
- * Phase 0 flow (deps → composer update -W → rector ×2) and asserts:
+ * files, installs this package from the local checkout, and runs the
+ * journaled `laravel-upgrade to <target>` flow. The first apply intentionally
+ * injects one Composer solver failure; `continue` then resumes the same run.
+ * The harness asserts:
  *
- * - `deps --dry-run` leaves the tree byte-identical;
+ * - `to --plan` leaves the tree byte-identical except for plan.json;
+ * - each orchestrator transition records preflight/deps/install/skeleton/
+ *   code/advisories/post/verify/report state;
+ * - an injected solver failure is journaled and `continue` resumes it;
  * - composer validate --strict passes after applying;
  * - every changed PHP file lints;
  * - every changed class loads against the upgraded autoloader;
@@ -31,6 +35,12 @@ if ($argc !== 3) {
 
 $from = (int) $argv[1];
 $to = (int) $argv[2];
+
+if (! in_array([$from, $to], [[10, 11], [11, 12], [12, 13]], true)) {
+    fwrite(STDERR, "Supported E2E paths are 10 -> 11, 11 -> 12, and 12 -> 13.\n");
+
+    exit(1);
+}
 
 $repoRoot = realpath(dirname(__DIR__));
 
@@ -70,6 +80,60 @@ function check(string $name, callable $assertion): void
 }
 
 /**
+ * Write a Composer proxy that fails exactly one solver dry-run, then delegates
+ * every command to the real Composer binary. This keeps the resume assertion
+ * deterministic without a fake dependency graph or a network-only test.
+ */
+function createSolverFailureComposer(string $directory): string
+{
+    $path = $directory.'/.e2e-composer';
+    $marker = $directory.'/.e2e-composer-solver-failed';
+    $script = <<<'PHP'
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$marker = __E2E_MARKER__;
+$arguments = array_slice($argv, 1);
+
+if (in_array('update', $arguments, true)
+    && in_array('--dry-run', $arguments, true)
+    && ! is_file($marker)) {
+    file_put_contents($marker, "failed\n");
+    fwrite(STDERR, "Injected E2E Composer solver failure.\n");
+
+    exit(3);
+}
+
+$composer = getenv('E2E_REAL_COMPOSER');
+$composer = is_string($composer) && $composer !== '' ? $composer : 'composer';
+$process = proc_open(
+    array_merge([$composer], $arguments),
+    [0 => STDIN, 1 => STDOUT, 2 => STDERR],
+    $pipes,
+);
+
+if (! is_resource($process)) {
+    fwrite(STDERR, "Could not launch the real Composer binary.\n");
+
+    exit(127);
+}
+
+$exitCode = proc_close($process);
+
+exit(is_int($exitCode) ? $exitCode : 1);
+PHP;
+    $script = str_replace('__E2E_MARKER__', var_export($marker, true), $script);
+
+    if (file_put_contents($path, $script) === false || ! chmod($path, 0755)) {
+        throw new RuntimeException('Could not create the Composer failure proxy.');
+    }
+
+    return $path;
+}
+
+/**
  * Changed .php files according to git, NUL-safe including renames.
  *
  * @return list<string>
@@ -93,7 +157,10 @@ function changedPhpFiles(string $directory): array
         $path = preg_match('/^\\s*[AMDRCT?]+\\s+(.*)$/sD', $entry, $m) === 1 ? $m[1] : trim($entry);
 
         foreach ([$path, $isRename ? trim($entries[$index + 1] ?? '') : ''] as $candidate) {
-            if ($candidate !== '' && str_ends_with($candidate, '.php')) {
+            // Deleted files cannot be linted or loaded. They remain visible in
+            // git's status, but verification should cover only current files.
+            if ($candidate !== '' && str_ends_with($candidate, '.php')
+                && is_file($directory.'/'.$candidate)) {
                 $files[] = $candidate;
             }
         }
@@ -102,7 +169,7 @@ function changedPhpFiles(string $directory): array
     return array_values(array_unique($files));
 }
 
-function treeChecksums(string $directory): array
+function treeChecksums(string $directory, bool $ignorePlan = false): array
 {
     $checksums = [];
     $iterator = new RecursiveIteratorIterator(
@@ -125,6 +192,11 @@ function treeChecksums(string $directory): array
         }
 
         $relative = substr($path, strlen($directory) + 1);
+
+        if ($ignorePlan && $relative === '.laravel-upgrade/plan.json') {
+            continue;
+        }
+
         $checksums[$relative] = md5_file($path) ?: '';
     }
 
@@ -133,11 +205,505 @@ function treeChecksums(string $directory): array
     return $checksums;
 }
 
+/** @return array<string, mixed> */
+function readJsonFile(string $path): array
+{
+    if (! is_file($path)) {
+        throw new RuntimeException(sprintf('Expected JSON file is missing: %s', $path));
+    }
+
+    $decoded = json_decode((string) file_get_contents($path), true);
+
+    if (! is_array($decoded)) {
+        throw new RuntimeException(sprintf('Expected valid JSON in %s.', $path));
+    }
+
+    return $decoded;
+}
+
+/** @return array<string, true> */
+function reportAppliedRules(string $path): array
+{
+    $report = readJsonFile($path);
+    $rules = [];
+
+    foreach ($report['codeChanges'] ?? [] as $change) {
+        if (! is_array($change)) {
+            continue;
+        }
+
+        foreach ($change['appliedRules'] ?? [] as $rule) {
+            if (is_string($rule)) {
+                $rules[$rule] = true;
+            }
+        }
+    }
+
+    return $rules;
+}
+
+/** @return list<string> */
+function canonicalUpgradeSteps(): array
+{
+    return ['preflight', 'dependencies', 'install', 'skeleton', 'code', 'advisories', 'post', 'verify', 'commit'];
+}
+
+/**
+ * Validate the plan artifact as an API boundary, including one exact step
+ * identity per canonical step and transition.
+ *
+ * @param  array<string, mixed>  $plan
+ */
+function assertPlanSchema(array $plan, int $from, int $to): void
+{
+    foreach (['schemaVersion', 'generatedAt', 'currentMajor', 'targetMajor', 'transitions', 'steps', 'success', 'exitCode', 'failure'] as $key) {
+        if (! array_key_exists($key, $plan)) {
+            throw new RuntimeException(sprintf('plan.json is missing %s', $key));
+        }
+    }
+
+    if ($plan['schemaVersion'] !== 1 || ! is_string($plan['generatedAt']) || $plan['generatedAt'] === ''
+        || $plan['currentMajor'] !== $from || $plan['targetMajor'] !== $to
+        || $plan['success'] !== true || $plan['exitCode'] !== 0
+        || strtotime($plan['generatedAt']) === false
+        || ! ($plan['failure'] === null || is_string($plan['failure']))) {
+        throw new RuntimeException('plan.json has invalid top-level types or values');
+    }
+
+    if ($plan['transitions'] !== range($from + 1, $to) || ! is_array($plan['steps'])) {
+        throw new RuntimeException('plan.json has invalid transitions or steps');
+    }
+
+    $expectedStatuses = [
+        'preflight' => 'success',
+        'dependencies' => 'success',
+        'install' => 'skipped',
+        'skeleton' => 'success',
+        'code' => 'success',
+        'advisories' => 'success',
+        'post' => 'success',
+        'verify' => 'success',
+        'commit' => 'skipped',
+    ];
+    $seen = [];
+    $byTransition = [];
+
+    foreach ($plan['steps'] as $step) {
+        if (! is_array($step)
+            || ! is_string($step['transition'] ?? null)
+            || ! is_int($step['fromMajor'] ?? null)
+            || ! is_int($step['toMajor'] ?? null)
+            || ! is_string($step['step'] ?? null)
+            || ! is_string($step['status'] ?? null)
+            || ! is_string($step['message'] ?? null)
+            || ! is_array($step['changedFiles'] ?? null)
+            || ! is_int($step['findingsCount'] ?? null)
+            || $step['findingsCount'] < 0
+            || ! is_array($step['data'] ?? null)) {
+            throw new RuntimeException('plan.json contains a malformed step entry');
+        }
+
+        $identity = $step['transition'].'\0'.$step['step'];
+
+        if (isset($seen[$identity])) {
+            throw new RuntimeException(sprintf('plan.json contains duplicate step identity %s', str_replace("\0", '/', $identity)));
+        }
+
+        $seen[$identity] = true;
+        $byTransition[$step['transition']][$step['step']] = true;
+        $expectedTransition = sprintf('%d->%d', $step['fromMajor'], $step['toMajor']);
+
+        if ($step['transition'] !== $expectedTransition
+            || ! isset($expectedStatuses[$step['step']])
+            || $step['status'] !== $expectedStatuses[$step['step']]) {
+            throw new RuntimeException(sprintf('plan.json has an unexpected step identity/status: %s', $identity));
+        }
+
+        foreach ($step['changedFiles'] as $file) {
+            if (! is_string($file)) {
+                throw new RuntimeException('plan.json changedFiles must contain only strings');
+            }
+        }
+    }
+
+    $expectedCount = ($to - $from) * count(canonicalUpgradeSteps());
+
+    if (count($seen) !== $expectedCount) {
+        throw new RuntimeException(sprintf('plan.json contains %d steps; expected %d', count($seen), $expectedCount));
+    }
+
+    $expectedNames = canonicalUpgradeSteps();
+
+    foreach (range($from + 1, $to) as $major) {
+        $transition = sprintf('%d->%d', $major - 1, $major);
+
+        if (array_keys($byTransition[$transition] ?? []) !== $expectedNames) {
+            throw new RuntimeException(sprintf('plan.json has unexpected step identities for %s', $transition));
+        }
+    }
+}
+
+/**
+ * Assert the operational options that must survive a failed run and be used
+ * by a no-override continue invocation.
+ *
+ * @param  array<string, mixed>  $state
+ */
+function assertStateOptions(array $state, string $composerProxy): void
+{
+    if (! is_array($state['options'] ?? null)) {
+        throw new RuntimeException('state.json options are not an object');
+    }
+
+    $expectedOptions = [
+        'composerBinary' => $composerProxy,
+        'git' => false,
+        'noGit' => true,
+        'noPint' => true,
+        'pint' => false,
+        'noTests' => false,
+        'noInstall' => false,
+        'noInteraction' => true,
+        'structure' => 'keep',
+        'constraintPolicy' => 'replace',
+    ];
+
+    foreach ($expectedOptions as $key => $expected) {
+        if (($state['options'][$key] ?? null) !== $expected) {
+            throw new RuntimeException(sprintf('state.json option %s is not persisted as expected', $key));
+        }
+    }
+}
+
+/**
+ * Validate the failed journal before continuing. This deliberately checks
+ * operational options so continue cannot silently fall back to global tools.
+ *
+ * @param  array<string, mixed>  $state
+ */
+function assertFailedStateSchema(array $state, int $from, int $to, string $composerProxy): void
+{
+    foreach (['schemaVersion', 'runId', 'target', 'currentMajor', 'currentTransition', 'completedSteps', 'changedFiles', 'findingsCount', 'options', 'status', 'failedStep', 'failureMessage', 'startedAt', 'updatedAt', 'timestamps'] as $key) {
+        if (! array_key_exists($key, $state)) {
+            throw new RuntimeException(sprintf('state.json is missing %s', $key));
+        }
+    }
+
+    if ($state['schemaVersion'] !== 1 || ! is_string($state['runId']) || $state['runId'] === ''
+        || $state['target'] !== $to || $state['currentMajor'] !== $from
+        || $state['currentTransition'] !== sprintf('%d->%d', $from, $from + 1)
+        || $state['status'] !== 'failed' || $state['failedStep'] !== 'dependencies'
+        || ! is_string($state['failureMessage']) || $state['failureMessage'] === ''
+        || ! is_string($state['startedAt']) || ! is_string($state['updatedAt'])
+        || ! is_array($state['timestamps']) || ! is_string($state['timestamps']['startedAt'] ?? null)
+        || ! is_string($state['timestamps']['updatedAt'] ?? null)
+        || ! is_array($state['completedSteps']) || ! is_array($state['changedFiles'])
+        || ! is_int($state['findingsCount']) || $state['findingsCount'] < 0
+        || ! is_array($state['options'])) {
+        throw new RuntimeException('state.json has invalid top-level types or values');
+    }
+
+    assertStateOptions($state, $composerProxy);
+
+    $transition = sprintf('%d->%d', $from, $from + 1);
+    $completed = $state['completedSteps'][$transition] ?? null;
+
+    if (array_keys($state['completedSteps']) !== [$transition]
+        || ! is_array($completed) || array_keys($completed) !== ['preflight']) {
+        throw new RuntimeException('state.json does not show a dependency failure after preflight');
+    }
+
+    $preflight = $completed['preflight'];
+
+    if (! is_array($preflight) || ($preflight['status'] ?? null) !== 'completed'
+        || ! is_string($preflight['message'] ?? null)
+        || ! is_string($preflight['completedAt'] ?? null)
+        || ! is_array($preflight['changedFiles'] ?? null)
+        || ! is_int($preflight['findingsCount'] ?? null)) {
+        throw new RuntimeException('state.json contains malformed preflight metadata');
+    }
+
+    foreach ($state['changedFiles'] as $file) {
+        if (! is_string($file)) {
+            throw new RuntimeException('state.json changedFiles must contain only strings');
+        }
+    }
+
+    foreach (['startedAt', 'updatedAt'] as $timestamp) {
+        if (strtotime($state[$timestamp]) === false || strtotime($state['timestamps'][$timestamp]) === false) {
+            throw new RuntimeException(sprintf('state.json has an invalid %s timestamp', $timestamp));
+        }
+    }
+}
+
+/**
+ * Validate the canonical report after the resumed run. Duplicate identities
+ * are rejected instead of being hidden by a last-write-wins map.
+ *
+ * @param  array<string, mixed>  $report
+ */
+function assertReportSchema(array $report, int $from, int $to, string $runId): void
+{
+    foreach (['schemaVersion', 'tool', 'runId', 'project', 'steps', 'dependencies', 'codeChanges', 'skeleton', 'findings', 'verification', 'verificationHistory', 'whatToolDidNotDo', 'startedAt', 'finishedAt', 'updatedAt'] as $key) {
+        if (! array_key_exists($key, $report)) {
+            throw new RuntimeException(sprintf('report.json is missing %s', $key));
+        }
+    }
+
+    if ($report['schemaVersion'] !== 1 || ! is_string($report['tool']) || $report['tool'] === ''
+        || $report['runId'] !== $runId || ! is_array($report['project'])
+        || ! is_array($report['steps']) || ! is_array($report['dependencies'])
+        || ! is_array($report['codeChanges']) || ! is_array($report['skeleton'])
+        || ! is_array($report['findings']) || ! is_array($report['verification'])
+        || ! is_array($report['verificationHistory']) || ! is_array($report['whatToolDidNotDo'])
+        || ! is_string($report['startedAt']) || $report['startedAt'] === ''
+        || strtotime($report['startedAt']) === false
+        || ! is_string($report['finishedAt']) || $report['finishedAt'] === ''
+        || strtotime($report['finishedAt']) === false
+        || ! is_string($report['updatedAt']) || $report['updatedAt'] === ''
+        || strtotime($report['updatedAt']) === false) {
+        throw new RuntimeException('report.json has invalid top-level types or values');
+    }
+
+    $project = $report['project'];
+
+    if (! is_string($project['name'] ?? null) || ! is_string($project['from'] ?? null)
+        || ! is_string($project['to'] ?? null) || ! is_string($project['php'] ?? null)
+        || ! is_string($project['composer'] ?? null) || ! is_array($project['git'] ?? null)
+        || ! is_string($project['git']['branch'] ?? null) || ! is_string($project['git']['base'] ?? null)
+        || ($project['from'] ?? null) !== (string) $from || ($project['to'] ?? null) !== (string) $to) {
+        throw new RuntimeException('report.json has incorrect project bounds');
+    }
+
+    $expectedStatuses = array_merge(
+        array_fill_keys(array_slice(canonicalUpgradeSteps(), 0, -1), 'ok'),
+        ['commit' => 'skipped'],
+    );
+    $seen = [];
+    $byTransition = [];
+
+    foreach ($report['steps'] as $step) {
+        if (! is_array($step)
+            || ! is_string($step['transition'] ?? null)
+            || ! is_int($step['major'] ?? null)
+            || ! is_int($step['fromMajor'] ?? null)
+            || ! is_int($step['toMajor'] ?? null)
+            || ! is_string($step['name'] ?? null)
+            || ! is_string($step['status'] ?? null)
+            || ! is_array($step['changedFiles'] ?? null)
+            || ! is_array($step['commands'] ?? null)
+            || ! is_string($step['message'] ?? null)
+            || ! is_int($step['findingsCount'] ?? null)
+            || $step['findingsCount'] < 0
+            || ! (($step['exitCode'] ?? null) === null || is_int($step['exitCode']))
+            || ! is_int($step['durationMs'] ?? null)
+            || ! is_string($step['recordedAt'] ?? null)
+            || ! is_array($step['data'] ?? null)) {
+            throw new RuntimeException('report.json contains a malformed step entry');
+        }
+
+        $identity = $step['transition'].'\0'.$step['name'];
+
+        if (isset($seen[$identity])) {
+            throw new RuntimeException(sprintf('report.json contains duplicate step identity %s', str_replace("\0", '/', $identity)));
+        }
+
+        $seen[$identity] = true;
+        $expectedTransition = sprintf('%d->%d', $step['fromMajor'], $step['toMajor']);
+
+        if ($step['transition'] !== $expectedTransition || $step['major'] !== $step['toMajor']
+            || ! isset($expectedStatuses[$step['name']])
+            || $step['status'] !== $expectedStatuses[$step['name']]) {
+            throw new RuntimeException(sprintf('report.json has an unexpected step identity/status: %s', $identity));
+        }
+
+        foreach ($step['changedFiles'] as $file) {
+            if (! is_string($file)) {
+                throw new RuntimeException('report.json changedFiles must contain only strings');
+            }
+        }
+
+        foreach ($step['commands'] as $command) {
+            if (! is_array($command) || ! is_string($command['cmd'] ?? null)
+                || ! is_array($command['argv'] ?? null)
+                || ! (($command['exit'] ?? null) === null || is_int($command['exit']))) {
+                throw new RuntimeException('report.json contains malformed command metadata');
+            }
+        }
+
+        if ($step['name'] === 'commit'
+            && (($step['data']['git']['reason'] ?? null) !== 'noGit')) {
+            throw new RuntimeException('report.json does not record the commit as explicitly skipped by --no-git');
+        }
+
+        $byTransition[$step['transition']][$step['name']] = true;
+    }
+
+    $expectedNames = canonicalUpgradeSteps();
+
+    foreach (range($from + 1, $to) as $major) {
+        $transition = sprintf('%d->%d', $major - 1, $major);
+
+        if (array_keys($byTransition[$transition] ?? []) !== $expectedNames) {
+            throw new RuntimeException(sprintf('report.json has unexpected step identities for %s', $transition));
+        }
+    }
+
+    if (count($seen) !== ($to - $from) * count($expectedNames)) {
+        throw new RuntimeException('report.json has an unexpected number of steps');
+    }
+}
+
+/** @param list<int> $allowedExitCodes */
+function gitOutput(string $directory, array $arguments, array $allowedExitCodes = [0]): string
+{
+    $process = new Process(array_merge(['git'], $arguments), $directory);
+    $process->run();
+    $exitCode = $process->getExitCode() ?? 1;
+
+    if (! in_array($exitCode, $allowedExitCodes, true)) {
+        throw new RuntimeException(sprintf(
+            'git %s failed with exit code %d: %s',
+            implode(' ', $arguments),
+            $exitCode,
+            trim($process->getErrorOutput()),
+        ));
+    }
+
+    return $process->getOutput();
+}
+
+function snapshotPathExcluded(string $relative): bool
+{
+    // Composer lockfile churn is covered by validate/solver assertions;
+    // dependency resolution metadata is intentionally not snapshot noise.
+    return $relative === 'UPGRADE-REPORT.md'
+        || $relative === 'composer.lock'
+        || $relative === 'database/database.sqlite'
+        || str_starts_with($relative, '.laravel-upgrade/')
+        || str_starts_with($relative, 'bootstrap/cache/')
+        || str_starts_with($relative, 'storage/framework/')
+        || str_starts_with($relative, 'storage/logs/')
+        || str_starts_with($relative, '.e2e-composer');
+}
+
+/**
+ * Return a stable unified diff for project changes. Tracked changes come from
+ * git diff; relevant untracked files are rendered with git diff --no-index so
+ * skeleton additions are covered too.
+ */
+function normalizedUpgradeDiff(string $directory): string
+{
+    $diff = gitOutput($directory, [
+        'diff',
+        '--no-ext-diff',
+        '--no-color',
+        '--unified=3',
+        '--',
+        '.',
+        ':(exclude).laravel-upgrade/**',
+        ':(exclude)UPGRADE-REPORT.md',
+        ':(exclude)composer.lock',
+        ':(exclude).e2e-composer*',
+        ':(exclude)bootstrap/cache/**',
+        ':(exclude)storage/framework/**',
+        ':(exclude)storage/logs/**',
+        ':(exclude)database/database.sqlite',
+    ]);
+    $untracked = gitOutput($directory, ['ls-files', '--others', '--exclude-standard', '-z']);
+
+    foreach (array_filter(explode("\0", $untracked), static fn (string $path): bool => $path !== '') as $relative) {
+        $relative = str_replace('\\', '/', $relative);
+
+        if (snapshotPathExcluded($relative)) {
+            continue;
+        }
+
+        $single = gitOutput($directory, ['diff', '--no-index', '--no-color', '--unified=3', '--', '/dev/null', $relative], [0, 1]);
+        $single = preg_replace('/^diff --git .*$/m', 'diff --git a/'.$relative.' b/'.$relative, $single) ?? $single;
+        $single = preg_replace('/^--- .*$/m', '--- /dev/null', $single) ?? $single;
+        $single = preg_replace('/^\+\+\+ .*$/m', '+++ b/'.$relative, $single) ?? $single;
+        $diff .= $single;
+    }
+
+    $diff = str_replace(["\r\n", "\r"], "\n", $diff);
+    $diff = str_replace($directory.'/', '<E2E_PROJECT>/', $diff);
+    $diff = preg_replace('/^index [0-9a-f]+\.\.[0-9a-f]+.*$/mi', 'index <hash>..<hash>', $diff) ?? $diff;
+    $diff = preg_replace('/^([+-].*"content-hash"\s*:\s*")[0-9a-f]+(").*$/mi', '$1<content-hash>$2', $diff) ?? $diff;
+    $diff = preg_replace('/e2e-\d+-\d+-\d+/', 'e2e-<run>', $diff) ?? $diff;
+
+    return rtrim($diff)."\n";
+}
+
+function assertDiffSnapshot(string $directory, string $repoRoot, int $from, int $to): void
+{
+    $snapshot = $repoRoot.'/tests/E2E/expected/'.$from.'-'.$to.'.diff';
+    $actual = normalizedUpgradeDiff($directory);
+    $update = getenv('LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS') === '1';
+    $isCi = getenv('CI') === 'true' || getenv('GITHUB_ACTIONS') === 'true';
+
+    if ($update && $isCi) {
+        throw new RuntimeException('Refusing to rewrite E2E diff snapshots in CI; unset LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS.');
+    }
+
+    if (! is_file($snapshot)) {
+        if ($update && file_put_contents($snapshot, $actual) !== false) {
+            echo "  wrote {$snapshot} (review this live baseline before committing)\n";
+
+            return;
+        }
+
+        throw new RuntimeException(sprintf(
+            'Missing normalized diff snapshot %s. Run this live E2E with LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS=1 locally after reviewing the result.',
+            $snapshot,
+        ));
+    }
+
+    $expected = file_get_contents($snapshot);
+
+    if (! is_string($expected)) {
+        throw new RuntimeException(sprintf('Could not read normalized diff snapshot %s.', $snapshot));
+    }
+
+    $expected = rtrim(str_replace(["\r\n", "\r"], "\n", $expected))."\n";
+
+    if ($expected === $actual) {
+        return;
+    }
+
+    if ($update && file_put_contents($snapshot, $actual) !== false) {
+        echo "  updated {$snapshot} (review this live baseline before committing)\n";
+
+        return;
+    }
+
+    throw new RuntimeException(sprintf(
+        'Normalized diff differs from %s. Re-run locally with LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS=1 after reviewing the project diff.',
+        $snapshot,
+    ));
+}
+
+function sourceSkeletonVersion(int $major): string
+{
+    $versions = [
+        10 => 'v10.3.3',
+        11 => 'v11.6.1',
+        12 => 'v12.12.2',
+    ];
+
+    if (! array_key_exists($major, $versions)) {
+        throw new RuntimeException(sprintf('No reviewed Laravel skeleton version is mapped for major %d.', $major));
+    }
+
+    return $versions[$major];
+}
+
 require $repoRoot.'/vendor/autoload.php';
 
 $app = sys_get_temp_dir().'/e2e-'.$from.'-'.$to.'-'.time();
+$sourceVersion = sourceSkeletonVersion($from);
 
-echo "Creating Laravel {$from} skeleton at {$app}...\n";
+echo "Creating Laravel {$sourceVersion} skeleton at {$app}...\n";
 
 // Composer >= 2.10 blocks Laravel 10/11 resolution through security advisories;
 // disable before any composer command runs.
@@ -145,26 +711,38 @@ putenv('COMPOSER_POLICY_ADVISORIES_BLOCK=false');
 $_ENV['COMPOSER_POLICY_ADVISORIES_BLOCK'] = 'false';
 
 run(sprintf(
-    'composer create-project laravel/laravel %s "^%d.0" --no-scripts --no-interaction --prefer-dist',
+    'composer create-project laravel/laravel %s %s --no-scripts --no-interaction --prefer-dist',
     escapeshellarg($app),
-    $from
-), $repoRoot);
+    escapeshellarg($sourceVersion),
+), $repoRoot, $createExit, 1800);
 
-if (! is_file($app.'/artisan')) {
-    fwrite(STDERR, "create-project failed.\n");
+if ($createExit !== 0 || ! is_file($app.'/artisan')) {
+    fwrite(STDERR, sprintf("create-project failed (exit %d).\n", $createExit));
 
     exit(1);
 }
 
 // Ensure vendor dependencies are installed (--no-scripts may skip autoload).
-if (! is_file($app . '/vendor/autoload.php')) {
+if (! is_file($app.'/vendor/autoload.php')) {
     putenv('COMPOSER_POLICY_ADVISORIES_BLOCK=false');
     $_ENV['COMPOSER_POLICY_ADVISORIES_BLOCK'] = 'false';
     run('composer update --no-interaction --no-progress', $app, $updExit, 1800);
+
+    if ($updExit !== 0) {
+        fwrite(STDERR, sprintf("Initial composer update failed (exit %d).\n", $updExit));
+
+        exit(1);
+    }
 }
 
 // Disable advisory blocking for subsequent dependency changes.
-run('composer config policy.advisories.block false', $app);
+run('composer config policy.advisories.block false', $app, $policyExit);
+
+if ($policyExit !== 0) {
+    fwrite(STDERR, "Could not disable Composer advisory blocking.\n");
+
+    exit(1);
+}
 
 // --no-scripts skipped the env setup: provide .env and an application key.
 if (! is_file($app.'/.env') && is_file($app.'/.env.example')) {
@@ -181,6 +759,12 @@ if ($keyExit !== 0) {
 
 echo "Planting upgrade-triggering files...\n";
 $plantsSource = $repoRoot.'/tests/E2E/plants/'.$from;
+
+if (! is_dir($plantsSource)) {
+    fwrite(STDERR, sprintf("No E2E plant directory exists for Laravel %d.\n", $from));
+
+    exit(1);
+}
 
 foreach (
     new RecursiveIteratorIterator(
@@ -199,35 +783,206 @@ foreach (
     copy($plantFile->getPathname(), $target);
 }
 
-run('git init -q && git add -A && git commit -qm base', $app);
+run('git init -q', $app, $gitExit);
+
+if ($gitExit !== 0) {
+    fwrite(STDERR, "Could not initialize the E2E git repository.\n");
+
+    exit(1);
+}
+
+// Keep commit metadata reproducible on developer machines and CI runners.
+run('git config user.name "Laravel Upgrade E2E"', $app, $gitConfigExit);
+
+if ($gitConfigExit !== 0) {
+    fwrite(STDERR, "Could not configure the E2E git author name.\n");
+
+    exit(1);
+}
+
+run('git config user.email "laravel-upgrade-e2e@example.test"', $app, $gitConfigExit);
+
+if ($gitConfigExit !== 0) {
+    fwrite(STDERR, "Could not configure the E2E git author email.\n");
+
+    exit(1);
+}
+
+run('git add -A && git commit -qm base', $app, $gitExit);
+
+if ($gitExit !== 0) {
+    fwrite(STDERR, "Could not create the E2E git baseline.\n");
+
+    exit(1);
+}
 
 echo "Installing package from local checkout...\n";
-run('composer config repositories.local path '.escapeshellarg($repoRoot), $app);
-run('composer require --dev muhammadsadeeq/laravel-upgrades-rector:"*@dev" --no-interaction --no-progress', $app);
+run('composer config repositories.local path '.escapeshellarg($repoRoot), $app, $repoExit);
 
-check('deps --dry-run is byte-neutral', static function () use ($app, $to): void {
-    $before = treeChecksums($app);
-    $output = run(sprintf('vendor/bin/laravel-upgrade deps %d --dry-run', $to), $app, $exit);
-    $after = treeChecksums($app);
+if ($repoExit !== 0) {
+    fwrite(STDERR, "Could not register the local package repository.\n");
+
+    exit(1);
+}
+
+// PHPStan is a package dependency of the orchestrator's advisory step, not a
+// transitive require-dev dependency of a path package. Install it explicitly
+// so the real advisory engine runs in this app instead of being skipped.
+run(
+    'composer require --dev muhammadsadeeq/laravel-upgrades-rector:"*@dev" phpstan/phpstan:"^2.1" --no-interaction --no-progress',
+    $app,
+    $packageExit,
+    1800,
+);
+
+if ($packageExit !== 0) {
+    fwrite(STDERR, "Could not install the local package and PHPStan.\n");
+
+    exit(1);
+}
+
+// The package bootstrap is part of the test fixture, not the upgrade under
+// test. Commit it so `to` can enforce a clean baseline while leaving the
+// upgrade's own changes visible to the legacy assertions below.
+run('git add composer.json composer.lock && git commit -qm tooling', $app, $toolingExit);
+
+if ($toolingExit !== 0) {
+    fwrite(STDERR, "Could not commit the E2E tooling baseline.\n");
+
+    exit(1);
+}
+
+check('to --plan is byte-neutral except for plan.json', static function () use ($app, $from, $to): void {
+    $before = treeChecksums($app, true);
+    run(sprintf(
+        'vendor/bin/laravel-upgrade to %d --plan --no-interaction --no-tests --no-pint --no-git',
+        $to,
+    ), $app, $exit, 1800);
 
     if ($exit !== 0) {
-        throw new RuntimeException("dry-run exited {$exit}");
+        throw new RuntimeException("to --plan exited {$exit}");
     }
+
+    $after = treeChecksums($app, true);
 
     if ($before !== $after) {
-        throw new RuntimeException('dry-run modified the tree');
+        throw new RuntimeException('to --plan modified files other than its plan artifact');
     }
+
+    $plan = readJsonFile($app.'/.laravel-upgrade/plan.json');
+
+    assertPlanSchema($plan, $from, $to);
 });
 
-check('deps applies cleanly', static function () use ($app, $to): void {
-    run(sprintf('vendor/bin/laravel-upgrade deps %d', $to), $app, $exit);
+$composerProxy = createSolverFailureComposer($app);
+
+/** @var string|null $failedRunId */
+$failedRunId = null;
+
+check('to journals an injected Composer solver failure', static function () use ($app, $from, $to, $composerProxy, &$failedRunId): void {
+    run(sprintf(
+        'vendor/bin/laravel-upgrade to %d --composer %s --no-interaction --no-pint --no-git',
+        $to,
+        escapeshellarg($composerProxy),
+    ), $app, $exit, 1800);
+
+    if ($exit !== 3) {
+        throw new RuntimeException("injected solver failure exited {$exit}, expected 3");
+    }
+
+    $state = readJsonFile($app.'/.laravel-upgrade/state.json');
+
+    assertFailedStateSchema($state, $from, $to, $composerProxy);
+    $failedRunId = $state['runId'];
+});
+
+check('continue resumes the orchestrator run', static function () use ($app, $to, $composerProxy): void {
+    // Continue deliberately receives no tool or policy overrides. The failed
+    // journal must provide the Composer proxy and no-git/no-pint choices.
+    run('vendor/bin/laravel-upgrade continue --no-interaction', $app, $exit, 2400);
+
+    // The Laravel 11 plant deliberately includes duplicate route names to
+    // exercise the Laravel 12 verification finding. Keep that useful legacy
+    // fixture, assert the exact failed transition, then make the documented
+    // manual fix and continue from the same journal without overrides.
+    if ($to === 12) {
+        if ($exit !== 1) {
+            throw new RuntimeException("first continue exited {$exit}, expected verification exit 1");
+        }
+
+        $state = readJsonFile($app.'/.laravel-upgrade/state.json');
+
+        if (($state['status'] ?? null) !== 'failed'
+            || ($state['failedStep'] ?? null) !== 'verify'
+            || ($state['currentTransition'] ?? null) !== '11->12') {
+            throw new RuntimeException('first continue did not journal the expected verification failure');
+        }
+
+        assertStateOptions($state, $composerProxy);
+
+        $completed = $state['completedSteps']['11->12'] ?? null;
+        $expectedCompleted = array_slice(canonicalUpgradeSteps(), 0, 7);
+
+        if (! is_array($completed) || array_keys($completed) !== $expectedCompleted) {
+            throw new RuntimeException('verification failure state has unexpected completed step identities');
+        }
+
+        foreach ($completed as $step) {
+            if (! is_array($step) || ($step['status'] ?? null) !== 'completed'
+                || ! is_string($step['message'] ?? null)
+                || ! is_string($step['completedAt'] ?? null)
+                || ! is_array($step['changedFiles'] ?? null)
+                || ! is_int($step['findingsCount'] ?? null)) {
+                throw new RuntimeException('verification failure state has malformed completed step metadata');
+            }
+        }
+
+        $routePath = $app.'/routes/api.php';
+        $route = file_get_contents($routePath);
+        $duplicate = "Route::get('/api/home', fn () => 'home')->name('dashboard');";
+
+        if (! is_string($route) || ! str_contains($route, $duplicate)) {
+            throw new RuntimeException('duplicate route plant was not found for its manual fix');
+        }
+
+        if (file_put_contents($routePath, str_replace(
+            $duplicate,
+            "Route::get('/home', fn () => 'home')->name('home');",
+            $route,
+        )) === false) {
+            throw new RuntimeException('could not apply the duplicate route manual fix');
+        }
+
+        run('vendor/bin/laravel-upgrade continue --no-interaction', $app, $exit, 2400);
+    }
+
+    if ($to !== 12 && $exit !== 0) {
+        throw new RuntimeException("continue exited {$exit}, expected 0");
+    }
 
     if ($exit !== 0) {
-        throw new RuntimeException("deps exited {$exit} — dependency resolution failed");
+        throw new RuntimeException("fixed continue exited {$exit}");
+    }
+
+    if (is_file($app.'/.laravel-upgrade/state.json')) {
+        throw new RuntimeException('completed continue left an active state journal');
     }
 });
 
-check('composer validate --strict passes', static function () use ($app): void {
+check('orchestrator report records every transition and engine', static function () use ($app, $from, $to, &$failedRunId): void {
+    $report = readJsonFile($app.'/.laravel-upgrade/report.json');
+    if (! is_string($failedRunId) || $failedRunId === '') {
+        throw new RuntimeException('failed state runId was not captured');
+    }
+
+    assertReportSchema($report, $from, $to, $failedRunId);
+});
+
+check('normalized upgrade diff matches its committed snapshot', static function () use ($app, $repoRoot, $from, $to): void {
+    assertDiffSnapshot($app, $repoRoot, $from, $to);
+});
+
+check('composer validate --strict passes after applying', static function () use ($app): void {
     run('composer validate --strict --no-check-lock', $app, $exit);
 
     if ($exit !== 0) {
@@ -235,48 +990,7 @@ check('composer validate --strict passes', static function () use ($app): void {
     }
 });
 
-check('composer update resolves', static function () use ($app): void {
-    run(
-        'composer update --with-all-dependencies --no-interaction --no-progress',
-        $app,
-        $exit,
-        1800
-    );
-
-    if ($exit !== 0) {
-        throw new RuntimeException("update exited {$exit}");
-    }
-});
-
-$rectorConfig = 'vendor/muhammadsadeeq/laravel-upgrades-rector/config/laravel-'.$to.'.php';
-$appliedRules = [];
-
-check('rector pass 1 applies rules without errors', static function () use ($app, $rectorConfig, &$appliedRules): void {
-    $jsonOutput = run(sprintf(
-        'vendor/bin/rector process --config=%s --no-progress-bar --output-format=json --clear-cache',
-        escapeshellarg($rectorConfig)
-    ), $app, $exit, 1200);
-
-    $decoded = json_decode($jsonOutput, true);
-
-    if (! is_array($decoded)) {
-        throw new RuntimeException('rector json output unreadable');
-    }
-
-    foreach ($decoded['totals']['errors'] ?? [] as $error) {
-        if ((int) ($error['count'] ?? 1) > 0) {
-            throw new RuntimeException('rector reported errors: '.substr(json_encode($error), 0, 200));
-        }
-    }
-
-    foreach ($decoded['file_diffs'] ?? [] as $fileDiff) {
-        foreach ($fileDiff['applied_rectors'] ?? [] as $applied) {
-            $appliedRules[$applied] = true;
-        }
-    }
-});
-
-check('expected rules ran', static function () use ($from, $to, $appliedRules): void {
+check('expected rules ran', static function () use ($from, $to, $app): void {
     $expectedFile = sprintf('%s/tests/E2E/expected/%d-%d-rules.txt', dirname(__DIR__), $from, $to);
 
     if (! is_file($expectedFile)) {
@@ -285,6 +999,7 @@ check('expected rules ran', static function () use ($from, $to, $appliedRules): 
         return;
     }
 
+    $appliedRules = reportAppliedRules($app.'/.laravel-upgrade/report.json');
     $missing = [];
 
     foreach (file($expectedFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $expectedRule) {
@@ -314,11 +1029,24 @@ check('expected rules ran', static function () use ($from, $to, $appliedRules): 
     }
 });
 
-check('rector pass 2 changes nothing', static function () use ($app, $rectorConfig): void {
+check('orchestrator-generated Rector pass 2 changes nothing', static function () use ($app, $to): void {
+    $rectorConfig = $app.'/.laravel-upgrade/rector-'.$to.'.php';
+
+    if (! is_file($rectorConfig)) {
+        throw new RuntimeException('orchestrator did not leave its generated Rector config');
+    }
+
+    $beforeDiff = normalizedUpgradeDiff($app);
     $jsonOutput = run(sprintf(
-        'vendor/bin/rector process --config=%s --no-progress-bar --output-format=json',
-        escapeshellarg($rectorConfig)
+        'vendor/bin/rector process --config=%s --no-progress-bar --output-format=json --autoload-file=%s',
+        escapeshellarg($rectorConfig),
+        escapeshellarg($app.'/vendor/autoload.php'),
     ), $app, $exit, 1200);
+    $afterDiff = normalizedUpgradeDiff($app);
+
+    if ($beforeDiff !== $afterDiff) {
+        throw new RuntimeException('second pass changed the normalized project diff');
+    }
 
     $decoded = json_decode($jsonOutput, true);
 
@@ -336,7 +1064,15 @@ check('rector pass 2 changes nothing', static function () use ($app, $rectorConf
             throw new RuntimeException('second pass changed files');
         }
 
+        if ($exit !== 0) {
+            throw new RuntimeException("second pass exited {$exit} with unreadable output");
+        }
+
         return; // no changes detected
+    }
+
+    if ($exit !== 0 && ! is_countable($decoded['file_diffs'] ?? null)) {
+        throw new RuntimeException("second pass exited {$exit}");
     }
 
     $changed = is_countable($decoded['file_diffs'] ?? null) ? count($decoded['file_diffs']) : 0;
