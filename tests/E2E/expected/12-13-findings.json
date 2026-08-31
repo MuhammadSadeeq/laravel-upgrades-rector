@@ -1,0 +1,70 @@
+[
+    {
+        "ruleId": "laravelUpgrade.cachePrefix",
+        "file": "config/cache.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configBehaviourChange",
+        "file": "config/cache.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configBehaviourChange",
+        "file": "config/session.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/database.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configKeyRemoved",
+        "file": "config/logging.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.databaseDrivers",
+        "file": "config/database.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.laravelInstallerCheck",
+        "file": "composer.json"
+    },
+    {
+        "ruleId": "laravelUpgrade.packageJsonDependencies",
+        "file": "package.json"
+    },
+    {
+        "ruleId": "laravelUpgrade.queuedJobEloquentCollection",
+        "file": "app/Jobs/SyncUsersJob.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.sessionSerialization",
+        "file": "config/session.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/VerifyCsrfToken.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "resources/js/bootstrap.js"
+    },
+    {
+        "ruleId": "laravelUpgrade.sqliteConnection",
+        "file": ".env"
+    },
+    {
+        "ruleId": "laravelUpgrade.sqliteConnection",
+        "file": "config/database.php"
+    },
+    {
+        "ruleId": "return.missing",
+        "file": "app/Services/MyCacheRepository.php"
+    },
+    {
+        "ruleId": "return.missing",
+        "file": "app/Services/MyCacheStore.php"
+    },
+    {
+        "ruleId": "variable.undefined",
+        "file": "routes/console.php"
+    }
+]

@@ -1,0 +1,254 @@
+[
+    {
+        "ruleId": "laravelUpgrade.afterCommitWithSyncQueue",
+        "file": "config/queue.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.cachePrefix",
+        "file": "config/cache.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.carbonUntypedDiff",
+        "file": "app/Models/Post.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.columnChangeRequiresModifiers",
+        "file": "database/migrations/2024_01_01_000000_create_places_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configBehaviourChange",
+        "file": "config/cache.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configBehaviourChange",
+        "file": "config/filesystems.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/app.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/auth.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/cache.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/database.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/logging.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/mail.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/queue.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configDefaultChanged",
+        "file": "config/session.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configKeyRemoved",
+        "file": "config/app.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configKeyRemoved",
+        "file": "config/cache.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configKeyRemoved",
+        "file": "config/mail.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.configKeyRemoved",
+        "file": "config/services.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.databaseDrivers",
+        "file": "config/database.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.envExampleMissingFromEnvironment",
+        "file": ".env"
+    },
+    {
+        "ruleId": "laravelUpgrade.envKeyRenamed",
+        "file": ".env"
+    },
+    {
+        "ruleId": "laravelUpgrade.envKeyRenamed",
+        "file": ".env.example"
+    },
+    {
+        "ruleId": "laravelUpgrade.laravelInstallerCheck",
+        "file": "composer.json"
+    },
+    {
+        "ruleId": "laravelUpgrade.mariaDbUuidColumn",
+        "file": "database/migrations/2024_01_01_000000_create_places_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.packageJsonDependencies",
+        "file": "package.json"
+    },
+    {
+        "ruleId": "laravelUpgrade.queueDefaultSync",
+        "file": "config/queue.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Console/Kernel.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Exceptions/Handler.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Kernel.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/Authenticate.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/EncryptCookies.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/PreventRequestsDuringMaintenance.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/RedirectIfAuthenticated.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/TrimStrings.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/TrustHosts.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/TrustProxies.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/ValidateSignature.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Http/Middleware/VerifyCsrfToken.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Providers/AuthServiceProvider.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Providers/BroadcastServiceProvider.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Providers/EventServiceProvider.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "app/Providers/RouteServiceProvider.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "config/broadcasting.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "config/cors.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "config/hashing.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "config/sanctum.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "config/view.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "database/migrations/2014_10_12_000000_create_users_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "database/migrations/2014_10_12_100000_create_password_reset_tokens_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "database/migrations/2019_08_19_000000_create_failed_jobs_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "database/migrations/2019_12_14_000001_create_personal_access_tokens_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "routes/api.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "routes/channels.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonFileRemoved",
+        "file": "tests/CreatesApplication.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonMigrationAdded",
+        "file": "database/migrations/0001_01_01_000000_create_users_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonMigrationAdded",
+        "file": "database/migrations/0001_01_01_000001_create_cache_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonMigrationAdded",
+        "file": "database/migrations/0001_01_01_000002_create_jobs_table.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonRouteChanged",
+        "file": "routes/api.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonRouteChanged",
+        "file": "routes/channels.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonRouteChanged",
+        "file": "routes/console.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.skeletonRouteChanged",
+        "file": "routes/web.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.spatialGeographyReview",
+        "file": "database/migrations/2024_01_01_000000_create_places_table.php"
+    },
+    {
+        "ruleId": "variable.undefined",
+        "file": "routes/console.php"
+    }
+]

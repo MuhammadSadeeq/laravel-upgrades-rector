@@ -1672,10 +1672,6 @@ index <hash>..<hash>
 +    App\Providers\AuthServiceProvider::class,
 +    App\Providers\EventServiceProvider::class,
 +];
-diff --git a/laravel b/laravel
-new file mode 100644
-index <hash>..<hash>
-Binary files /dev/null and b/laravel differ
 diff --git a/postcss.config.js b/postcss.config.js
 new file mode 100644
 index <hash>..<hash>

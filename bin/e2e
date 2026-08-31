@@ -26,6 +26,7 @@ use Symfony\Component\Process\Process;
  * - the app boots (artisan about), migrates (sqlite) and passes its tests;
  * - the SECOND rector pass produces zero changes (idempotency);
  * - an expected subset of rules actually ran.
+ * - the report findings match a reviewed rule-id/file snapshot.
  */
 if ($argc < 3 || $argc > 4) {
     fwrite(STDERR, "Usage: php bin/e2e <from-major> <to-major> [keep|modern]\n");
@@ -728,6 +729,317 @@ function reportAppliedRules(string $path): array
     return $rules;
 }
 
+/**
+ * Validate the Finding value-object shape before reading fields from a report.
+ * The report generator fills defaults for legacy input, so the E2E boundary
+ * deliberately checks the canonical serialized shape rather than accepting
+ * the lossy defaults used by Finding::fromArray().
+ */
+function assertFindingEntrySchema(mixed $finding, int $index): void
+{
+    if (! is_array($finding) || array_is_list($finding)) {
+        throw new RuntimeException(sprintf('report.json finding %d must be an object', $index));
+    }
+
+    $types = [
+        'id' => 'string',
+        'ruleId' => 'string',
+        'severity' => 'string',
+        'laravelVersion' => 'int',
+        'file' => 'string',
+        'line' => 'int',
+        'message' => 'string',
+        'action' => 'string',
+        'guideUrl' => 'string',
+        'autoFixed' => 'bool',
+        'confidence' => 'string',
+    ];
+
+    foreach ($types as $key => $type) {
+        if (! array_key_exists($key, $finding) || get_debug_type($finding[$key]) !== $type) {
+            throw new RuntimeException(sprintf('report.json finding %d has an invalid %s', $index, $key));
+        }
+    }
+
+    if ($finding['id'] === '' || $finding['ruleId'] === '' || str_contains($finding['ruleId'], "\0")) {
+        throw new RuntimeException(sprintf('report.json finding %d has an empty or malformed identity', $index));
+    }
+
+    if (! in_array($finding['severity'], ['high', 'medium', 'low', 'info'], true)
+        || ! in_array($finding['confidence'], ['high', 'medium', 'low'], true)
+        || $finding['laravelVersion'] < 1
+        || $finding['line'] < 0) {
+        throw new RuntimeException(sprintf('report.json finding %d has an invalid severity, confidence, version, or line', $index));
+    }
+
+    if (array_key_exists('major', $finding) && ! is_int($finding['major'])) {
+        throw new RuntimeException(sprintf('report.json finding %d has an invalid legacy major field', $index));
+    }
+}
+
+/**
+ * Convert a report file to the stable Appendix E finding snapshot format.
+ * Empty Finding::file values are the sole project-level representation and
+ * become the explicit <project> sentinel; every other path must resolve to a
+ * relative path inside the temporary application being upgraded.
+ *
+ * @return list<array{ruleId: string, file: string}>
+ */
+function normalizedFindingPairs(array $report, string $projectDirectory): array
+{
+    if (! array_key_exists('findings', $report)
+        || ! is_array($report['findings'])
+        || ! array_is_list($report['findings'])) {
+        throw new RuntimeException('report.json findings must be a list');
+    }
+
+    $pairs = [];
+
+    foreach ($report['findings'] as $index => $finding) {
+        assertFindingEntrySchema($finding, $index);
+
+        /** @var array{ruleId: string, file: string} $finding */
+        $ruleId = $finding['ruleId'];
+
+        if (trim($ruleId) !== $ruleId) {
+            throw new RuntimeException(sprintf('report.json finding %d has whitespace around ruleId', $index));
+        }
+
+        $file = normalizeFindingFile($finding['file'], $projectDirectory);
+        $pairs[$ruleId."\0".$file] = ['ruleId' => $ruleId, 'file' => $file];
+    }
+
+    $pairs = array_values($pairs);
+    usort($pairs, static function (array $left, array $right): int {
+        return [$left['ruleId'], $left['file']] <=> [$right['ruleId'], $right['file']];
+    });
+
+    return $pairs;
+}
+
+function normalizeFindingFile(mixed $file, string $projectDirectory): string
+{
+    if (! is_string($file)) {
+        throw new RuntimeException('report.json finding file must be a string');
+    }
+
+    if (str_contains($file, "\0")) {
+        throw new RuntimeException('report.json finding file contains a NUL byte');
+    }
+
+    if (trim($file) !== $file) {
+        throw new RuntimeException('report.json finding file has surrounding whitespace');
+    }
+
+    $file = str_replace('\\', '/', $file);
+
+    if ($file === '' || $file === '<project>') {
+        return '<project>';
+    }
+
+    $root = realpath($projectDirectory);
+
+    if (! is_string($root)) {
+        throw new RuntimeException('Could not resolve the E2E project root while normalizing findings');
+    }
+
+    $root = rtrim(str_replace('\\', '/', $root), '/');
+    $isAbsolute = str_starts_with($file, '/') || str_starts_with($file, '~/')
+        || $file === '~' || preg_match('/^[A-Za-z]:\//', $file) === 1;
+
+    if ($isAbsolute) {
+        if (str_starts_with($file, '~/') || $file === '~') {
+            throw new RuntimeException('report.json finding file uses an unresolved home-directory path');
+        }
+
+        // realpath handles macOS /var -> /private/var aliases before the
+        // containment check, while refusing absolute paths that are missing.
+        $resolved = realpath($file);
+
+        if (! is_string($resolved)) {
+            throw new RuntimeException(sprintf('report.json absolute finding file cannot be resolved: %s', $file));
+        }
+
+        $resolved = str_replace('\\', '/', $resolved);
+
+        if (! isFindingPathWithinRoot($resolved, $root)) {
+            throw new RuntimeException(sprintf('report.json finding file is outside the E2E project: %s', $file));
+        }
+
+        return relativeFindingPath($resolved, $root, $file);
+    }
+
+    while (str_starts_with($file, './')) {
+        $file = substr($file, 2);
+    }
+
+    $file = validateRelativeFindingPath($file, 'report.json finding file');
+    $candidate = $root.'/'.$file;
+    $resolved = realpath($candidate);
+
+    if (is_string($resolved)) {
+        $resolved = str_replace('\\', '/', $resolved);
+
+        if (! isFindingPathWithinRoot($resolved, $root)) {
+            throw new RuntimeException(sprintf('report.json finding file escapes the E2E project through a symlink: %s', $file));
+        }
+
+        return relativeFindingPath($resolved, $root, $file);
+    }
+
+    // A finding can refer to a file removed by the upgrade. Resolve the
+    // longest existing parent so a symlink escape is still rejected, while
+    // allowing a genuinely non-existent relative leaf.
+    $probe = $candidate;
+
+    while ($probe !== $root && ! file_exists($probe) && ! is_link($probe)) {
+        $parent = dirname($probe);
+
+        if ($parent === $probe) {
+            break;
+        }
+
+        $probe = $parent;
+    }
+
+    $resolvedParent = realpath($probe);
+
+    if (is_string($resolvedParent)) {
+        $resolvedParent = str_replace('\\', '/', $resolvedParent);
+
+        if (! isFindingPathWithinRoot($resolvedParent, $root)) {
+            throw new RuntimeException(sprintf('report.json finding file escapes the E2E project through a symlink: %s', $file));
+        }
+    } elseif (is_link($probe)) {
+        throw new RuntimeException(sprintf('report.json finding file contains an unresolved symlink: %s', $file));
+    }
+
+    return $file;
+}
+
+function isFindingPathWithinRoot(string $path, string $root): bool
+{
+    return $path === $root || str_starts_with($path, $root.'/');
+}
+
+function relativeFindingPath(string $path, string $root, string $original): string
+{
+    if ($path === $root) {
+        throw new RuntimeException(sprintf('report.json finding file points at the project directory, not a file: %s', $original));
+    }
+
+    if (! isFindingPathWithinRoot($path, $root)) {
+        throw new RuntimeException(sprintf('report.json finding file is outside the E2E project: %s', $original));
+    }
+
+    return validateRelativeFindingPath(substr($path, strlen($root) + 1), 'report.json finding file');
+}
+
+function validateRelativeFindingPath(mixed $file, string $label): string
+{
+    $display = is_scalar($file) || $file === null ? (string) $file : get_debug_type($file);
+
+    if (! is_string($file) || $file === '' || trim($file) !== $file
+        || str_contains($file, "\0") || str_starts_with($file, '/')
+        || str_starts_with($file, '~/') || $file === '~'
+        || preg_match('/^[A-Za-z]:\//', $file) === 1) {
+        throw new RuntimeException(sprintf('%s is not a normalized relative path: %s', $label, $display));
+    }
+
+    $parts = explode('/', $file);
+
+    if (in_array('', $parts, true) || in_array('.', $parts, true) || in_array('..', $parts, true)) {
+        throw new RuntimeException(sprintf('%s is not a normalized relative path: %s', $label, $display));
+    }
+
+    return implode('/', $parts);
+}
+
+function normalizedFindingSnapshot(array $report, string $projectDirectory): string
+{
+    return json_encode(
+        normalizedFindingPairs($report, $projectDirectory),
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+    )."\n";
+}
+
+/**
+ * Parse a committed findings snapshot and require its canonical bytes. This
+ * runs before the update flag is consulted so malformed baselines can never
+ * be silently replaced by a local update.
+ */
+function parseExpectedFindingSnapshot(string $contents, string $snapshot): string
+{
+    $normalizedContents = str_replace(["\r\n", "\r"], "\n", $contents);
+
+    try {
+        $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException $exception) {
+        throw new RuntimeException(sprintf('Invalid findings snapshot %s: %s', $snapshot, $exception->getMessage()), 0, $exception);
+    }
+
+    if (! is_array($decoded) || ! array_is_list($decoded)) {
+        throw new RuntimeException(sprintf('Findings snapshot %s must contain a JSON list', $snapshot));
+    }
+
+    $pairs = [];
+    $seen = [];
+
+    foreach ($decoded as $index => $pair) {
+        if (! is_array($pair) || array_is_list($pair) || array_keys($pair) !== ['ruleId', 'file']) {
+            throw new RuntimeException(sprintf('Findings snapshot %s entry %d must be exactly {ruleId,file}', $snapshot, $index));
+        }
+
+        if (! is_string($pair['ruleId']) || $pair['ruleId'] === ''
+            || trim($pair['ruleId']) !== $pair['ruleId'] || str_contains($pair['ruleId'], "\0")) {
+            throw new RuntimeException(sprintf('Findings snapshot %s entry %d has an invalid ruleId', $snapshot, $index));
+        }
+
+        $file = validateExpectedFindingPath($pair['file'], $snapshot, $index);
+        $identity = $pair['ruleId']."\0".$file;
+
+        if (isset($seen[$identity])) {
+            throw new RuntimeException(sprintf('Findings snapshot %s contains duplicate entry %d', $snapshot, $index));
+        }
+
+        $seen[$identity] = true;
+        $pairs[] = ['ruleId' => $pair['ruleId'], 'file' => $file];
+    }
+
+    $sorted = $pairs;
+    usort($sorted, static function (array $left, array $right): int {
+        return [$left['ruleId'], $left['file']] <=> [$right['ruleId'], $right['file']];
+    });
+
+    if ($pairs !== $sorted) {
+        throw new RuntimeException(sprintf('Findings snapshot %s is not sorted by ruleId and file', $snapshot));
+    }
+
+    $canonical = json_encode(
+        $pairs,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+    )."\n";
+
+    if ($normalizedContents !== $canonical) {
+        throw new RuntimeException(sprintf('Findings snapshot %s is not in canonical JSON form', $snapshot));
+    }
+
+    return $canonical;
+}
+
+function validateExpectedFindingPath(mixed $file, string $snapshot, int $index): string
+{
+    if ($file === '<project>') {
+        return $file;
+    }
+
+    if (! is_string($file) || str_contains($file, '\\')) {
+        throw new RuntimeException(sprintf('Findings snapshot %s entry %d has a non-normalized file', $snapshot, $index));
+    }
+
+    return validateRelativeFindingPath($file, sprintf('Findings snapshot %s entry %d file', $snapshot, $index));
+}
+
 /** @return list<string> */
 function canonicalUpgradeSteps(): array
 {
@@ -940,7 +1252,8 @@ function assertReportSchema(array $report, int $from, int $to, string $runId): v
         || $report['runId'] !== $runId || ! is_array($report['project'])
         || ! is_array($report['steps']) || ! is_array($report['dependencies'])
         || ! is_array($report['codeChanges']) || ! is_array($report['skeleton'])
-        || ! is_array($report['findings']) || ! is_array($report['verification'])
+        || ! is_array($report['findings']) || ! array_is_list($report['findings'])
+        || ! is_array($report['verification'])
         || ! is_array($report['verificationHistory']) || ! is_array($report['whatToolDidNotDo'])
         || ! is_string($report['startedAt']) || $report['startedAt'] === ''
         || strtotime($report['startedAt']) === false
@@ -949,6 +1262,10 @@ function assertReportSchema(array $report, int $from, int $to, string $runId): v
         || ! is_string($report['updatedAt']) || $report['updatedAt'] === ''
         || strtotime($report['updatedAt']) === false) {
         throw new RuntimeException('report.json has invalid top-level types or values');
+    }
+
+    foreach ($report['findings'] as $index => $finding) {
+        assertFindingEntrySchema($finding, $index);
     }
 
     $project = $report['project'];
@@ -1126,12 +1443,7 @@ function assertDiffSnapshot(string $directory, string $repoRoot, int $from, int 
     $suffix = $structure === 'modern' ? '-modern' : '';
     $snapshot = $repoRoot.'/tests/E2E/expected/'.$from.'-'.$to.$suffix.'.diff';
     $actual = normalizedUpgradeDiff($directory);
-    $update = getenv('LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS') === '1';
-    $isCi = getenv('CI') === 'true' || getenv('GITHUB_ACTIONS') === 'true';
-
-    if ($update && $isCi) {
-        throw new RuntimeException('Refusing to rewrite E2E diff snapshots in CI; unset LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS.');
-    }
+    $update = e2eSnapshotUpdateEnabled('LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS');
 
     if (! is_file($snapshot)) {
         if ($update && file_put_contents($snapshot, $actual) !== false) {
@@ -1166,6 +1478,75 @@ function assertDiffSnapshot(string $directory, string $repoRoot, int $from, int 
 
     throw new RuntimeException(sprintf(
         'Normalized diff differs from %s. Re-run locally with LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS=1 after reviewing the project diff.',
+        $snapshot,
+    ));
+}
+
+function e2eSnapshotUpdateEnabled(string $environmentVariable): bool
+{
+    $update = getenv($environmentVariable) === '1';
+
+    if (! $update) {
+        return false;
+    }
+
+    $ci = static function (string $name): bool {
+        return in_array(strtolower(trim((string) getenv($name))), ['1', 'true', 'yes'], true);
+    };
+
+    if ($ci('CI') || $ci('GITHUB_ACTIONS')) {
+        throw new RuntimeException(sprintf(
+            'Refusing to rewrite E2E snapshots in CI; unset %s.',
+            $environmentVariable,
+        ));
+    }
+
+    return true;
+}
+
+function assertFindingsSnapshot(string $directory, string $repoRoot, int $from, int $to, string $structure = 'keep'): void
+{
+    $suffix = $structure === 'modern' ? '-modern' : '';
+    $snapshot = $repoRoot.'/tests/E2E/expected/'.$from.'-'.$to.$suffix.'-findings.json';
+    $report = readJsonFile($directory.'/.laravel-upgrade/report.json');
+    $actual = normalizedFindingSnapshot($report, $directory);
+
+    if (! is_file($snapshot)) {
+        $update = e2eSnapshotUpdateEnabled('LARAVEL_E2E_UPDATE_FINDING_SNAPSHOTS');
+
+        if ($update && file_put_contents($snapshot, $actual) !== false) {
+            echo "  wrote {$snapshot} (review this live baseline before committing)\n";
+
+            return;
+        }
+
+        throw new RuntimeException(sprintf(
+            'Missing normalized findings snapshot %s. Run this live E2E with LARAVEL_E2E_UPDATE_FINDING_SNAPSHOTS=1 locally after reviewing the result.',
+            $snapshot,
+        ));
+    }
+
+    $expected = file_get_contents($snapshot);
+
+    if (! is_string($expected)) {
+        throw new RuntimeException(sprintf('Could not read normalized findings snapshot %s.', $snapshot));
+    }
+
+    $expected = parseExpectedFindingSnapshot($expected, $snapshot);
+    $update = e2eSnapshotUpdateEnabled('LARAVEL_E2E_UPDATE_FINDING_SNAPSHOTS');
+
+    if ($expected === $actual) {
+        return;
+    }
+
+    if ($update && file_put_contents($snapshot, $actual) !== false) {
+        echo "  updated {$snapshot} (review this live baseline before committing)\n";
+
+        return;
+    }
+
+    throw new RuntimeException(sprintf(
+        'Normalized findings differ from %s. Re-run locally with LARAVEL_E2E_UPDATE_FINDING_SNAPSHOTS=1 after reviewing the result.',
         $snapshot,
     ));
 }
@@ -1659,16 +2040,100 @@ check('application boots', static function () use ($app): void {
 
 check('migrations run on sqlite', static function () use ($app): void {
     $envFile = $app.'/.env';
+    $databasePath = $app.'/database/database.sqlite';
+    $environment = file_get_contents($envFile);
 
-    if (is_file($envFile)) {
-        file_put_contents($envFile, (string) preg_replace('/^DB_CONNECTION=.*/m', 'DB_CONNECTION=sqlite', (string) file_get_contents($envFile)));
+    if (! is_string($environment)) {
+        throw new RuntimeException('Could not read the application .env file for sqlite migration setup');
     }
 
-    touch($app.'/database/database.sqlite');
+    $connectionLine = 'DB_CONNECTION=sqlite';
+    $databaseLine = 'DB_DATABASE="'.addcslashes($databasePath, '\\"').'"';
+    $append = [];
+    $connectionMatches = 0;
+    $databaseMatches = 0;
+    $environment = preg_replace_callback(
+        '/^DB_CONNECTION=.*$/m',
+        static fn (array $match): string => $connectionLine,
+        $environment,
+        -1,
+        $connectionMatches,
+    );
+    $environment = is_string($environment) ? $environment : null;
+    $environment = $environment === null ? null : preg_replace_callback(
+        '/^DB_DATABASE=.*$/m',
+        static fn (array $match): string => $databaseLine,
+        $environment,
+        -1,
+        $databaseMatches,
+    );
+
+    if (! is_string($environment)) {
+        throw new RuntimeException('Could not update the application .env file for sqlite migration setup');
+    }
+
+    if ($connectionMatches === 0) {
+        $append[] = $connectionLine;
+    }
+
+    if ($databaseMatches === 0) {
+        $append[] = $databaseLine;
+    }
+
+    if ($append !== []) {
+        $environment = rtrim($environment, "\r\n")."\n".implode("\n", $append)."\n";
+    }
+
+    if (file_put_contents($envFile, $environment) === false || ! touch($databasePath)) {
+        throw new RuntimeException('Could not configure the sqlite database fixture');
+    }
+
+    // Clear the old config cache before checking that Laravel resolves the
+    // intended database file rather than the stock DB_DATABASE=laravel value.
+    run('php artisan config:clear', $app, $configExit);
+
+    if ($configExit !== 0) {
+        throw new RuntimeException('config:clear failed before migration');
+    }
+
+    $probePath = $app.'/database-path-check.php';
+    $probe = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require __DIR__.'/vendor/autoload.php';
+$application = require __DIR__.'/bootstrap/app.php';
+$application->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$connection = $application->make('config')->get('database.default');
+$database = $application->make('config')->get('database.connections.'.$connection.'.database');
+
+if ($connection !== 'sqlite' || $database !== $argv[1]) {
+    fwrite(STDERR, sprintf("Resolved %s database %s; expected sqlite %s.\n", $connection, (string) $database, $argv[1]));
+
+    exit(1);
+}
+PHP;
+
+    if (file_put_contents($probePath, $probe) === false) {
+        throw new RuntimeException('Could not create the sqlite configuration probe');
+    }
+
+    run(sprintf('php %s %s', escapeshellarg($probePath), escapeshellarg($databasePath)), $app, $probeExit);
+    unlink($probePath);
+
+    if ($probeExit !== 0) {
+        throw new RuntimeException('Laravel did not resolve the intended sqlite database path');
+    }
+
     run('php artisan migrate --force', $app, $exit, 600);
 
     if ($exit !== 0) {
         throw new RuntimeException('migrate failed');
+    }
+
+    if (is_file($app.'/laravel')) {
+        throw new RuntimeException('migration unexpectedly created a root-level laravel database file');
     }
 });
 
@@ -1686,6 +2151,15 @@ if ($failures === []) {
     });
 } else {
     echo "\n=== normalized upgrade diff matches its committed snapshot ===\n";
+    echo "↷ deferred because an earlier E2E check failed; no snapshot will be written.\n";
+}
+
+if ($failures === []) {
+    check('normalized findings match their committed snapshot', static function () use ($app, $repoRoot, $from, $to, $structure): void {
+        assertFindingsSnapshot($app, $repoRoot, $from, $to, $structure);
+    });
+} else {
+    echo "\n=== normalized findings match their committed snapshot ===\n";
     echo "↷ deferred because an earlier E2E check failed; no snapshot will be written.\n";
 }
 
