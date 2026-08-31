@@ -1,5 +1,9 @@
 [
     {
+        "ruleId": "laravelUpgrade.blueprintConstructorConnection",
+        "file": "app/Http/Controllers/UploadController.php"
+    },
+    {
         "ruleId": "laravelUpgrade.cachePrefix",
         "file": "config/cache.php"
     },
@@ -56,6 +60,10 @@
         "file": "app/Models/Avatar.php"
     },
     {
+        "ruleId": "laravelUpgrade.imageRuleExcludesSvg",
+        "file": "app/Http/Controllers/UploadController.php"
+    },
+    {
         "ruleId": "laravelUpgrade.laravelInstallerCheck",
         "file": "composer.json"
     },
@@ -66,6 +74,10 @@
     {
         "ruleId": "laravelUpgrade.packageJsonDependencies",
         "file": "package.json"
+    },
+    {
+        "ruleId": "laravelUpgrade.schemaInspectionAllSchemas",
+        "file": "app/Http/Controllers/UploadController.php"
     },
     {
         "ruleId": "laravelUpgrade.skeletonFileRemoved",
