@@ -8,7 +8,7 @@ use Symfony\Component\Process\Process;
 /**
  * End-to-end upgrade harness (plan P1-05).
  *
- * Usage: php bin/e2e <from-major> <to-major>
+ * Usage: php bin/e2e <from-major> <to-major> [keep|modern]
  *
  * Creates a real Laravel application, plants realistic upgrade-triggering
  * files, installs this package from the local checkout, and runs the
@@ -27,17 +27,25 @@ use Symfony\Component\Process\Process;
  * - the SECOND rector pass produces zero changes (idempotency);
  * - an expected subset of rules actually ran.
  */
-if ($argc !== 3) {
-    fwrite(STDERR, "Usage: php bin/e2e <from-major> <to-major>\n");
+if ($argc < 3 || $argc > 4) {
+    fwrite(STDERR, "Usage: php bin/e2e <from-major> <to-major> [keep|modern]\n");
 
     exit(1);
 }
 
 $from = (int) $argv[1];
 $to = (int) $argv[2];
+$structure = $argc === 4 ? (string) $argv[3] : 'keep';
 
 if (! in_array([$from, $to], [[10, 11], [11, 12], [12, 13]], true)) {
     fwrite(STDERR, "Supported E2E paths are 10 -> 11, 11 -> 12, and 12 -> 13.\n");
+
+    exit(1);
+}
+
+if (! in_array($structure, ['keep', 'modern'], true)
+    || ($structure === 'modern' && [$from, $to] !== [10, 11])) {
+    fwrite(STDERR, "The optional E2E structure must be keep, or modern only for 10 -> 11.\n");
 
     exit(1);
 }
@@ -131,6 +139,484 @@ PHP;
     }
 
     return $path;
+}
+
+/** Add deliberately customized global/group middleware, an alias, and a route. */
+function prepareModernStructureFixture(string $directory): void
+{
+    $kernelPath = $directory.'/app/Http/Kernel.php';
+    $kernel = file_get_contents($kernelPath);
+
+    if (! is_string($kernel)) {
+        throw new RuntimeException('Could not read the Laravel 10 HTTP Kernel for the modern fixture.');
+    }
+
+    $globalNeedle = "        \\App\\Http\\Middleware\\TrustProxies::class,\n";
+    $globalReplacement = "        \\App\\Http\\Middleware\\TrustProxies::class,\n        \\App\\Http\\Middleware\\E2eGlobalProbe::class,\n";
+
+    if (substr_count($kernel, $globalNeedle) !== 1) {
+        throw new RuntimeException('The Laravel 10 HTTP Kernel fixture no longer has its stock global stack.');
+    }
+
+    $kernel = str_replace($globalNeedle, $globalReplacement, $kernel);
+    $groupNeedle = "            \\Illuminate\\Routing\\Middleware\\SubstituteBindings::class,\n        ],\n\n        'api'";
+    $groupReplacement = "            \\Illuminate\\Routing\\Middleware\\SubstituteBindings::class,\n            \\App\\Http\\Middleware\\E2eProbe::class,\n        ],\n\n        'api'";
+
+    if (substr_count($kernel, $groupNeedle) !== 1) {
+        throw new RuntimeException('The Laravel 10 HTTP Kernel fixture no longer has its stock web group.');
+    }
+
+    $kernel = str_replace($groupNeedle, $groupReplacement, $kernel);
+    $aliasNeedle = '    protected $middlewareAliases = [';
+    $aliasReplacement = <<<'KERNEL'
+    protected $middlewareAliases = [
+        'e2e-probe' => \App\Http\Middleware\E2eProbe::class,
+KERNEL;
+
+    if (! str_starts_with($aliasReplacement, '    protected $middlewareAliases = [')
+        || ! str_contains($aliasReplacement, "        'e2e-probe' => \\App\\Http\\Middleware\\E2eProbe::class,")) {
+        throw new RuntimeException('The modern fixture alias replacement is malformed before it is applied.');
+    }
+
+    if (substr_count($kernel, $aliasNeedle) !== 1) {
+        throw new RuntimeException('The Laravel 10 HTTP Kernel fixture no longer has its stock alias map.');
+    }
+
+    $kernel = str_replace($aliasNeedle, $aliasReplacement, $kernel);
+
+    if (substr_count($kernel, $aliasReplacement) !== 1) {
+        throw new RuntimeException('The generated modern fixture alias replacement is malformed.');
+    }
+
+    if (file_put_contents($kernelPath, $kernel, LOCK_EX) !== strlen($kernel)) {
+        throw new RuntimeException('Could not write the modern middleware fixture.');
+    }
+
+    $middlewarePath = $directory.'/app/Http/Middleware/E2eProbe.php';
+    $middlewareDirectory = dirname($middlewarePath);
+
+    if (! is_dir($middlewareDirectory) && ! mkdir($middlewareDirectory, 0777, true) && ! is_dir($middlewareDirectory)) {
+        throw new RuntimeException('Could not create the modern middleware fixture directory.');
+    }
+
+    $middleware = <<<'PHP'
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+final class E2eProbe
+{
+    public function handle(Request $request, Closure $next): mixed
+    {
+        $response = $next($request);
+        $response->headers->set('X-Laravel-Upgrade-E2E', 'active');
+
+        return $response;
+    }
+}
+PHP;
+
+    if (file_put_contents($middlewarePath, $middleware."\n", LOCK_EX) !== strlen($middleware) + 1) {
+        throw new RuntimeException('Could not write the modern middleware class.');
+    }
+
+    $globalMiddlewarePath = $directory.'/app/Http/Middleware/E2eGlobalProbe.php';
+    $globalMiddleware = <<<'PHP'
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+final class E2eGlobalProbe
+{
+    public function handle(Request $request, Closure $next): mixed
+    {
+        $response = $next($request);
+        $response->headers->set('X-Laravel-Upgrade-E2E-Global', 'active');
+
+        return $response;
+    }
+}
+PHP;
+
+    if (file_put_contents($globalMiddlewarePath, $globalMiddleware."\n", LOCK_EX) !== strlen($globalMiddleware) + 1) {
+        throw new RuntimeException('Could not write the modern global middleware class.');
+    }
+
+    $routePath = $directory.'/routes/web.php';
+    $routes = file_get_contents($routePath);
+
+    if (! is_string($routes)) {
+        throw new RuntimeException('Could not read routes/web.php for the modern fixture.');
+    }
+
+    $routes .= "\nRoute::get('/e2e-modern-probe', static fn () => response()->json(['route' => 'e2e-modern-probe']))->middleware('e2e-probe');\n";
+
+    if (file_put_contents($routePath, $routes, LOCK_EX) !== strlen($routes)) {
+        throw new RuntimeException('Could not write the modern route fixture.');
+    }
+
+    $probePath = $directory.'/modern-structure-probe.php';
+    $probe = <<<'PHP'
+<?php
+
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+
+require __DIR__.'/vendor/autoload.php';
+
+$app = require __DIR__.'/bootstrap/app.php';
+$kernel = $app->make(Kernel::class);
+$request = Request::create('/e2e-modern-probe', 'GET');
+$response = $kernel->handle($request);
+$read = static function (object $kernel, string $method): ?array {
+    if (! method_exists($kernel, $method)) {
+        return null;
+    }
+
+    $value = $kernel->{$method}();
+
+    return is_array($value) ? $value : null;
+};
+
+echo json_encode([
+    'status' => $response->getStatusCode(),
+    'body' => json_decode((string) $response->getContent(), true),
+    'probe' => $response->headers->get('X-Laravel-Upgrade-E2E'),
+    'globalProbe' => $response->headers->get('X-Laravel-Upgrade-E2E-Global'),
+    'globalAvailable' => method_exists($kernel, 'getGlobalMiddleware'),
+    'groupsAvailable' => method_exists($kernel, 'getMiddlewareGroups'),
+    'aliasesAvailable' => method_exists($kernel, 'getMiddlewareAliases'),
+    'global' => $read($kernel, 'getGlobalMiddleware'),
+    'groups' => $read($kernel, 'getMiddlewareGroups'),
+    'aliases' => $read($kernel, 'getMiddlewareAliases'),
+], JSON_THROW_ON_ERROR);
+
+$kernel->terminate($request, $response);
+PHP;
+
+    if (file_put_contents($probePath, $probe."\n", LOCK_EX) !== strlen($probe) + 1) {
+        throw new RuntimeException('Could not write the modern runtime probe.');
+    }
+}
+
+/** Lint every generated modern fixture before asking Laravel to boot it. */
+function lintModernStructureFixture(string $directory): void
+{
+    foreach ([
+        'app/Http/Kernel.php',
+        'app/Http/Middleware/E2eProbe.php',
+        'app/Http/Middleware/E2eGlobalProbe.php',
+        'routes/web.php',
+        'routes/api.php',
+        'modern-structure-probe.php',
+    ] as $relative) {
+        $output = run(
+            escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($relative),
+            $directory,
+            $exit,
+            120,
+        );
+
+        if ($exit !== 0) {
+            throw new RuntimeException(sprintf(
+                'Generated modern fixture %s failed to lint (exit %d): %s',
+                $relative,
+                $exit,
+                trim($output),
+            ));
+        }
+    }
+}
+
+/** @return array<string, mixed> */
+function captureModernRuntime(string $directory): array
+{
+    $routeOutput = run('php artisan route:list --json', $directory, $routeExit, 120);
+
+    if ($routeExit !== 0) {
+        throw new RuntimeException(sprintf('modern route:list probe failed with exit %d: %s', $routeExit, trim($routeOutput)));
+    }
+
+    $routes = json_decode(trim($routeOutput), true);
+
+    if (! is_array($routes)) {
+        throw new RuntimeException('modern route:list probe did not return a JSON array.');
+    }
+
+    $output = run('php modern-structure-probe.php', $directory, $exit, 120);
+
+    if ($exit !== 0) {
+        throw new RuntimeException(sprintf('modern runtime probe failed with exit %d: %s', $exit, trim($output)));
+    }
+
+    $decoded = json_decode(trim($output), true);
+
+    if (! is_array($decoded)) {
+        throw new RuntimeException('modern runtime probe did not return a JSON object.');
+    }
+
+    $decoded['routes'] = $routes;
+
+    return $decoded;
+}
+
+/** @param array<string, mixed> $routes */
+function modernRouteSignatures(array $routes): array
+{
+    $signatures = [];
+
+    foreach ($routes as $route) {
+        if (! is_array($route)) {
+            continue;
+        }
+
+        $signatures[] = [
+            'method' => $route['method'] ?? $route['methods'] ?? null,
+            'uri' => $route['uri'] ?? null,
+            'name' => $route['name'] ?? null,
+            'middleware' => normalizeModernRouteMiddleware($route['middleware'] ?? null),
+        ];
+    }
+
+    usort($signatures, static fn (array $left, array $right): int => strcmp(serialize($left), serialize($right)));
+
+    return $signatures;
+}
+
+/** @param array<string, mixed> $routes */
+function modernRouteSignaturesWithoutFrameworkRoutes(array $routes): array
+{
+    return modernRouteSignatures(array_values(array_filter(
+        $routes,
+        static function (mixed $route): bool {
+            if (! is_array($route)) {
+                return true;
+            }
+
+            $uri = trim((string) ($route['uri'] ?? ''), '/');
+
+            return $uri !== 'up' && $uri !== 'storage/{path}';
+        },
+    )));
+}
+
+function normalizeModernRouteMiddleware(mixed $value): mixed
+{
+    $map = [
+        'App\\Http\\Middleware\\Authenticate' => 'Illuminate\\Auth\\Middleware\\Authenticate',
+        'App\\Http\\Middleware\\EncryptCookies' => 'Illuminate\\Cookie\\Middleware\\EncryptCookies',
+        'App\\Http\\Middleware\\PreventRequestsDuringMaintenance' => 'Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance',
+        'App\\Http\\Middleware\\RedirectIfAuthenticated' => 'Illuminate\\Auth\\Middleware\\RedirectIfAuthenticated',
+        'App\\Http\\Middleware\\TrimStrings' => 'Illuminate\\Foundation\\Http\\Middleware\\TrimStrings',
+        'App\\Http\\Middleware\\TrustHosts' => 'Illuminate\\Http\\Middleware\\TrustHosts',
+        'App\\Http\\Middleware\\TrustProxies' => 'Illuminate\\Http\\Middleware\\TrustProxies',
+        'App\\Http\\Middleware\\ValidateSignature' => 'Illuminate\\Routing\\Middleware\\ValidateSignature',
+        'App\\Http\\Middleware\\VerifyCsrfToken' => 'Illuminate\\Foundation\\Http\\Middleware\\ValidateCsrfToken',
+    ];
+
+    if (is_array($value)) {
+        foreach ($value as $key => $item) {
+            $value[$key] = normalizeModernRouteMiddleware($item);
+        }
+
+        return $value;
+    }
+
+    if (! is_string($value)) {
+        return $value;
+    }
+
+    $separator = strpos($value, ':');
+    $name = $separator === false ? $value : substr($value, 0, $separator);
+
+    if (! isset($map[$name])) {
+        return $value;
+    }
+
+    return $map[$name].($separator === false ? '' : substr($value, $separator));
+}
+
+/** @param array<string, mixed> $routes
+ * @return list<array<string, mixed>>
+ */
+function modernHealthRoutes(array $routes): array
+{
+    return array_values(array_filter(
+        $routes,
+        static fn (mixed $route): bool => is_array($route)
+            && trim((string) ($route['uri'] ?? ''), '/') === 'up',
+    ));
+}
+
+/** @param array<string, mixed> $routes
+ * @return list<array<string, mixed>>
+ */
+function modernStorageRoutes(array $routes): array
+{
+    return array_values(array_filter(
+        $routes,
+        static fn (mixed $route): bool => is_array($route)
+            && trim((string) ($route['uri'] ?? ''), '/') === 'storage/{path}',
+    ));
+}
+
+/** @return array<string, mixed> */
+function normalizeModernMiddlewareContract(array $runtime): array
+{
+    $map = [
+        'App\\Http\\Middleware\\Authenticate' => 'Illuminate\\Auth\\Middleware\\Authenticate',
+        'App\\Http\\Middleware\\EncryptCookies' => 'Illuminate\\Cookie\\Middleware\\EncryptCookies',
+        'App\\Http\\Middleware\\PreventRequestsDuringMaintenance' => 'Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance',
+        'App\\Http\\Middleware\\RedirectIfAuthenticated' => 'Illuminate\\Auth\\Middleware\\RedirectIfAuthenticated',
+        'App\\Http\\Middleware\\TrimStrings' => 'Illuminate\\Foundation\\Http\\Middleware\\TrimStrings',
+        'App\\Http\\Middleware\\TrustHosts' => 'Illuminate\\Http\\Middleware\\TrustHosts',
+        'App\\Http\\Middleware\\TrustProxies' => 'Illuminate\\Http\\Middleware\\TrustProxies',
+        'App\\Http\\Middleware\\ValidateSignature' => 'Illuminate\\Routing\\Middleware\\ValidateSignature',
+        'App\\Http\\Middleware\\VerifyCsrfToken' => 'Illuminate\\Foundation\\Http\\Middleware\\ValidateCsrfToken',
+    ];
+
+    $normalize = static function (mixed $value) use (&$normalize, $map): mixed {
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                $value[$key] = $normalize($item);
+            }
+
+            return $value;
+        }
+
+        if (! is_string($value)) {
+            return $value;
+        }
+
+        $separator = strpos($value, ':');
+        $name = $separator === false ? $value : substr($value, 0, $separator);
+
+        if (! isset($map[$name])) {
+            return $value;
+        }
+
+        return $map[$name].($separator === false ? '' : substr($value, $separator));
+    };
+
+    $aliases = $normalize($runtime['aliases'] ?? null);
+
+    if (is_array($aliases)) {
+        // Alias registration order is not routing behavior; compare it as a map.
+        ksort($aliases);
+    }
+
+    return [
+        'global' => $normalize($runtime['global'] ?? null),
+        'groups' => $normalize($runtime['groups'] ?? null),
+        'aliases' => $aliases,
+    ];
+}
+
+/** @param array<string, mixed> $before */
+function assertModernRuntimePreserved(array $before, array $after): void
+{
+    $beforeRoutes = is_array($before['routes'] ?? null) ? $before['routes'] : [];
+    $afterRoutes = is_array($after['routes'] ?? null) ? $after['routes'] : [];
+    $beforeHealth = modernHealthRoutes($beforeRoutes);
+    $afterHealth = modernHealthRoutes($afterRoutes);
+    $beforeStorage = modernStorageRoutes($beforeRoutes);
+    $afterStorage = modernStorageRoutes($afterRoutes);
+
+    if ($beforeHealth !== []) {
+        throw new RuntimeException('the Laravel 10 baseline unexpectedly contains the Laravel 11 /up health route.');
+    }
+
+    if (count($afterHealth) !== 1) {
+        throw new RuntimeException('the Laravel 11 route:list must contain exactly one /up health route.');
+    }
+
+    $healthMethod = $afterHealth[0]['method'] ?? $afterHealth[0]['methods'] ?? null;
+    $healthMethods = is_array($healthMethod) ? implode('|', $healthMethod) : (string) $healthMethod;
+
+    if (! str_contains($healthMethods, 'GET')) {
+        throw new RuntimeException('the Laravel 11 /up health route must accept GET.');
+    }
+
+    if ($beforeStorage !== []) {
+        throw new RuntimeException('the Laravel 10 baseline unexpectedly contains the Laravel 11 storage route.');
+    }
+
+    if (count($afterStorage) !== 1) {
+        throw new RuntimeException('the Laravel 11 route:list must contain exactly one storage/{path} route.');
+    }
+
+    $storage = $afterStorage[0];
+    $storageMethod = $storage['method'] ?? $storage['methods'] ?? null;
+    $storageMethods = is_array($storageMethod) ? implode('|', $storageMethod) : (string) $storageMethod;
+
+    if (($storage['name'] ?? null) !== 'storage.local' || ! str_contains($storageMethods, 'GET')) {
+        throw new RuntimeException('the Laravel 11 storage/{path} route must be named storage.local and accept GET.');
+    }
+
+    if (modernRouteSignaturesWithoutFrameworkRoutes($beforeRoutes) !== modernRouteSignaturesWithoutFrameworkRoutes($afterRoutes)) {
+        throw new RuntimeException('modern migration changed route:list signatures other than the expected framework routes.');
+    }
+
+    foreach (['before' => $before, 'after' => $after] as $label => $runtime) {
+        if (($runtime['status'] ?? null) !== 200
+            || ($runtime['body']['route'] ?? null) !== 'e2e-modern-probe'
+            || ($runtime['probe'] ?? null) !== 'active'
+            || ($runtime['globalProbe'] ?? null) !== 'active') {
+            throw new RuntimeException(sprintf('modern %s runtime probe did not preserve the route/middleware response.', $label));
+        }
+    }
+
+    $beforeMiddleware = normalizeModernMiddlewareContract($before);
+    $afterMiddleware = normalizeModernMiddlewareContract($after);
+
+    if (($before['globalAvailable'] ?? null) !== false || ($before['global'] ?? null) !== null) {
+        throw new RuntimeException('the Laravel 10 probe must distinguish an unavailable global accessor from an empty stack.');
+    }
+
+    if (($after['globalAvailable'] ?? null) !== true || ! is_array($afterMiddleware['global'] ?? null)) {
+        throw new RuntimeException('the Laravel 11 probe did not expose its resolved global middleware stack.');
+    }
+
+    $expectedGlobal = [
+        'Illuminate\\Http\\Middleware\\TrustProxies',
+        'App\\Http\\Middleware\\E2eGlobalProbe',
+        'Illuminate\\Http\\Middleware\\HandleCors',
+        'Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance',
+        'Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize',
+        'Illuminate\\Foundation\\Http\\Middleware\\TrimStrings',
+        'Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull',
+    ];
+
+    if ($afterMiddleware['global'] !== $expectedGlobal) {
+        throw new RuntimeException('modern migration changed the resolved global middleware stack or custom order.');
+    }
+
+    foreach (['groups', 'aliases'] as $component) {
+        $availableKey = $component.'Available';
+
+        if (($before[$availableKey] ?? null) !== true || ($after[$availableKey] ?? null) !== true) {
+            throw new RuntimeException(sprintf('modern %s middleware accessor is unavailable in one runtime probe.', $component));
+        }
+
+        if ($beforeMiddleware[$component] !== $afterMiddleware[$component]) {
+            throw new RuntimeException(sprintf('modern migration changed the normalized %s middleware contract.', $component));
+        }
+    }
+
+    if (! in_array('App\\Http\\Middleware\\E2eGlobalProbe', $after['global'], true)
+        || ! is_array($beforeMiddleware['groups'] ?? null)
+        || ! array_key_exists('web', $beforeMiddleware['groups'])
+        || ! array_key_exists('api', $beforeMiddleware['groups'])
+        || ! is_array($beforeMiddleware['aliases'] ?? null)
+        || ($beforeMiddleware['aliases']['e2e-probe'] ?? null) !== 'App\\Http\\Middleware\\E2eProbe') {
+        throw new RuntimeException('modern migration did not preserve the complete middleware contract and custom probes.');
+    }
 }
 
 /**
@@ -349,7 +835,7 @@ function assertPlanSchema(array $plan, int $from, int $to): void
  *
  * @param  array<string, mixed>  $state
  */
-function assertStateOptions(array $state, string $composerProxy): void
+function assertStateOptions(array $state, string $composerProxy, string $structure = 'keep'): void
 {
     if (! is_array($state['options'] ?? null)) {
         throw new RuntimeException('state.json options are not an object');
@@ -364,7 +850,7 @@ function assertStateOptions(array $state, string $composerProxy): void
         'noTests' => false,
         'noInstall' => false,
         'noInteraction' => true,
-        'structure' => 'keep',
+        'structure' => $structure,
         'constraintPolicy' => 'replace',
     ];
 
@@ -381,7 +867,7 @@ function assertStateOptions(array $state, string $composerProxy): void
  *
  * @param  array<string, mixed>  $state
  */
-function assertFailedStateSchema(array $state, int $from, int $to, string $composerProxy): void
+function assertFailedStateSchema(array $state, int $from, int $to, string $composerProxy, string $structure = 'keep'): void
 {
     foreach (['schemaVersion', 'runId', 'target', 'currentMajor', 'currentTransition', 'completedSteps', 'changedFiles', 'findingsCount', 'options', 'status', 'failedStep', 'failureMessage', 'startedAt', 'updatedAt', 'timestamps'] as $key) {
         if (! array_key_exists($key, $state)) {
@@ -403,7 +889,7 @@ function assertFailedStateSchema(array $state, int $from, int $to, string $compo
         throw new RuntimeException('state.json has invalid top-level types or values');
     }
 
-    assertStateOptions($state, $composerProxy);
+    assertStateOptions($state, $composerProxy, $structure);
 
     $transition = sprintf('%d->%d', $from, $from + 1);
     $completed = $state['completedSteps'][$transition] ?? null;
@@ -635,9 +1121,10 @@ function normalizedUpgradeDiff(string $directory): string
     return rtrim($diff)."\n";
 }
 
-function assertDiffSnapshot(string $directory, string $repoRoot, int $from, int $to): void
+function assertDiffSnapshot(string $directory, string $repoRoot, int $from, int $to, string $structure = 'keep'): void
 {
-    $snapshot = $repoRoot.'/tests/E2E/expected/'.$from.'-'.$to.'.diff';
+    $suffix = $structure === 'modern' ? '-modern' : '';
+    $snapshot = $repoRoot.'/tests/E2E/expected/'.$from.'-'.$to.$suffix.'.diff';
     $actual = normalizedUpgradeDiff($directory);
     $update = getenv('LARAVEL_E2E_UPDATE_DIFF_SNAPSHOTS') === '1';
     $isCi = getenv('CI') === 'true' || getenv('GITHUB_ACTIONS') === 'true';
@@ -783,6 +1270,15 @@ foreach (
     copy($plantFile->getPathname(), $target);
 }
 
+/** @var array<string, mixed>|null $modernBaseline */
+$modernBaseline = null;
+
+if ($structure === 'modern') {
+    prepareModernStructureFixture($app);
+    lintModernStructureFixture($app);
+    $modernBaseline = captureModernRuntime($app);
+}
+
 run('git init -q', $app, $gitExit);
 
 if ($gitExit !== 0) {
@@ -852,11 +1348,12 @@ if ($toolingExit !== 0) {
     exit(1);
 }
 
-check('to --plan is byte-neutral except for plan.json', static function () use ($app, $from, $to): void {
+check('to --plan is byte-neutral except for plan.json', static function () use ($app, $from, $to, $structure): void {
     $before = treeChecksums($app, true);
     run(sprintf(
-        'vendor/bin/laravel-upgrade to %d --plan --no-interaction --no-tests --no-pint --no-git',
+        'vendor/bin/laravel-upgrade to %d --plan --structure=%s --no-interaction --no-tests --no-pint --no-git',
         $to,
+        escapeshellarg($structure),
     ), $app, $exit, 1800);
 
     if ($exit !== 0) {
@@ -879,10 +1376,11 @@ $composerProxy = createSolverFailureComposer($app);
 /** @var string|null $failedRunId */
 $failedRunId = null;
 
-check('to journals an injected Composer solver failure', static function () use ($app, $from, $to, $composerProxy, &$failedRunId): void {
+check('to journals an injected Composer solver failure', static function () use ($app, $from, $to, $structure, $composerProxy, &$failedRunId): void {
     run(sprintf(
-        'vendor/bin/laravel-upgrade to %d --composer %s --no-interaction --no-pint --no-git',
+        'vendor/bin/laravel-upgrade to %d --structure=%s --composer %s --no-interaction --no-pint --no-git',
         $to,
+        escapeshellarg($structure),
         escapeshellarg($composerProxy),
     ), $app, $exit, 1800);
 
@@ -892,11 +1390,11 @@ check('to journals an injected Composer solver failure', static function () use 
 
     $state = readJsonFile($app.'/.laravel-upgrade/state.json');
 
-    assertFailedStateSchema($state, $from, $to, $composerProxy);
+    assertFailedStateSchema($state, $from, $to, $composerProxy, $structure);
     $failedRunId = $state['runId'];
 });
 
-check('continue resumes the orchestrator run', static function () use ($app, $to, $composerProxy): void {
+check('continue resumes the orchestrator run', static function () use ($app, $to, $structure, $composerProxy): void {
     // Continue deliberately receives no tool or policy overrides. The failed
     // journal must provide the Composer proxy and no-git/no-pint choices.
     run('vendor/bin/laravel-upgrade continue --no-interaction', $app, $exit, 2400);
@@ -918,7 +1416,7 @@ check('continue resumes the orchestrator run', static function () use ($app, $to
             throw new RuntimeException('first continue did not journal the expected verification failure');
         }
 
-        assertStateOptions($state, $composerProxy);
+        assertStateOptions($state, $composerProxy, $structure);
 
         $completed = $state['completedSteps']['11->12'] ?? null;
         $expectedCompleted = array_slice(canonicalUpgradeSteps(), 0, 7);
@@ -978,8 +1476,16 @@ check('orchestrator report records every transition and engine', static function
     assertReportSchema($report, $from, $to, $failedRunId);
 });
 
-check('normalized upgrade diff matches its committed snapshot', static function () use ($app, $repoRoot, $from, $to): void {
-    assertDiffSnapshot($app, $repoRoot, $from, $to);
+check('modern structure preserves routes and middleware behavior', static function () use ($app, $structure, $modernBaseline): void {
+    if ($structure !== 'modern') {
+        return;
+    }
+
+    if (! is_array($modernBaseline)) {
+        throw new RuntimeException('modern pre-upgrade runtime baseline was not captured.');
+    }
+
+    assertModernRuntimePreserved($modernBaseline, captureModernRuntime($app));
 });
 
 check('composer validate --strict passes after applying', static function () use ($app): void {
@@ -1173,6 +1679,15 @@ check('test suite passes', static function () use ($app): void {
         throw new RuntimeException('project tests failed');
     }
 });
+
+if ($failures === []) {
+    check('normalized upgrade diff matches its committed snapshot', static function () use ($app, $repoRoot, $from, $to, $structure): void {
+        assertDiffSnapshot($app, $repoRoot, $from, $to, $structure);
+    });
+} else {
+    echo "\n=== normalized upgrade diff matches its committed snapshot ===\n";
+    echo "↷ deferred because an earlier E2E check failed; no snapshot will be written.\n";
+}
 
 echo "\n========================================\n";
 

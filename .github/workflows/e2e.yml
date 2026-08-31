@@ -15,12 +15,18 @@ jobs:
         include:
           - from: 10
             to: 11
+            structure: keep
+          - from: 10
+            to: 11
+            structure: modern
           - from: 11
             to: 12
+            structure: keep
           - from: 12
             to: 13
+            structure: keep
 
-    name: E2E Laravel ${{ matrix.from }} -> ${{ matrix.to }}
+    name: E2E Laravel ${{ matrix.from }} -> ${{ matrix.to }} (${{ matrix.structure }})
 
     steps:
       - name: Checkout code
@@ -37,4 +43,4 @@ jobs:
         run: composer update --prefer-dist --no-interaction --no-progress
 
       - name: Run end-to-end upgrade (${{ matrix.from }} -> ${{ matrix.to }})
-        run: php bin/e2e ${{ matrix.from }} ${{ matrix.to }}
+        run: php bin/e2e ${{ matrix.from }} ${{ matrix.to }} ${{ matrix.structure }}
