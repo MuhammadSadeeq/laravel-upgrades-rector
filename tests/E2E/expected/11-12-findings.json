@@ -52,6 +52,10 @@
         "file": "config/services.php"
     },
     {
+        "ruleId": "laravelUpgrade.containerDefaultParameter",
+        "file": "app/Http/Controllers/UploadController.php"
+    },
+    {
         "ruleId": "laravelUpgrade.databaseDrivers",
         "file": "config/database.php"
     },
@@ -60,12 +64,24 @@
         "file": "app/Models/Avatar.php"
     },
     {
+        "ruleId": "laravelUpgrade.hasUuidsNowV7",
+        "file": "app/Models/Comment.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.hasUuidsNowV7",
+        "file": "app/Models/Post.php"
+    },
+    {
         "ruleId": "laravelUpgrade.imageRuleExcludesSvg",
         "file": "app/Http/Controllers/UploadController.php"
     },
     {
         "ruleId": "laravelUpgrade.laravelInstallerCheck",
         "file": "composer.json"
+    },
+    {
+        "ruleId": "laravelUpgrade.mergeIfMissingDotKeys",
+        "file": "app/Http/Controllers/UploadController.php"
     },
     {
         "ruleId": "laravelUpgrade.mergeIfMissingDotKeys",

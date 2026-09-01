@@ -5,7 +5,7 @@ index <hash>..<hash>
 @@ -14,5 +14,5 @@ trim_trailing_whitespace = false
  [*.{yml,yaml}]
  indent_size = 2
- 
+
 -[docker-compose.yml]
 +[compose.yaml]
  indent_size = 4
@@ -51,18 +51,30 @@ index <hash>..<hash>
 +Homestead.json
 +Homestead.yaml
 +Thumbs.db
+diff --git a/app/Http/Controllers/UploadController.php b/app/Http/Controllers/UploadController.php
+index <hash>..<hash>
+--- a/app/Http/Controllers/UploadController.php
++++ b/app/Http/Controllers/UploadController.php
+@@ -66,6 +66,6 @@ public function schemaTables(): array
+     /** A typed Carbon receiver is handled by the Carbon 3 transform set. */
+     public function daysSince(Carbon $start): int|float
+     {
+-        return $start->diffInDays(Carbon::now());
++        return (int) abs($start->diffInDays(Carbon::now()));
+     }
+ }
 diff --git a/app/Models/Avatar.php b/app/Models/Avatar.php
 index <hash>..<hash>
 --- a/app/Models/Avatar.php
 +++ b/app/Models/Avatar.php
 @@ -2,10 +2,10 @@
- 
+
  namespace App\Models;
- 
+
 -use Illuminate\Database\Eloquent\Concerns\HasVersion7Uuids;
 +use Illuminate\Database\Eloquent\Concerns\HasUuids;
  use Illuminate\Database\Eloquent\Model;
- 
+
  class Avatar extends Model
  {
 -    use HasVersion7Uuids;
@@ -75,14 +87,14 @@ index <hash>..<hash>
 @@ -1,6 +1,7 @@
  #!/usr/bin/env php
  <?php
- 
+
 +use Illuminate\Foundation\Application;
  use Symfony\Component\Console\Input\ArgvInput;
- 
+
  define('LARAVEL_START', microtime(true));
 @@ -9,7 +10,9 @@ define('LARAVEL_START', microtime(true));
  require __DIR__.'/vendor/autoload.php';
- 
+
  // Bootstrap Laravel and handle the command...
 -$status = (require_once __DIR__.'/bootstrap/app.php')
 -    ->handleCommand(new ArgvInput);
@@ -90,7 +102,7 @@ index <hash>..<hash>
 +$app = require_once __DIR__.'/bootstrap/app.php';
 +
 +$status = $app->handleCommand(new ArgvInput);
- 
+
  exit($status);
 diff --git a/bootstrap/app.php b/bootstrap/app.php
 index <hash>..<hash>
@@ -114,7 +126,7 @@ index <hash>..<hash>
 +++ b/bootstrap/providers.php
 @@ -1,5 +1,7 @@
  <?php
- 
+
 +use App\Providers\AppServiceProvider;
 +
  return [
@@ -143,9 +155,9 @@ index <hash>..<hash>
              'driver' => 'octane',
          ],
 +        'failover' => ['driver' => 'failover', 'stores' => ['database', 'array']],
- 
+
      ],
- 
+
 diff --git a/config/database.php b/config/database.php
 index <hash>..<hash>
 --- a/config/database.php
@@ -156,7 +168,7 @@ index <hash>..<hash>
              'synchronous' => null,
 +            'transaction_mode' => 'DEFERRED',
          ],
- 
+
          'mysql' => [
 @@ -148,6 +149,7 @@
          'options' => [
@@ -164,7 +176,7 @@ index <hash>..<hash>
              'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
 +            'persistent' => env('REDIS_PERSISTENT', false),
          ],
- 
+
          'default' => [
 @@ -157,6 +159,10 @@
              'password' => env('REDIS_PASSWORD'),
@@ -175,7 +187,7 @@ index <hash>..<hash>
 +            'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
 +            'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
          ],
- 
+
          'cache' => [
 @@ -166,6 +172,10 @@
              'password' => env('REDIS_PASSWORD'),
@@ -186,8 +198,20 @@ index <hash>..<hash>
 +            'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
 +            'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
          ],
- 
+
      ],
+diff --git a/config/filesystems.php b/config/filesystems.php
+index <hash>..<hash>
+--- a/config/filesystems.php
++++ b/config/filesystems.php
+@@ -8,6 +8,7 @@
+         'local' => [
+             'driver' => 'local',
+             'root' => storage_path('app'),
++            'serve' => true,
+             'throw' => false,
+             'report' => false,
+         ],
 diff --git a/config/logging.php b/config/logging.php
 index <hash>..<hash>
 --- a/config/logging.php
@@ -210,7 +234,7 @@ index <hash>..<hash>
              ],
 +            'retry_after' => 60,
          ],
- 
+
          'roundrobin' => [
 @@ -93,6 +94,7 @@
                  'ses',
@@ -218,7 +242,7 @@ index <hash>..<hash>
              ],
 +            'retry_after' => 60,
          ],
- 
+
      ],
 diff --git a/config/queue.php b/config/queue.php
 index <hash>..<hash>
@@ -231,35 +255,35 @@ index <hash>..<hash>
 +        'deferred' => ['driver' => 'deferred'],
 +        'background' => ['driver' => 'background'],
 +        'failover' => ['driver' => 'failover', 'connections' => ['database', 'deferred']],
- 
+
      ],
- 
+
 diff --git a/config/services.php b/config/services.php
 index <hash>..<hash>
 --- a/config/services.php
 +++ b/config/services.php
 @@ -15,7 +15,7 @@
      */
- 
+
      'postmark' => [
 -        'token' => env('POSTMARK_TOKEN'),
 +        'token' => env('POSTMARK_TOKEN'), 'key' => env('POSTMARK_API_KEY'),
      ],
- 
+
      'ses' => [
 diff --git a/database/factories/UserFactory.php b/database/factories/UserFactory.php
 index <hash>..<hash>
 --- a/database/factories/UserFactory.php
 +++ b/database/factories/UserFactory.php
 @@ -2,12 +2,13 @@
- 
+
  namespace Database\Factories;
- 
+
 +use App\Models\User;
  use Illuminate\Database\Eloquent\Factories\Factory;
  use Illuminate\Support\Facades\Hash;
  use Illuminate\Support\Str;
- 
+
  /**
 - * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
 + * @extends Factory<User>
@@ -277,7 +301,7 @@ index <hash>..<hash>
 -            $table->integer('expiration');
 +            $table->integer('expiration')->index();
          });
- 
+
          Schema::create('cache_locks', function (Blueprint $table) {
              $table->string('key')->primary();
              $table->string('owner');
@@ -285,19 +309,19 @@ index <hash>..<hash>
 +            $table->integer('expiration')->index();
          });
      }
- 
+
 diff --git a/database/seeders/DatabaseSeeder.php b/database/seeders/DatabaseSeeder.php
 index <hash>..<hash>
 --- a/database/seeders/DatabaseSeeder.php
 +++ b/database/seeders/DatabaseSeeder.php
 @@ -3,11 +3,13 @@
  namespace Database\Seeders;
- 
+
  use App\Models\User;
 -// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 +use Illuminate\Database\Console\Seeds\WithoutModelEvents;
  use Illuminate\Database\Seeder;
- 
+
  class DatabaseSeeder extends Seeder
  {
 +    use WithoutModelEvents;
@@ -335,14 +359,14 @@ index <hash>..<hash>
 +++ b/public/index.php
 @@ -1,5 +1,6 @@
  <?php
- 
+
 +use Illuminate\Foundation\Application;
  use Illuminate\Http\Request;
- 
+
  define('LARAVEL_START', microtime(true));
 @@ -13,5 +14,7 @@
  require __DIR__.'/../vendor/autoload.php';
- 
+
  // Bootstrap Laravel and handle the request...
 -(require_once __DIR__.'/../bootstrap/app.php')
 -    ->handleRequest(Request::capture());
@@ -376,15 +400,15 @@ index <hash>..<hash>
 @@ -4,173 +4,274 @@
          <meta charset="utf-8">
          <meta name="viewport" content="width=device-width, initial-scale=1">
- 
+
 -        <title>Laravel</title>
 +        <title>{{ config('app.name', 'Laravel') }}</title>
- 
+
          <!-- Fonts -->
          <link rel="preconnect" href="https://fonts.bunny.net">
 -        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 +        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
- 
+
          <!-- Styles / Scripts -->
          @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
              @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -518,7 +542,7 @@ index <hash>..<hash>
 +                        >
 +                            Log in
 +                        </a>
- 
+
 +                        @if (Route::has('register'))
                              <a
 -                                href="https://laravel-news.com"
@@ -639,7 +663,7 @@ index <hash>..<hash>
 +                        <path d="M324.49 32.1665L303.995 85.794L283.498 32.1665H266.983L293.748 102.197H314.242L341.006 32.1665H324.49Z" fill="currentColor" />
 +                        <path d="M376.571 30.3656C356.603 30.3656 340.797 46.8497 340.797 67.1828C340.797 89.6597 356.094 104 378.661 104C391.29 104 399.354 99.1488 409.206 88.5848L398.189 80.0226C398.183 80.031 389.874 90.9895 377.468 90.9895C363.048 90.9895 356.977 79.3111 356.977 73.269H411.075C413.917 50.1328 398.775 30.3656 376.571 30.3656ZM357.02 61.0967C357.145 59.7487 359.023 43.3761 376.442 43.3761C393.861 43.3761 395.978 59.7464 396.099 61.0967H357.02Z" fill="currentColor" />
 +                    </svg>
- 
+
 -                                    <p class="mt-4 text-sm/relaxed">
 -                                        Laravel's robust library of first-party tools and libraries, such as <a href="https://forge.laravel.com" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white dark:focus-visible:ring-[#FF2D20]">Forge</a>, <a href="https://vapor.laravel.com" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Vapor</a>, <a href="https://nova.laravel.com" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Nova</a>, <a href="https://envoyer.io" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Envoyer</a>, and <a href="https://herd.laravel.com" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Herd</a> help you take your projects to the next level. Pair them with powerful open source libraries like <a href="https://laravel.com/docs/billing" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Cashier</a>, <a href="https://laravel.com/docs/dusk" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Dusk</a>, <a href="https://laravel.com/docs/broadcasting" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Echo</a>, <a href="https://laravel.com/docs/horizon" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Horizon</a>, <a href="https://laravel.com/docs/sanctum" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Sanctum</a>, <a href="https://laravel.com/docs/telescope" class="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white">Telescope</a>, and more.
 -                                    </p>
@@ -715,7 +739,7 @@ index <hash>..<hash>
 +                            <path d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z" stroke="#1B1B18" stroke-width="1" />
 +                        </g>
 +                    </svg>
- 
+
 -                    <footer class="py-16 text-center text-sm text-black dark:text-white/70">
 -                        Laravel v{{ Illuminate\Foundation\Application::VERSION }} (PHP v{{ PHP_VERSION }})
 -                    </footer>
@@ -801,9 +825,9 @@ index <hash>..<hash>
 --- a/routes/api.php
 +++ b/routes/api.php
 @@ -2,4 +2,4 @@
- 
+
  use Illuminate\Support\Facades\Route;
- 
+
 -Route::get('/api/home', fn () => 'home')->name('dashboard');
 +Route::get('/home', fn () => 'home')->name('home');
 diff --git a/vite.config.js b/vite.config.js
@@ -814,7 +838,7 @@ index <hash>..<hash>
  import { defineConfig } from 'vite';
  import laravel from 'laravel-vite-plugin';
 +import tailwindcss from '@tailwindcss/vite';
- 
+
  export default defineConfig({
      plugins: [
 @@ -7,5 +8,11 @@ export default defineConfig({
