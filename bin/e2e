@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\E2E\E2eApplicationDirectoryAllocator;
 use Symfony\Component\Process\Process;
 
 /**
@@ -60,17 +61,28 @@ if (! is_string($repoRoot)) {
 }
 
 $failures = [];
+$activeProcess = null;
 
 function run(string $command, string $cwd, ?int &$exitCode = null, ?int $timeout = 900): string
 {
-    $process = Process::fromShellCommandline($command, $cwd);
-    $process->setTimeout($timeout ?? 900);
-    $process->run(static function (string $type, string $buffer): void {
-        echo $buffer;
-    });
-    $exitCode = $process->getExitCode() ?? 1;
+    global $activeProcess;
 
-    return $process->getOutput();
+    $process = Process::fromShellCommandline($command, $cwd);
+    $activeProcess = $process;
+
+    try {
+        $process->setTimeout($timeout ?? 900);
+        $process->run(static function (string $type, string $buffer): void {
+            echo $buffer;
+        });
+        $exitCode = $process->getExitCode() ?? 1;
+
+        return $process->getOutput();
+    } finally {
+        if ($activeProcess === $process) {
+            $activeProcess = null;
+        }
+    }
 }
 
 function check(string $name, callable $assertion): void
@@ -1568,7 +1580,46 @@ function sourceSkeletonVersion(int $major): string
 
 require $repoRoot.'/vendor/autoload.php';
 
-$app = sys_get_temp_dir().'/e2e-'.$from.'-'.$to.'-'.time();
+$applicationDirectoryAllocator = new E2eApplicationDirectoryAllocator(sys_get_temp_dir());
+$app = $applicationDirectoryAllocator->allocate($from, $to);
+
+$releaseReservations = static function () use ($applicationDirectoryAllocator): void {
+    try {
+        $applicationDirectoryAllocator->releaseAll();
+    } catch (Throwable $throwable) {
+        fwrite(STDERR, 'Could not clean up the E2E directory reservation: '.$throwable->getMessage()."\n");
+    }
+};
+$stopActiveProcess = static function () use (&$activeProcess): void {
+    if (! $activeProcess instanceof Process || ! $activeProcess->isRunning()) {
+        return;
+    }
+
+    // Symfony's bounded stop waits for graceful termination and escalates to
+    // SIGKILL when the child does not exit before the timeout.
+    $activeProcess->stop(2.0);
+};
+
+register_shutdown_function($releaseReservations);
+
+if (function_exists('pcntl_signal') && function_exists('pcntl_async_signals')
+    && defined('SIGINT') && defined('SIGTERM')) {
+    pcntl_async_signals(true);
+    $signalHandler = static function (int $signal) use ($stopActiveProcess, $releaseReservations): void {
+        try {
+            $stopActiveProcess();
+        } catch (Throwable $throwable) {
+            fwrite(STDERR, 'Could not stop the active E2E child process: '.$throwable->getMessage()."\n");
+        }
+
+        $releaseReservations();
+
+        exit(128 + $signal);
+    };
+    pcntl_signal(SIGINT, $signalHandler);
+    pcntl_signal(SIGTERM, $signalHandler);
+}
+
 $sourceVersion = sourceSkeletonVersion($from);
 
 echo "Creating Laravel {$sourceVersion} skeleton at {$app}...\n";
@@ -1578,11 +1629,17 @@ echo "Creating Laravel {$sourceVersion} skeleton at {$app}...\n";
 putenv('COMPOSER_POLICY_ADVISORIES_BLOCK=false');
 $_ENV['COMPOSER_POLICY_ADVISORIES_BLOCK'] = 'false';
 
-run(sprintf(
-    'composer create-project laravel/laravel %s %s --no-scripts --no-interaction --prefer-dist',
-    escapeshellarg($app),
-    escapeshellarg($sourceVersion),
-), $repoRoot, $createExit, 1800);
+try {
+    run(sprintf(
+        'composer create-project laravel/laravel %s %s --no-scripts --no-interaction --prefer-dist',
+        escapeshellarg($app),
+        escapeshellarg($sourceVersion),
+    ), $repoRoot, $createExit, 1800);
+} finally {
+    // Composer now owns the path (or left a retained partial app on failure),
+    // so the reservation no longer needs to protect create-project.
+    $applicationDirectoryAllocator->releaseAll();
+}
 
 if ($createExit !== 0 || ! is_file($app.'/artisan')) {
     fwrite(STDERR, sprintf("create-project failed (exit %d).\n", $createExit));
