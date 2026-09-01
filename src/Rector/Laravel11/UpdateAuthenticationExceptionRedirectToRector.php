@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Function_;
 use PHPStan\Type\ObjectType;
 use Rector\Rector\AbstractRector;
@@ -16,15 +14,9 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
 {
-    private const COMMENT_MARKER = '@laravel-upgrade auth-redirect-to';
-
-    public function __construct(
-        private readonly CommentInserter $commentInserter,
-    ) {}
-
     public function getNodeTypes(): array
     {
-        return [ClassMethod::class, Function_::class, Node\Expr\Closure::class, Expression::class];
+        return [ClassMethod::class, Function_::class, Node\Expr\Closure::class];
     }
 
     public function refactor(Node $node): ?Node
@@ -35,23 +27,9 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
             return $node;
         }
 
-        if (! $node instanceof Expression) {
-            return null;
-        }
-
-        if (! $this->containsRedirectToCallWithoutRequest($node)) {
-            return null;
-        }
-
-        if (! $this->commentInserter->addComment(
-            $node,
-            self::COMMENT_MARKER,
-            'AuthenticationException::redirectTo() now requires the current Request instance. Pass $request to redirectTo().'
-        )) {
-            return null;
-        }
-
-        return $node;
+        // Calls without a request parameter are intentionally left unchanged;
+        // guessing a request variable would corrupt code.
+        return null;
     }
 
     private function resolveRequestVariableName(Node $node): ?string
@@ -95,23 +73,6 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
         return $hasChanged;
     }
 
-    private function containsRedirectToCallWithoutRequest(Expression $expression): bool
-    {
-        $containsCall = false;
-
-        $this->traverseNodesWithCallable($expression->expr, function (Node $node) use (&$containsCall): ?Node {
-            if (! $node instanceof Node\Expr\MethodCall || ! $this->isRedirectToCallWithoutRequest($node)) {
-                return null;
-            }
-
-            $containsCall = true;
-
-            return null;
-        });
-
-        return $containsCall;
-    }
-
     private function isRedirectToCallWithoutRequest(Node\Expr\MethodCall $methodCall): bool
     {
         if (! $this->isName($methodCall->name, 'redirectTo')) {
@@ -133,19 +94,25 @@ final class UpdateAuthenticationExceptionRedirectToRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Warn when AuthenticationException::redirectTo() is called without a Request in Laravel 11',
+            'Pass the current Request to AuthenticationException::redirectTo() in Laravel 11',
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
-if ($e instanceof AuthenticationException) {
-    $path = $e->redirectTo();
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Request;
+
+function handle(AuthenticationException $e, Request $request): string
+{
+    return $e->redirectTo();
 }
-CODE_SAMPLE
-                    ,
+CODE_SAMPLE,
                     <<<'CODE_SAMPLE'
-if ($e instanceof AuthenticationException) {
-    // Laravel 11: AuthenticationException::redirectTo() now requires the current Request instance. Pass $request to redirectTo().
-    $path = $e->redirectTo();
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Request;
+
+function handle(AuthenticationException $e, Request $request): string
+{
+    return $e->redirectTo($request);
 }
 CODE_SAMPLE
                 ),

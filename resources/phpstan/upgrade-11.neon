@@ -19,6 +19,12 @@ services:
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\DoctrineRemovedMethodsRule
         tags: [phpstan.rules.rule]
     -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\AuthenticationExceptionRedirectToRule
+        tags: [phpstan.rules.rule]
+    -
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\EnumerableDumpSignatureRule
+        tags: [phpstan.rules.rule]
+    -
         class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\EmailVerificationAutoRegistrationRule
         tags: [phpstan.rules.rule]
     -

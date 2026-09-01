@@ -35,6 +35,16 @@ final class PhpStanConfigGeneratorTest extends TestCase
             );
             $contents = (string) file_get_contents($path);
 
+            self::assertStringContainsString(
+                'errorFormatter.laravelUpgradeJson:',
+                $contents,
+                'Advisory JSON must preserve RuleError metadata across the process boundary.',
+            );
+            self::assertStringContainsString(
+                'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\JsonErrorFormatter',
+                $contents,
+            );
+
             if ($targetMajor === 11) {
                 self::assertStringContainsString('afterCommitWithSyncQueueRule:', $contents);
                 self::assertStringContainsString("queueDefault: 'sync'", $contents);

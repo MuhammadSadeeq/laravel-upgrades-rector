@@ -36,4 +36,30 @@ final class FloatPrecisionDroppedRuleTest extends Laravel11RuleTestCase
     {
         $this->analyse([__DIR__.'/Fixture/float-precision-safe.php'], []);
     }
+
+    public function test_named_or_single_precision_argument_is_safe(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/float-precision-named.php'], []);
+    }
+
+    public function test_legacy_named_precision_arguments_are_reported(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/float-precision-legacy-named.php'], [
+            [
+                'Float() no longer accepts precision/scale arguments in Laravel 11.',
+                9,
+                'Use decimal(\'column\', 8, 2) for fixed precision or float(\'column\', precision: N).',
+            ],
+            [
+                'Float() no longer accepts precision/scale arguments in Laravel 11.',
+                10,
+                'Use decimal(\'column\', 8, 2) for fixed precision or float(\'column\', precision: N).',
+            ],
+            [
+                'Float() no longer accepts precision/scale arguments in Laravel 11.',
+                11,
+                'Use decimal(\'column\', 8, 2) for fixed precision or float(\'column\', precision: N).',
+            ],
+        ]);
+    }
 }

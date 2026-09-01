@@ -23,9 +23,7 @@ use Illuminate\Support\Facades\Schema;
 
 Schema::create('areas', function (Blueprint $table) {
     $table->id();
-    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
     $table->geometry('boundary', 'polygon');
-    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
     $table->geometry('path', 'linestring');
     $table->timestamps();
 });

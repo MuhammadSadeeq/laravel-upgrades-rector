@@ -16,12 +16,14 @@ use PHPStan\Type\ObjectType;
  * Laravel 11: float() dropped its total/places arguments; the column now
  * stores full precision. Flags float()/double() calls with extra arguments
  * so developers switch to decimal() for fixed-precision storage.
- */
-/**
+ *
  * @implements Rule<MethodCall>
  */
 final class FloatPrecisionDroppedRule implements Rule
 {
+    /** @var list<string> */
+    private const REMOVED_NAMED_ARGUMENTS = ['total', 'places'];
+
     public function getNodeType(): string
     {
         return MethodCall::class;
@@ -45,7 +47,24 @@ final class FloatPrecisionDroppedRule implements Rule
             return [];
         }
 
-        if (count($node->getArgs()) <= 1) {
+        $argumentCount = count($node->getArgs());
+        $hasRemovedNamedArgument = false;
+
+        foreach ($node->getArgs() as $argument) {
+            if ($argument->name !== null
+                && in_array($argument->name->toLowerString(), self::REMOVED_NAMED_ARGUMENTS, true)) {
+                $hasRemovedNamedArgument = true;
+                break;
+            }
+        }
+
+        // Laravel 11 retains float($column, $precision), including the
+        // named precision: form. The legacy total:/places: names are still
+        // findings even when their argument count looks valid; double() still
+        // accepts only its column argument.
+        if (! $hasRemovedNamedArgument
+            && (($methodName === 'float' && $argumentCount <= 2)
+                || ($methodName === 'double' && $argumentCount <= 1))) {
             return [];
         }
 

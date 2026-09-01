@@ -83,6 +83,10 @@ services:
     afterCommitWithSyncQueueRule:
         arguments:
             queueDefault: {$queue}
+    errorFormatter.laravelUpgradeJson:
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\JsonErrorFormatter
+        arguments:
+            pretty: false
 NEON
             : ($targetMajor === 12 ? <<<NEON
 
@@ -91,8 +95,19 @@ services:
         arguments:
             localDiskRootConfigured: {$localDisk}
             localDiskIsDefault: {$localDiskDefault}
+    errorFormatter.laravelUpgradeJson:
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\JsonErrorFormatter
+        arguments:
+            pretty: false
 NEON
-                : '');
+                : <<<NEON
+
+services:
+    errorFormatter.laravelUpgradeJson:
+        class: MuhammadSadeeq\LaravelUpgradesRector\PHPStan\JsonErrorFormatter
+        arguments:
+            pretty: false
+NEON);
         $contents = <<<NEON
 includes:
 {$includeLines}

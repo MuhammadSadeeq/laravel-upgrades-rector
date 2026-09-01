@@ -92,6 +92,10 @@
         "file": ".env.example"
     },
     {
+        "ruleId": "laravelUpgrade.floatPrecisionDropped",
+        "file": "database/migrations/2024_01_01_000000_create_places_table.php"
+    },
+    {
         "ruleId": "laravelUpgrade.laravelInstallerCheck",
         "file": "composer.json"
     },

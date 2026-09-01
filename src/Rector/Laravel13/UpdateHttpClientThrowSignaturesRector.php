@@ -31,14 +31,12 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * Overrides of these methods must accept at least the same parameters. This
  * rule only APPENDS the missing named parameters; it never renames or removes
  * existing ones (decision D7). If an override already declares a parameter in
- * the target position under a different name, it is left untouched and a TODO
- * comment is inserted instead.
+ * the target position under a different name, it is left untouched and gets a
+ * plain TODO explaining why no automatic rewrite was safe.
  */
 final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
 {
     private const TARGET_PARENT_CLASS = 'Illuminate\Http\Client\Response';
-
-    private const MARKER = '@laravel-upgrade http-client-throw';
 
     /**
      * @var array<string, array<int, string>>
@@ -152,18 +150,16 @@ final class UpdateHttpClientThrowSignaturesRector extends AbstractRector
 
     private function leaveTodoInstead(ClassMethod $method): bool
     {
+        $message = 'Laravel 13 changed this signature to accept a nullable callback; '
+            .'the override does not match positionally — reconcile it manually.';
+
         foreach ($method->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::MARKER)) {
+            if (str_contains($comment->getText(), $message)) {
                 return false;
             }
         }
 
-        $nop = TodoNopFactory::create(sprintf(
-            '%s Laravel 13 changed this signature to accept a nullable callback; '
-            .'the override does not match positionally — reconcile it manually.',
-            self::MARKER
-        ));
-
+        $nop = TodoNopFactory::create($message);
         $comments = $method->getComments();
         $comments[] = $nop->getComments()[0];
         $method->setAttribute(AttributeKey::COMMENTS, $comments);

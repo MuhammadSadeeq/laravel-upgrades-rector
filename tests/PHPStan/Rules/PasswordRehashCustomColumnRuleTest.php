@@ -32,4 +32,18 @@ final class PasswordRehashCustomColumnRuleTest extends Laravel11RuleTestCase
     {
         $this->analyse([__DIR__.'/Fixture/password-rehash-configured.php'], []);
     }
+
+    public function test_dynamic_password_accessor_is_reported_for_manual_review(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/password-rehash-dynamic.php'], [[
+            'This model dynamically determines getAuthPassword(); review $authPasswordName for Laravel 11 password rehashing (low-confidence).',
+            7,
+            'Set protected $authPasswordName or verify the credential column manually before enabling auto-rehashing.',
+        ]]);
+    }
+
+    public function test_password_name_method_configures_the_accessor_safely(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/password-rehash-name-method.php'], []);
+    }
 }

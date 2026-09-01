@@ -23,9 +23,25 @@ final class DoctrineRemovedMethodsRuleTest extends Laravel11RuleTestCase
         ]]);
     }
 
-    public function test_unresolved_receiver_is_safe(): void
+    public function test_unresolved_receiver_get_doctrine_methods_are_reported_low_confidence(): void
     {
-        $this->analyse([__DIR__.'/Fixture/doctrine-methods-unresolved.php'], []);
+        $this->analyse([__DIR__.'/Fixture/doctrine-methods-unresolved.php'], [
+            [
+                'getDoctrineSchemaManager() was removed from Laravel 11 (low-confidence).',
+                7,
+                'Doctrine DBAL schema methods are gone; use Schema inspection methods.',
+            ],
+            [
+                'registerDoctrineType() was removed from Laravel 11 (low-confidence).',
+                8,
+                'Doctrine DBAL schema methods are gone; use a native database type or migration.',
+            ],
+            [
+                'getDoctrineSomethingElse() was removed from Laravel 11 (low-confidence).',
+                9,
+                'Doctrine DBAL schema methods are gone; review the native database API.',
+            ],
+        ]);
     }
 
     public function test_unrelated_method_is_safe(): void

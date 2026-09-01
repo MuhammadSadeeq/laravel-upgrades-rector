@@ -24,6 +24,8 @@ final class AdvisoryRuleRegistrationTest extends TestCase
             'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\EloquentCastsMethodConflictRule',
             'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\SchemaGetColumnTypeRule',
             'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\DoctrineRemovedMethodsRule',
+            'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\AuthenticationExceptionRedirectToRule',
+            'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\EnumerableDumpSignatureRule',
             'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\EmailVerificationAutoRegistrationRule',
             'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\PublishesConfigAppProvidersRule',
             'MuhammadSadeeq\\LaravelUpgradesRector\\PHPStan\\Rules\\PasswordRehashCustomColumnRule',

@@ -8,8 +8,10 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PHPStan\Analyser\Scope;
+use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
 
 /**
@@ -42,22 +44,47 @@ final class DoctrineRemovedMethodsRule implements Rule
 
         $method = $node->name->toLowerString();
         $replacement = self::REPLACEMENTS[$method] ?? null;
+        $isLowConfidenceCandidate = str_starts_with($method, 'getdoctrine')
+            || $method === 'registerdoctrinetype';
 
-        if ($replacement === null) {
+        if ($replacement === null && ! $isLowConfidenceCandidate) {
             return [];
         }
 
         $type = $scope->getType($node->var);
-        if (! (new ObjectType('Illuminate\\Database\\Connection'))->isSuperTypeOf($type)->yes()) {
+        $isConnection = (new ObjectType('Illuminate\\Database\\Connection'))->isSuperTypeOf($type)->yes();
+
+        if ($isConnection && $replacement !== null) {
+            return [$this->error($node->name->toString(), $replacement, 'high')];
+        }
+
+        if (! $isLowConfidenceCandidate || ! $type instanceof MixedType) {
             return [];
         }
 
-        return [
-            RuleErrorBuilder::message(
-                sprintf('%s() was removed from Laravel 11 (high-confidence).', $node->name->toString())
-            )->identifier('laravelUpgrade.doctrineRemovedMethods')
-                ->tip('Doctrine DBAL schema methods are gone; '.$replacement.'.')
-                ->build(),
-        ];
+        return [$this->error(
+            $node->name->toString(),
+            $replacement ?? 'review the native database API',
+            'low',
+            true,
+        )];
+    }
+
+    private function error(
+        string $method,
+        string $replacement,
+        string $confidence,
+        bool $includeConfidenceMetadata = false,
+    ): IdentifierRuleError {
+        $builder = RuleErrorBuilder::message(
+            sprintf('%s() was removed from Laravel 11 (%s-confidence).', $method, $confidence)
+        )->identifier('laravelUpgrade.doctrineRemovedMethods')
+            ->tip('Doctrine DBAL schema methods are gone; '.$replacement.'.');
+
+        if ($includeConfidenceMetadata) {
+            $builder->metadata(['confidence' => 'low']);
+        }
+
+        return $builder->build();
     }
 }

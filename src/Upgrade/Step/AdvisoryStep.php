@@ -103,7 +103,7 @@ final class AdvisoryStep implements StepInterface
                     'analyse',
                     '-c',
                     $configPath,
-                    '--error-format=json',
+                    '--error-format=laravelUpgradeJson',
                     '--no-progress',
                     '--memory-limit=-1',
                 ], $paths),

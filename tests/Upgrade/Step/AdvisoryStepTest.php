@@ -72,6 +72,28 @@ final class AdvisoryStepTest extends TestCase
         self::assertSame('https://example.test/upgrade', $finding['guideUrl'] ?? null);
     }
 
+    public function test_low_confidence_rule_metadata_survives_into_finding_data(): void
+    {
+        $runner = new AdvisoryFakeProcessRunner([
+            new ProcessResult([], 1, $this->phpstanJson([
+                'message' => 'getDoctrineSomethingElse() was removed from Laravel 11 (low-confidence).',
+                'line' => 7,
+                'identifier' => 'laravelUpgrade.doctrineRemovedMethods',
+                'tip' => 'Review the native database API.',
+                'metadata' => ['confidence' => 'low'],
+            ])),
+        ]);
+
+        $result = $this->step($runner)->execute($this->context(planMode: true));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        $findings = $result->data['findings'] ?? null;
+        self::assertIsArray($findings);
+        $finding = $findings[0] ?? null;
+        self::assertIsArray($finding);
+        self::assertSame('low', $finding['confidence'] ?? null);
+    }
+
     public function test_invalid_json_and_phpstan_internal_errors_fail_the_step(): void
     {
         $invalid = $this->step(new AdvisoryFakeProcessRunner([
@@ -107,6 +129,7 @@ final class AdvisoryStepTest extends TestCase
         self::assertStringNotContainsString('TODO(laravel-upgrade:', (string) file_get_contents($this->projectDirectory.'/app/Example.php'));
         self::assertDirectoryDoesNotExist($this->projectDirectory.'/.laravel-upgrade');
         self::assertStringContainsString(sys_get_temp_dir(), $runner->requests[0]->arguments[3]);
+        self::assertContains('--error-format=laravelUpgradeJson', $runner->requests[0]->arguments);
         $annotation = $result->data['annotation'] ?? null;
         self::assertIsArray($annotation);
         self::assertSame('skipped', $annotation['status'] ?? null);

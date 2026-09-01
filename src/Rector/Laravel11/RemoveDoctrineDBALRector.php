@@ -5,22 +5,15 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\ImportUsageChecker;
-use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
-use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
-use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\NodeTraverser;
-use PHPStan\Analyser\Scope;
-use PHPStan\Type\MixedType;
-use PHPStan\Type\ObjectType;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -31,16 +24,13 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * - getAllTables()/getAllViews()/getAllTypes() are renamed to
  *   getTables()/getViews()/getTypes() — but only on the Schema facade, never
  *   on DB (whose methods were NOT renamed);
- * - getDoctrine*()/registerDoctrineType() calls receive an advisory comment:
- *   on a confirmed Illuminate\Database\Connection receiver it is high
- *   confidence, on unresolved receivers low confidence wording is used;
+ * - getDoctrine*()/registerDoctrineType() calls are left untouched for the
+ *   advisory engine to report with receiver-aware confidence;
  * - Doctrine\DBAL imports are removed only when nothing else in the file
  *   references them.
  */
 final class RemoveDoctrineDBALRector extends AbstractRector
 {
-    private const COMMENT_MARKER = '@laravel-upgrade dbal';
-
     /**
      * @var array<string, string>
      */
@@ -48,19 +38,6 @@ final class RemoveDoctrineDBALRector extends AbstractRector
         'getAllTables' => 'getTables',
         'getAllViews' => 'getViews',
         'getAllTypes' => 'getTypes',
-    ];
-
-    /**
-     * @var list<string>
-     */
-    private const REMOVED_METHODS = [
-        'getDoctrineConnection',
-        'getDoctrineSchemaManager',
-        'getDoctrineColumn',
-        'registerDoctrineType',
-        'isDoctrineAvailable',
-        'usingNativeSchemaOperations',
-        'useNativeSchemaOperationsIfPossible',
     ];
 
     private ImportUsageChecker $importUsageChecker;
@@ -72,7 +49,7 @@ final class RemoveDoctrineDBALRector extends AbstractRector
 
     public function getNodeTypes(): array
     {
-        return [Use_::class, Expression::class, StaticCall::class, Array_::class];
+        return [Use_::class, StaticCall::class, Array_::class];
     }
 
     /**
@@ -82,10 +59,6 @@ final class RemoveDoctrineDBALRector extends AbstractRector
     {
         if ($node instanceof Use_) {
             return $this->refactorUseStatement($node);
-        }
-
-        if ($node instanceof Expression) {
-            return $this->refactorAdvisory($node);
         }
 
         if ($node instanceof StaticCall) {
@@ -102,7 +75,7 @@ final class RemoveDoctrineDBALRector extends AbstractRector
     public function getRuleDefinition(): RuleDefinition
     {
         return new RuleDefinition(
-            'Rename DBAL-era Schema inspection methods and flag removed Doctrine methods for Laravel 11',
+            'Rename DBAL-era Schema inspection methods and remove obsolete Doctrine configuration for Laravel 11',
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
@@ -111,7 +84,6 @@ $type = $connection->getDoctrineColumn('users', 'email');
 CODE_SAMPLE,
                     <<<'CODE_SAMPLE'
 $tables = Schema::getTables();
-// @laravel-upgrade dbal: getDoctrineColumn() was removed in Laravel 11. Use native schema introspection instead.
 $type = $connection->getDoctrineColumn('users', 'email');
 CODE_SAMPLE,
                 ),
@@ -186,78 +158,6 @@ CODE_SAMPLE,
         return $staticCall;
     }
 
-    private function refactorAdvisory(Expression $expression): ?Node
-    {
-        foreach ($expression->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return null;
-            }
-        }
-
-        $removedMethod = $this->findRemovedMethodCall($expression->expr);
-
-        if ($removedMethod === null) {
-            return null;
-        }
-
-        [$methodName, $confidence] = $removedMethod;
-
-        $note = sprintf(
-            '// %s: %s() was removed in Laravel 11 (%s confidence). Doctrine DBAL is no longer required; '
-            .'migrate to native schema operations.',
-            self::COMMENT_MARKER,
-            $methodName,
-            $confidence
-        );
-
-        $comments = $expression->getComments();
-        $comments[] = new Comment($note);
-        $expression->setAttribute('comments', $comments);
-
-        return $expression;
-    }
-
-    /**
-     * @return array{string, string}|null method name + confidence
-     */
-    private function findRemovedMethodCall(Node $node): ?array
-    {
-        $found = null;
-
-        $this->traverseNodesWithCallable($node, function (Node $subNode) use (&$found): ?int {
-            if ($found !== null) {
-                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
-            }
-
-            if (! $subNode instanceof MethodCall && ! $subNode instanceof StaticCall) {
-                return null;
-            }
-
-            $methodName = $this->getName($subNode->name);
-
-            if ($methodName === null || ! in_array($methodName, self::REMOVED_METHODS, true)) {
-                return null;
-            }
-
-            if ($subNode instanceof StaticCall) {
-                // Never fabricate advice on facades that never had these methods.
-                return null;
-            }
-
-            $confidence = $this->receiverConfidence($subNode, $methodName);
-
-            if ($confidence === null) {
-                return null;
-            }
-
-            $found = [$methodName, $confidence];
-
-            return NodeTraverser::DONT_TRAVERSE_CHILDREN;
-        });
-
-        return $found;
-    }
-
     private function removeDbalTypesFromConfigArray(Array_ $array): ?Node
     {
         $dbalItem = $this->findArrayItemByKey($array, 'dbal');
@@ -309,37 +209,5 @@ CODE_SAMPLE,
         }
 
         return null;
-    }
-
-    private function receiverConfidence(MethodCall $methodCall, string $methodName): ?string
-    {
-        $isConnection = $this->isObjectType($methodCall->var, new ObjectType('Illuminate\Database\Connection'));
-
-        if ($isConnection) {
-            return 'high';
-        }
-
-        $scopeBased = false;
-
-        $scopeAttribute = $methodCall->getAttribute(AttributeKey::SCOPE);
-
-        if ($scopeAttribute instanceof Scope) {
-            try {
-                $type = $scopeAttribute->getType($methodCall->var);
-                $scopeBased = ! $type->equals(new MixedType);
-            } catch (\Throwable) {
-                $scopeBased = false;
-            }
-        }
-
-        if ($scopeBased) {
-            // A known non-connection type: these names simply don't belong here.
-            return null;
-        }
-
-        // Unresolved receiver + unmistakably Doctrine method name → low confidence.
-        $unmistakable = str_starts_with($methodName, 'getDoctrine') || $methodName === 'registerDoctrineType';
-
-        return $unmistakable ? 'low' : null;
     }
 }

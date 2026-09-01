@@ -25,11 +25,8 @@ use Illuminate\Support\Facades\Schema;
 
 Schema::create('geometry', function (Blueprint $table) {
     $table->id();
-    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
     $table->geometry('points', 'multipoint');
-    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
     $table->geometry('lines', 'multilinestring');
-    // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
     $table->geometry('polygons', 'multipolygon');
     $table->multiPolygonZ('polygons_z');
     $table->timestamps();

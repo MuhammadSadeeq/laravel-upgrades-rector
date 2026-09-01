@@ -24,8 +24,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 Schema::create('mixed', function (Blueprint $table) {
-    $table->double('price');
-    $table->float('discount');
+    $table->double('price', 8, 2);
+    $table->float('discount', 5, 2);
     $table->double('amount')->unsigned();
     $table->double('rating');
     $table->string('name');

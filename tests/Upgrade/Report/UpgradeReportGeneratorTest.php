@@ -49,6 +49,38 @@ final class UpgradeReportGeneratorTest extends TestCase
         self::assertSame([], glob($this->directory.'/.laravel-upgrade/.upgrade-report-*') ?: []);
     }
 
+    public function test_report_json_preserves_low_confidence_advisory_findings(): void
+    {
+        mkdir($this->directory.'/.laravel-upgrade', 0777, true);
+        $collector = new FindingCollector;
+        $collector->add(
+            'laravelUpgrade.doctrineRemovedMethods',
+            'medium',
+            11,
+            'app/Database.php',
+            7,
+            'getDoctrineSomethingElse() was removed from Laravel 11 (low-confidence).',
+            confidence: 'low',
+        );
+        $collector->writeJsonl($this->directory.'/.laravel-upgrade/findings.jsonl');
+
+        (new UpgradeReportGenerator)->generate(new UpgradeContext(
+            $this->directory,
+            new UpgradePlan(10, 11),
+            'run-low-confidence',
+        ));
+
+        $contents = file_get_contents($this->directory.'/.laravel-upgrade/report.json');
+        self::assertIsString($contents);
+        $report = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($report);
+        $findings = $report['findings'] ?? null;
+        self::assertIsArray($findings);
+        $finding = $findings[0] ?? null;
+        self::assertIsArray($finding);
+        self::assertSame('low', $finding['confidence'] ?? null);
+    }
+
     public function test_report_metadata_uses_the_overall_plan_during_a_later_transition(): void
     {
         mkdir($this->directory.'/.laravel-upgrade', 0777, true);

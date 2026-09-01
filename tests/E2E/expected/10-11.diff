@@ -422,16 +422,11 @@ diff --git a/database/migrations/2024_01_01_000000_create_places_table.php b/dat
 index <hash>..<hash>
 --- a/database/migrations/2024_01_01_000000_create_places_table.php
 +++ b/database/migrations/2024_01_01_000000_create_places_table.php
-@@ -11,9 +11,10 @@ public function up(): void
-         Schema::create('places', function (Blueprint $table) {
-             $table->id();
+@@ -13,7 +13,7 @@ public function up(): void
              $table->uuid('external_id');
--            $table->double('rating', 8, 2);
--            $table->float('score', 5, 2);
+             $table->double('rating', 8, 2);
+             $table->float('score', 5, 2);
 -            $table->point('geo', 4326);
-+            $table->double('rating');
-+            $table->float('score');
-+            // @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.
 +            $table->geometry('geo', 'point', 4326);
              $table->string('slug')->unique()->change();
              $table->timestamps();

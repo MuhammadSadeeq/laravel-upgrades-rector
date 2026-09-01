@@ -66,6 +66,17 @@ final class CodeStyleGatesTest extends TestCase
         self::assertSame([], $violations, implode("\n", $violations));
     }
 
+    public function test_default_rector_rules_do_not_embed_advisory_markers(): void
+    {
+        foreach ($this->srcFiles('src/Rector') as $file) {
+            self::assertStringNotContainsString(
+                '@laravel-upgrade',
+                (string) file_get_contents($file->getPathname()),
+                $this->relative($file).' must report advisories outside the default Rector output.'
+            );
+        }
+    }
+
     public function test_composer_test_script_covers_every_environment(): void
     {
         $raw = file_get_contents(dirname(__DIR__, 2).'/composer.json');
@@ -108,11 +119,11 @@ final class CodeStyleGatesTest extends TestCase
     /**
      * @return list<SplFileInfo>
      */
-    private function srcFiles(): array
+    private function srcFiles(string $directory = 'src'): array
     {
         $files = [];
         $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator(__DIR__.'/../../src')
+            new RecursiveDirectoryIterator(__DIR__.'/../../'.$directory)
         );
 
         foreach ($iterator as $file) {

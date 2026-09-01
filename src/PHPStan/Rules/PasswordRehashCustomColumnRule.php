@@ -11,6 +11,7 @@ use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Return_;
 use PHPStan\Analyser\Scope;
+use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
 
@@ -18,8 +19,7 @@ use PHPStan\Rules\RuleErrorBuilder;
  * Laravel 11: models overriding getAuthPassword() with a non-"password"
  * column must also define $authPasswordName, or password rehashing will
  * target the wrong column.
- */
-/**
+ *
  * @implements Rule<Class_>
  */
 final class PasswordRehashCustomColumnRule implements Rule
@@ -36,19 +36,36 @@ final class PasswordRehashCustomColumnRule implements Rule
         }
 
         $hasCustomGetAuthPassword = false;
+        $hasDynamicGetAuthPassword = false;
         $hasAuthPasswordName = false;
 
         foreach ($node->stmts as $stmt) {
             if ($stmt instanceof ClassMethod
                 && $stmt->name->name === 'getAuthPassword') {
-                // Check whether the body returns a non-'password' string.
+                // Literal custom columns are high-confidence; expressions and
+                // missing returns need a lower-confidence manual review.
+                $hasReturn = false;
                 foreach ($stmt->stmts ?? [] as $inner) {
-                    if ($inner instanceof Return_
-                        && $inner->expr instanceof String_
-                        && $inner->expr->value !== 'password') {
+                    if (! $inner instanceof Return_) {
+                        continue;
+                    }
+
+                    $hasReturn = true;
+                    if (! $inner->expr instanceof String_) {
+                        $hasDynamicGetAuthPassword = true;
+                    } elseif ($inner->expr->value !== 'password') {
                         $hasCustomGetAuthPassword = true;
                     }
                 }
+
+                if (! $hasReturn) {
+                    $hasDynamicGetAuthPassword = true;
+                }
+            }
+
+            if ($stmt instanceof ClassMethod
+                && $stmt->name->name === 'getAuthPasswordName') {
+                $hasAuthPasswordName = true;
             }
 
             if ($stmt instanceof Property) {
@@ -60,16 +77,34 @@ final class PasswordRehashCustomColumnRule implements Rule
             }
         }
 
-        if (! $hasCustomGetAuthPassword || $hasAuthPasswordName) {
+        if ($hasAuthPasswordName) {
+            return [];
+        }
+
+        if ($hasCustomGetAuthPassword) {
+            return [$this->highConfidenceError()];
+        }
+
+        if (! $hasDynamicGetAuthPassword) {
             return [];
         }
 
         return [
             RuleErrorBuilder::message(
-                'This model overrides getAuthPassword() but does not set protected $authPasswordName.'
+                'This model dynamically determines getAuthPassword(); review $authPasswordName for Laravel 11 password rehashing (low-confidence).'
             )->identifier('laravelUpgrade.passwordRehashCustomColumn')
-                ->tip('Set protected $authPasswordName to the credential column name for auto-rehashing.')
+                ->tip('Set protected $authPasswordName or verify the credential column manually before enabling auto-rehashing.')
+                ->metadata(['confidence' => 'low'])
                 ->build(),
         ];
+    }
+
+    private function highConfidenceError(): IdentifierRuleError
+    {
+        return RuleErrorBuilder::message(
+            'This model overrides getAuthPassword() but does not set protected $authPasswordName.'
+        )->identifier('laravelUpgrade.passwordRehashCustomColumn')
+            ->tip('Set protected $authPasswordName to the credential column name for auto-rehashing.')
+            ->build();
     }
 }

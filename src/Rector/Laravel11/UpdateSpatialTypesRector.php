@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\BlueprintReceiverResolver;
-use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
@@ -31,8 +30,6 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  */
 final class UpdateSpatialTypesRector extends AbstractRector
 {
-    private const COMMENT_MARKER = '@laravel-upgrade spatial-types';
-
     /**
      * camelCase helper name => lowercase geometry subtype.
      *
@@ -100,12 +97,6 @@ final class UpdateSpatialTypesRector extends AbstractRector
 
         $spatialMethodCall->args = array_merge([$columnArg, $subtypeArg], $args);
 
-        if (! $this->hasMigrationComment($node)) {
-            $comments = $node->getComments();
-            $comments[] = new Comment('// @laravel-upgrade spatial-types: review whether geography() with an SRID fits this column better.');
-            $node->setAttribute('comments', $comments);
-        }
-
         return $node;
     }
 
@@ -145,16 +136,5 @@ CODE_SAMPLE,
         }
 
         return null;
-    }
-
-    private function hasMigrationComment(Expression $node): bool
-    {
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), self::COMMENT_MARKER)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

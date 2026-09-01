@@ -6,9 +6,9 @@ use Illuminate\Support\Enumerable;
 
 class AdvancedCollection implements Enumerable
 {
-    public function dump(...$args)
+    public function dump($format = 'array')
     {
-        dd($this->toArray(), ...$args);
+        dd($this->toArray());
     }
 
     public function toArray()
@@ -16,5 +16,3 @@ class AdvancedCollection implements Enumerable
         return ['items' => [1, 2, 3]];
     }
 }
-
-?>

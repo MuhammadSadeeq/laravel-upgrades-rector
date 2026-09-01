@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MuhammadSadeeq\LaravelUpgradesRector\Rector\Laravel11;
 
-use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\CommentInserter;
 use MuhammadSadeeq\LaravelUpgradesRector\Support\NodeAnalyzer\InterfaceImplementationChecker;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Variable;
@@ -19,11 +18,8 @@ final class UpdateEnumerableDumpSignatureRector extends AbstractRector
 {
     private const INTERFACE_NAME = 'Illuminate\Support\Enumerable';
 
-    private const COMMENT_MARKER = '@laravel-upgrade enumerable-dump';
-
     public function __construct(
         private readonly InterfaceImplementationChecker $checker,
-        private readonly CommentInserter $commentInserter,
     ) {}
 
     public function getNodeTypes(): array
@@ -52,15 +48,9 @@ final class UpdateEnumerableDumpSignatureRector extends AbstractRector
         }
 
         if ($dumpMethod->params !== []) {
-            // Add warning comment instead of silently skipping
-            $added = $this->commentInserter->addComment(
-                $node,
-                self::COMMENT_MARKER,
-                'Enumerable::dump() signature changed to dump(...$args). Update this method signature manually.'
-            );
-
-            // Returning the unchanged node makes applied-rule reporting lie.
-            return $added ? $node : null;
+            // Existing parameters may carry application-specific semantics;
+            // do not rewrite them or attach advisory comments.
+            return null;
         }
 
         $variadicParam = new Param(
@@ -102,15 +92,15 @@ final class UpdateEnumerableDumpSignatureRector extends AbstractRector
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
-class ParameterizedCollection implements Enumerable
+class CustomCollection implements Enumerable
 {
-    public function dump($format = 'array')
+    public function dump()
     {
     }
 }
 CODE_SAMPLE,
                     <<<'CODE_SAMPLE'
-class ParameterizedCollection implements Enumerable
+class CustomCollection implements Enumerable
 {
     public function dump(...$args)
     {

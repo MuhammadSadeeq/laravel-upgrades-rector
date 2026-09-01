@@ -1,6 +1,5 @@
 # Rules that must appear in the rector "applied rules" output for 10 -> 11.
 # CarbonDiffInToSignedFloatRector excluded: requires typed receivers (Larastan).
 UpdateSpatialTypesRector
-UpdateFloatingPointTypesRector
 ImplementMissingInterfaceMethodsRector
 UpdateSanctumConfigRector
