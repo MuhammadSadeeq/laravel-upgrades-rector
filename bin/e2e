@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\E2E\DiffPayloadNormalizer;
 use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\E2E\E2eApplicationDirectoryAllocator;
 use Symfony\Component\Process\Process;
 
@@ -1441,7 +1442,7 @@ function normalizedUpgradeDiff(string $directory): string
         $diff .= $single;
     }
 
-    $diff = str_replace(["\r\n", "\r"], "\n", $diff);
+    $diff = DiffPayloadNormalizer::normalize($diff);
     $diff = str_replace($directory.'/', '<E2E_PROJECT>/', $diff);
     $diff = preg_replace('/^index [0-9a-f]+\.\.[0-9a-f]+.*$/mi', 'index <hash>..<hash>', $diff) ?? $diff;
     $diff = preg_replace('/^([+-].*"content-hash"\s*:\s*")[0-9a-f]+(").*$/mi', '$1<content-hash>$2', $diff) ?? $diff;

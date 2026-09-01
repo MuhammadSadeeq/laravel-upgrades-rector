@@ -17,7 +17,7 @@
     },
     {
         "ruleId": "laravelUpgrade.columnChangeRequiresModifiers",
-        "file": "database/migrations/2024_01_01_000000_create_places_table.php"
+        "file": "database/migrations/2024_01_02_000000_make_places_slug_unique.php"
     },
     {
         "ruleId": "laravelUpgrade.configBehaviourChange",
@@ -72,6 +72,10 @@
         "file": "config/database.php"
     },
     {
+        "ruleId": "laravelUpgrade.doctrineRemovedMethods",
+        "file": "app/Http/Controllers/ReportController.php"
+    },
+    {
         "ruleId": "laravelUpgrade.eloquentCastsMethodConflict",
         "file": "app/Models/Tag.php"
     },
@@ -110,6 +114,10 @@
     {
         "ruleId": "laravelUpgrade.queueDefaultSync",
         "file": "config/queue.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.schemaGetColumnType",
+        "file": "app/Http/Controllers/ReportController.php"
     },
     {
         "ruleId": "laravelUpgrade.skeletonFileRemoved",

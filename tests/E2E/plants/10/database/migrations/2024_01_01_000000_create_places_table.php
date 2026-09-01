@@ -9,12 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('places', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->uuid('external_id');
-            $table->double('rating', 8, 2);
+            $table->double('amount', 8, 2);
+            $table->float('rate');
             $table->float('score', 5, 2);
+            $table->point('location');
             $table->point('geo', 4326);
-            $table->string('slug')->unique()->change();
+            $table->geometry('area');
+            $table->string('slug');
             $table->timestamps();
         });
     }
