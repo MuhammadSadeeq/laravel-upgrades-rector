@@ -1,0 +1,7 @@
+{
+    "name": "example/library",
+    "type": "library",
+    "require": {
+        "laravel/framework": "^10.0"
+    }
+}

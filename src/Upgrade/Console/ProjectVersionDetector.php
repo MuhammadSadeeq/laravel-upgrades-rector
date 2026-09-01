@@ -62,7 +62,7 @@ final class ProjectVersionDetector
                     $fallbackWarnings === [] ? 'no vendor/composer/installed.json was found.' : implode(' ', $fallbackWarnings),
                 );
 
-            return new ProjectVersionDetection($major, $source, $warning);
+            return new ProjectVersionDetection($major, $source, $warning, $version);
         }
 
         return new ProjectVersionDetection(
