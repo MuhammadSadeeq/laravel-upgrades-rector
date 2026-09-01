@@ -43,4 +43,9 @@ final class JsFromUnicodeRuleTest extends Laravel13RuleTestCase
     {
         $this->analyse([__DIR__.'/Fixture/js-from-safe.php'], []);
     }
+
+    public function test_application_owned_js_helper_is_safe(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/js-from-custom.php'], []);
+    }
 }

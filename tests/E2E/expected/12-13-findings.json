@@ -1,5 +1,13 @@
 [
     {
+        "ruleId": "laravelUpgrade.arrayFirstLastPolyfill",
+        "file": "app/Support/LegacyArrayLookup.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.arrayFirstLastPolyfill",
+        "file": "app/Support/legacy-array-helpers.php"
+    },
+    {
         "ruleId": "laravelUpgrade.cachePrefix",
         "file": "config/cache.php"
     },
@@ -28,12 +36,20 @@
         "file": "composer.json"
     },
     {
+        "ruleId": "laravelUpgrade.managerExtendBinding",
+        "file": "app/Providers/CacheServiceProvider.php"
+    },
+    {
         "ruleId": "laravelUpgrade.packageJsonDependencies",
         "file": "package.json"
     },
     {
         "ruleId": "laravelUpgrade.queuedJobEloquentCollection",
         "file": "app/Jobs/SyncUsersJob.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.queuedNotificationMissingModels",
+        "file": "app/Notifications/OrderUpdated.php"
     },
     {
         "ruleId": "laravelUpgrade.sessionSerialization",
