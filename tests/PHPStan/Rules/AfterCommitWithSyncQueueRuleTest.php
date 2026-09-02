@@ -9,7 +9,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules\AfterCommitWithSyncQueueR
 /** @extends Laravel11RuleTestCase<AfterCommitWithSyncQueueRule> */
 final class AfterCommitWithSyncQueueRuleTest extends Laravel11RuleTestCase
 {
-    private ?string $queueDefault = 'sync';
+    private string $queueDefault = 'sync';
 
     protected function getRule(): AfterCommitWithSyncQueueRule
     {

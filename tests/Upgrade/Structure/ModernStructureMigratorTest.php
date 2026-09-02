@@ -755,9 +755,13 @@ PHP
 
         self::assertArrayHasKey('/', $routeByUri);
         self::assertArrayHasKey('api/user', $routeByUri);
-        self::assertContains('web', $routeByUri['/']['middleware'] ?? []);
-        self::assertContains('api', $routeByUri['api/user']['middleware'] ?? []);
-        self::assertContains('auth:sanctum', $routeByUri['api/user']['middleware'] ?? []);
+        $webMiddleware = $routeByUri['/']['middleware'] ?? null;
+        self::assertIsArray($webMiddleware);
+        self::assertContains('web', $webMiddleware);
+        $apiMiddleware = $routeByUri['api/user']['middleware'] ?? null;
+        self::assertIsArray($apiMiddleware);
+        self::assertContains('api', $apiMiddleware);
+        self::assertContains('auth:sanctum', $apiMiddleware);
         $probe = null;
 
         foreach ($routes as $route) {

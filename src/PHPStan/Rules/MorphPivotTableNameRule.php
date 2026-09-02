@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\PHPStan\Rules;
 
 use PhpParser\Node;
+use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
@@ -96,7 +97,7 @@ final class MorphPivotTableNameRule implements Rule
 
     private function isNull(Node $node): bool
     {
-        return $node instanceof Node\Expr\ConstFetch
+        return $node instanceof Expr\ConstFetch
             && $node->name->toLowerString() === 'null';
     }
 
@@ -109,7 +110,7 @@ final class MorphPivotTableNameRule implements Rule
             && ! $this->hasExplicitPivotTable($argument->value, $scope);
     }
 
-    private function hasExplicitPivotTable(Node $pivotExpression, Scope $scope): bool
+    private function hasExplicitPivotTable(Expr $pivotExpression, Scope $scope): bool
     {
         $pivotType = $scope->getType($pivotExpression)->getClassStringObjectType();
 

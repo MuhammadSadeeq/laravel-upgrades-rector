@@ -11,7 +11,7 @@ final class LocalDiskDefaultRootRuleTest extends Laravel12RuleTestCase
 {
     private bool $localDiskRootConfigured = false;
 
-    private ?bool $localDiskIsDefault = true;
+    private bool $localDiskIsDefault = true;
 
     protected function getRule(): LocalDiskDefaultRootRule
     {

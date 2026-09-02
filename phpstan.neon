@@ -6,6 +6,7 @@ parameters:
 
     excludePaths:
         - tests/env
+        - tests/Upgrade/fixtures
         - tests/E2E/plants
         - tests/Rector/*/Fixture
         - tests/Rector/*/*/Fixture
