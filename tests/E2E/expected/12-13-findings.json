@@ -44,6 +44,14 @@
         "file": "package.json"
     },
     {
+        "ruleId": "laravelUpgrade.paginationPublishedView",
+        "file": "resources/views/vendor/pagination/default.blade.php"
+    },
+    {
+        "ruleId": "laravelUpgrade.publishedVendorViews",
+        "file": "resources/views/vendor/pagination"
+    },
+    {
         "ruleId": "laravelUpgrade.queuedJobEloquentCollection",
         "file": "app/Jobs/SyncUsersJob.php"
     },

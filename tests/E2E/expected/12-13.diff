@@ -5,7 +5,7 @@ index <hash>..<hash>
 @@ -14,5 +14,5 @@ trim_trailing_whitespace = false
  [*.{yml,yaml}]
  indent_size = 2
- 
+
 -[compose.yaml]
 +[{compose,docker-compose}.{yml,yaml}]
  indent_size = 4
@@ -47,7 +47,7 @@ index <hash>..<hash>
      {
 -        $posts->links('pagination::default');
 +        $posts->links('pagination::bootstrap-3');
- 
+
          return view('posts.index', ['posts' => $posts]);
      }
 diff --git a/app/Http/Middleware/VerifyCsrfToken.php b/app/Http/Middleware/VerifyCsrfToken.php
@@ -55,12 +55,12 @@ index <hash>..<hash>
 --- a/app/Http/Middleware/VerifyCsrfToken.php
 +++ b/app/Http/Middleware/VerifyCsrfToken.php
 @@ -2,9 +2,9 @@
- 
+
  namespace App\Http\Middleware;
- 
+
 -use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 +use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
- 
+
 -class VerifyCsrfToken extends ValidateCsrfToken
 +class VerifyCsrfToken extends PreventRequestForgery
  {
@@ -71,9 +71,9 @@ index <hash>..<hash>
 --- a/app/Services/MyCacheRepository.php
 +++ b/app/Services/MyCacheRepository.php
 @@ -2,6 +2,7 @@
- 
+
  namespace App\Services;
- 
+
 +use DateInterval;
  use Closure;
  use Illuminate\Cache\ArrayStore;
@@ -81,7 +81,7 @@ index <hash>..<hash>
 @@ -14,7 +15,7 @@ public function get($key, $default = null): mixed
          return $default;
      }
- 
+
 -    public function set(string $key, mixed $value, null|int|\DateInterval $ttl = null): bool
 +    public function set(string $key, mixed $value, null|int|DateInterval $ttl = null): bool
      {
@@ -90,7 +90,7 @@ index <hash>..<hash>
 @@ -34,7 +35,7 @@ public function getMultiple(iterable $keys, mixed $default = null): iterable
          return [];
      }
- 
+
 -    public function setMultiple(iterable $values, null|int|\DateInterval $ttl = null): bool
 +    public function setMultiple(iterable $values, null|int|DateInterval $ttl = null): bool
      {
@@ -156,7 +156,7 @@ index <hash>..<hash>
  use Illuminate\Foundation\Configuration\Exceptions;
  use Illuminate\Foundation\Configuration\Middleware;
 +use Illuminate\Http\Request;
- 
+
  return Application::configure(basePath: dirname(__DIR__))
      ->withRouting(
 @@ -11,10 +12,12 @@
@@ -209,12 +209,12 @@ index <hash>..<hash>
              'lock_path' => storage_path('framework/cache/data'),
          ],
 +        'storage' => ['driver' => 'storage', 'disk' => env('CACHE_STORAGE_DISK'), 'path' => env('CACHE_STORAGE_PATH', 'framework/cache/data')],
- 
+
          'memcached' => [
              'driver' => 'memcached',
 @@ -113,5 +114,16 @@
      */
- 
+
      'prefix' => env('CACHE_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-cache-'),
 +    /*
 +    |--------------------------------------------------------------------------
@@ -227,7 +227,7 @@ index <hash>..<hash>
 +    |
 +    */
 +    'serializable_classes' => true,
- 
+
  ];
 diff --git a/config/logging.php b/config/logging.php
 index <hash>..<hash>
@@ -242,7 +242,7 @@ index <hash>..<hash>
              'replace_placeholders' => true,
          ],
 +        'monthly' => ['driver' => 'monthly', 'path' => storage_path('logs/laravel.log'), 'level' => env('LOG_LEVEL', 'debug'), 'max_files' => 3, 'replace_placeholders' => true],
- 
+
          'slack' => [
              'driver' => 'slack',
 diff --git a/config/session.php b/config/session.php
@@ -251,7 +251,7 @@ index <hash>..<hash>
 +++ b/config/session.php
 @@ -213,5 +213,19 @@
      */
- 
+
      'partitioned' => env('SESSION_PARTITIONED_COOKIE', false),
 +    /*
 +    |--------------------------------------------------------------------------
@@ -267,7 +267,7 @@ index <hash>..<hash>
 +    |
 +    */
 +    'serialization' => 'php',
- 
+
  ];
 diff --git a/database/migrations/0001_01_01_000001_create_cache_table.php b/database/migrations/0001_01_01_000001_create_cache_table.php
 index <hash>..<hash>
@@ -280,7 +280,7 @@ index <hash>..<hash>
 -            $table->integer('expiration')->index();
 +            $table->bigInteger('expiration')->index();
          });
- 
+
          Schema::create('cache_locks', function (Blueprint $table) {
              $table->string('key')->primary();
              $table->string('owner');
@@ -288,7 +288,7 @@ index <hash>..<hash>
 +            $table->bigInteger('expiration')->index();
          });
      }
- 
+
 diff --git a/database/migrations/0001_01_01_000002_create_jobs_table.php b/database/migrations/0001_01_01_000002_create_jobs_table.php
 index <hash>..<hash>
 --- a/database/migrations/0001_01_01_000002_create_jobs_table.php
@@ -317,18 +317,18 @@ index <hash>..<hash>
 +            $table->index(['connection', 'queue', 'failed_at']);
          });
      }
- 
+
 diff --git a/resources/css/app.css b/resources/css/app.css
 index <hash>..<hash>
 --- a/resources/css/app.css
 +++ b/resources/css/app.css
 @@ -2,8 +2,6 @@
- 
+
  @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
  @source '../../storage/framework/views/*.php';
 -@source '../**/*.blade.php';
 -@source '../**/*.js';
- 
+
  @theme {
      --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
 diff --git a/resources/js/app.js b/resources/js/app.js
@@ -343,14 +343,14 @@ index <hash>..<hash>
 --- a/resources/views/welcome.blade.php
 +++ b/resources/views/welcome.blade.php
 @@ -6,16 +6,14 @@
- 
+
          <title>{{ config('app.name', 'Laravel') }}</title>
- 
+
 -        <!-- Fonts -->
 -        <link rel="preconnect" href="https://fonts.bunny.net">
 -        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 +        @fonts
- 
+
          <!-- Styles / Scripts -->
          @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
              @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -410,7 +410,7 @@ index <hash>..<hash>
 @@ -130,139 +149,66 @@ class="w-2.5 h-2.5"
                          <path d="M376.571 30.3656C356.603 30.3656 340.797 46.8497 340.797 67.1828C340.797 89.6597 356.094 104 378.661 104C391.29 104 399.354 99.1488 409.206 88.5848L398.189 80.0226C398.183 80.031 389.874 90.9895 377.468 90.9895C363.048 90.9895 356.977 79.3111 356.977 73.269H411.075C413.917 50.1328 398.775 30.3656 376.571 30.3656ZM357.02 61.0967C357.145 59.7487 359.023 43.3761 376.442 43.3761C393.861 43.3761 395.978 59.7464 396.099 61.0967H357.02Z" fill="currentColor" />
                      </svg>
- 
+
 -                    {{-- Light Mode 12 SVG --}}
 -                    <svg class="w-[448px] max-w-none relative -mt-[4.9rem] -ml-8 lg:ml-0 lg:-mt-[6.6rem] dark:hidden" viewBox="0 0 440 376" fill="none" xmlns="http://www.w3.org/2000/svg">
 -                        <g class="transition-all delay-300 translate-y-0 opacity-100 duration-750 starting:opacity-0 starting:translate-y-4">
@@ -491,7 +491,7 @@ index <hash>..<hash>
 -                            <path d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z" stroke="#1B1B18" stroke-width="1" />
 -                        </g>
 -                    </svg>
- 
+
 -                    {{-- Dark Mode 12 SVG --}}
 -                    <svg class="w-[448px] max-w-none relative -mt-[4.9rem] -ml-8 lg:ml-0 lg:-mt-[6.6rem] hidden dark:block" viewBox="0 0 440 376" fill="none" xmlns="http://www.w3.org/2000/svg">
 -                        <g class="transition-all delay-300 translate-y-0 opacity-100 duration-750 starting:opacity-0 starting:translate-y-4">
@@ -558,7 +558,7 @@ index <hash>..<hash>
 -                            <path d="M246.539 254.781L275.362 304.701L217.294 405.277L188.471 355.358L246.539 254.781Z" stroke="#FF750F" stroke-width="1" stroke-linejoin="bevel"/>
 -                            <path d="M67.3906 125.391L170.923 304.698L112.855 405.275L9.32257 225.967L67.3906 125.391Z" stroke="#FF750F" stroke-width="1" stroke-linejoin="bevel"/>
 -                            <path d="M170.921 304.699L233.865 304.701L175.797 405.278L112.853 405.276L170.921 304.699Z" stroke="#FF750F" stroke-width="1" stroke-linejoin="bevel"/>
-+                        
++
 +                        <g class="mix-blend-color dark:mix-blend-hard-light transition-all delay-400 opacity-100 duration-750 starting:opacity-0 motion-safe:starting:-translate-x-[51px] text-[#F8B803] dark:text-[#391800]">
 +                            <mask id="path-3-mask" maskUnits="userSpaceOnUse" x="51" y="103" width="338" height="299" fill="black">
 +                                <rect fill="white" x="51" y="103" width="338" height="299"/>
@@ -573,7 +573,7 @@ index <hash>..<hash>
 -                        <g class="transition-all delay-300 translate-y-0 opacity-100 duration-750 starting:opacity-0 starting:translate-y-4" style="mix-blend-mode:hard-light">
 -                            <path d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z" fill="#4B0600"/>
 -                            <path d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z" stroke="#FF750F" stroke-width="1" stroke-linejoin="round"/>
-+                        
++
 +                        <g class="mix-blend-multiply dark:mix-blend-normal transition-all delay-400 opacity-100 duration-750 starting:opacity-0 motion-safe:starting:-translate-x-[78px] text-[#F3BEC7] dark:text-[#733000]">
 +                            <mask id="path-4-mask" maskUnits="userSpaceOnUse" x="76.6643" y="103" width="338" height="299" fill="black">
 +                                <rect fill="white" x="76.6643" y="103" width="338" height="299"/>
@@ -588,7 +588,7 @@ index <hash>..<hash>
 -                        <g class="transition-all delay-300 translate-y-0 opacity-100 duration-750 starting:opacity-0 starting:translate-y-4" style="mix-blend-mode:hard-light">
 -                            <path d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z" fill="#4B0600"/>
 -                            <path d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z" stroke="#FF750F" stroke-width="1"/>
-+                        
++
 +                        <g class="mix-blend-hard-light transition-all delay-400 opacity-100 duration-750 starting:opacity-0 motion-safe:starting:-translate-x-[102px] text-[#F3BEC7] dark:text-[#4B0600]">
 +                            <mask id="path-5-mask" maskUnits="userSpaceOnUse" x="102.329" y="103" width="338" height="299" fill="black">
 +                                <rect fill="white" x="102.329" y="103" width="338" height="299"/>
@@ -611,7 +611,7 @@ index <hash>..<hash>
  import laravel from 'laravel-vite-plugin';
 +import { bunny } from 'laravel-vite-plugin/fonts';
  import tailwindcss from '@tailwindcss/vite';
- 
+
  export default defineConfig({
 @@ -7,6 +8,11 @@ export default defineConfig({
          laravel({
