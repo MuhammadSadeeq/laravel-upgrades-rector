@@ -28,12 +28,14 @@ final class CarbonSetGatingTest extends TestCase
 
     public function test_rules_apply_only_when_carbon_three_is_installed(): void
     {
+        // CarbonImmutable is the probe because Carbon 3 defines startOfTime()
+        // only there; a mutable receiver is deliberately never rewritten.
         $fixture = <<<'PHP'
 <?php
 
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 
-$min = Carbon::minValue();
+$min = CarbonImmutable::minValue();
 PHP;
 
         $withoutCarbon = $this->runInSyntheticProject($fixture, null);

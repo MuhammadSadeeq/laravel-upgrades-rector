@@ -13,6 +13,7 @@ final class Bounds
             'min' => Carbon::minValue(),
             'max' => Carbon::maxValue(),
             'immutableMin' => CarbonImmutable::minValue(),
+            'immutableMax' => CarbonImmutable::maxValue(),
         ];
     }
 }
@@ -31,9 +32,10 @@ final class Bounds
     public function edges(): array
     {
         return [
-            'min' => Carbon::startOfTime(),
-            'max' => Carbon::endOfTime(),
+            'min' => Carbon::minValue(),
+            'max' => Carbon::maxValue(),
             'immutableMin' => CarbonImmutable::startOfTime(),
+            'immutableMax' => CarbonImmutable::endOfTime(),
         ];
     }
 }

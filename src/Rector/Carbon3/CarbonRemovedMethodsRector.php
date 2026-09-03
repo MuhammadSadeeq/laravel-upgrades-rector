@@ -20,9 +20,11 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * Methods removed in Carbon 3, plus the zero-argument isSameX() → isCurrentX()
  * rename (isSameDay() still exists but now requires an argument).
  *
- * - Carbon::minValue() / maxValue()  → startOfTime() / endOfTime() on the SAME
- *   class: both exist as static methods on every Carbon 3 class, and keeping
- *   the receiver avoids silently changing mutability semantics;
+ * - CarbonImmutable::minValue() / maxValue() → startOfTime() / endOfTime().
+ *   Carbon 3 removed minValue()/maxValue() from every class but only defines
+ *   the replacements on CarbonImmutable, so mutable receivers are left alone:
+ *   rewriting them would swap one missing method for another, and switching
+ *   the receiver to CarbonImmutable would silently change mutability;
  * - $date->setUtf8(...)              → call stripped (removed in Carbon 3);
  * - $date->setWeekStartsAt(...) / ->setWeekEndsAt(...) → calling them would
  *   fatal in Carbon 3; when they form a whole statement the statement is
@@ -91,13 +93,13 @@ final class CarbonRemovedMethodsRector extends AbstractRector
             [
                 new CodeSample(
                     <<<'CODE_SAMPLE'
-$min = Carbon::minValue();
+$min = CarbonImmutable::minValue();
 $date->setUtf8(false);
-$date->setWeekStartsAt(Carbon::MONDAY);
+$date->setWeekStartsAt(CarbonImmutable::MONDAY);
 $same = $date->isSameDay();
 CODE_SAMPLE,
                     <<<'CODE_SAMPLE'
-$min = Carbon::startOfTime();
+$min = CarbonImmutable::startOfTime();
 $same = $date->isCurrentDay();
 CODE_SAMPLE,
                 ),
@@ -134,13 +136,13 @@ CODE_SAMPLE,
 
         $methodName = $this->getName($staticCall->name);
 
-        if ($methodName === 'minValue' && $this->isCarbonClassName($staticCall->class)) {
+        if ($methodName === 'minValue' && $this->isImmutableCarbonClassName($staticCall->class)) {
             $staticCall->name = new Identifier('startOfTime');
 
             return $staticCall;
         }
 
-        if ($methodName === 'maxValue' && $this->isCarbonClassName($staticCall->class)) {
+        if ($methodName === 'maxValue' && $this->isImmutableCarbonClassName($staticCall->class)) {
             $staticCall->name = new Identifier('endOfTime');
 
             return $staticCall;
@@ -183,9 +185,13 @@ CODE_SAMPLE,
         return null;
     }
 
-    private function isCarbonClassName(Name $class): bool
+    /**
+     * startOfTime()/endOfTime() are defined only on CarbonImmutable in Carbon 3,
+     * so only an immutable receiver can be rewritten.
+     */
+    private function isImmutableCarbonClassName(Name $class): bool
     {
-        foreach (['Carbon', 'Carbon\Carbon', 'Illuminate\Support\Carbon', 'Carbon\CarbonImmutable'] as $candidate) {
+        foreach (['CarbonImmutable', 'Carbon\CarbonImmutable'] as $candidate) {
             if ($this->isName($class, $candidate)) {
                 return true;
             }
