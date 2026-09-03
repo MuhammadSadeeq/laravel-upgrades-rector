@@ -27,7 +27,10 @@ jobs:
           runtime_manifest_backup="$RUNNER_TEMP/laravel-upgrades-rector-composer.json"
           cp composer.json "$runtime_manifest_backup"
           trap 'mv "$runtime_manifest_backup" composer.json' EXIT
-          php -r '$path = "composer.json"; $manifest = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR); unset($manifest["require-dev"], $manifest["autoload-dev"]); file_put_contents($path, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);'
+          # Decode to objects, not arrays: an empty JSON object such as
+          # config.allow-plugins would otherwise round-trip as [] and fail
+          # Composer's schema validation.
+          php -r '$path = "composer.json"; $manifest = json_decode((string) file_get_contents($path), false, 512, JSON_THROW_ON_ERROR); unset($manifest->{"require-dev"}, $manifest->{"autoload-dev"}); file_put_contents($path, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);'
           composer update --no-dev --prefer-dist --no-interaction --no-progress
 
       - name: Validate support policy and CLI bootstrap
@@ -62,6 +65,19 @@ jobs:
 
       - name: Install dependencies
         run: composer update --${{ matrix.dependency-version }} --prefer-dist --no-interaction --no-progress
+
+      # The rule suites type-check against real framework sources instead of
+      # hand-written stubs, so each per-version vendor tree must exist before
+      # composer test runs. They are gitignored and installed from committed
+      # lock files.
+      - name: Cache per-version framework environments
+        uses: actions/cache@v4
+        with:
+          path: tests/env/laravel-*/vendor
+          key: test-envs-${{ matrix.php }}-${{ hashFiles('tests/env/laravel-*/composer.lock') }}
+
+      - name: Install per-version framework environments
+        run: composer setup-envs
 
       - name: Execute tests
         run: composer test

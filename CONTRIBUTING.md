@@ -192,6 +192,11 @@ cd laravel-upgrades-rector
 # Install dependencies
 composer install
 
+# Install the per-version framework environments the rule suites analyse
+# against. These are gitignored and required: without them the env suites
+# stop with a clear error instead of silently skipping.
+composer setup-envs
+
 # Run tests to ensure everything works
 composer test
 

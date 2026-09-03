@@ -62,6 +62,11 @@
         }
     },
     "scripts": {
+        "setup-envs": [
+            "@composer install --working-dir=tests/env/laravel-11 --prefer-dist --no-interaction --no-progress",
+            "@composer install --working-dir=tests/env/laravel-12 --prefer-dist --no-interaction --no-progress",
+            "@composer install --working-dir=tests/env/laravel-13 --prefer-dist --no-interaction --no-progress"
+        ],
         "test": [
             "@test-env-11",
             "@test-env-12",
