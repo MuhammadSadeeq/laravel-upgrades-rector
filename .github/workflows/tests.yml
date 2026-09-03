@@ -38,6 +38,47 @@ jobs:
           php bin/check-support-policy
           php bin/laravel-upgrade --help
 
+  # Full suite, including the rule and advisory suites that analyse real
+  # framework sources. Those per-version trees are installed from committed
+  # lock files whose transitive Symfony packages require the newest PHP, and
+  # their contents do not vary with the host PHP — so analysing them once is
+  # full coverage. Cross-version coverage lives in the `test` job below.
+  test-envs:
+    runs-on: ubuntu-latest
+    name: PHP 8.4 - full suite (real framework environments)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Cache per-version framework environments
+        uses: actions/cache@v4
+        with:
+          path: tests/env/laravel-*/vendor
+          key: test-envs-${{ hashFiles('tests/env/laravel-*/composer.lock') }}
+
+      - name: Install per-version framework environments
+        run: composer setup-envs
+
+      - name: Execute full test suite
+        run: composer test
+
+      - name: Execute static analysis
+        run: composer analyse
+
   test:
     runs-on: ubuntu-latest
 
@@ -66,21 +107,11 @@ jobs:
       - name: Install dependencies
         run: composer update --${{ matrix.dependency-version }} --prefer-dist --no-interaction --no-progress
 
-      # The rule suites type-check against real framework sources instead of
-      # hand-written stubs, so each per-version vendor tree must exist before
-      # composer test runs. They are gitignored and installed from committed
-      # lock files.
-      - name: Cache per-version framework environments
-        uses: actions/cache@v4
-        with:
-          path: tests/env/laravel-*/vendor
-          key: test-envs-${{ matrix.php }}-${{ hashFiles('tests/env/laravel-*/composer.lock') }}
-
-      - name: Install per-version framework environments
-        run: composer setup-envs
-
-      - name: Execute tests
-        run: composer test
+      # The framework-environment suites run once, in the test-envs job.
+      # This matrix covers the environment-independent suite across every
+      # supported PHP version and both dependency resolutions.
+      - name: Execute environment-independent tests
+        run: composer test-independent
 
       - name: Execute static analysis
         run: composer analyse
