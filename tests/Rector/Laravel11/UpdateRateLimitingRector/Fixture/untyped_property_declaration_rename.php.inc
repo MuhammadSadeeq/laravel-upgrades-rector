@@ -4,9 +4,9 @@ namespace App\Jobs\Middleware;
 
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
 
-final class RetryWithBackoff extends ThrottlesExceptions
+final class RetryUntyped extends ThrottlesExceptions
 {
-    protected int $decayMinutes = 5;
+    protected $decayMinutes = 5;
 
     public function middleware(): array
     {
@@ -22,7 +22,7 @@ namespace App\Jobs\Middleware;
 
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
 
-final class RetryWithBackoff extends ThrottlesExceptions
+final class RetryUntyped extends ThrottlesExceptions
 {
     protected $decaySeconds = 5 * 60;
 

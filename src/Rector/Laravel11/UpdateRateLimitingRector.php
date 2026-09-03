@@ -170,6 +170,13 @@ CODE_SAMPLE,
 
         $onlyPropertyItem->name = new VarLikeIdentifier('decaySeconds');
 
+        // A redeclared property must repeat its ancestor's type exactly. The
+        // framework middleware declares $decaySeconds without a type, so a
+        // typed child declaration is a fatal error at class load.
+        if ($property->type !== null && $this->hasUntypedInheritedProperty($classReflection, 'decaySeconds')) {
+            $property->type = null;
+        }
+
         $default = $onlyPropertyItem->default;
 
         if ($default instanceof LNumber) {
@@ -177,6 +184,23 @@ CODE_SAMPLE,
         }
 
         return $property;
+    }
+
+    private function hasUntypedInheritedProperty(ClassReflection $classReflection, string $propertyName): bool
+    {
+        $parentClassReflection = $classReflection->getParentClass();
+
+        while ($parentClassReflection instanceof ClassReflection) {
+            $nativeReflection = $parentClassReflection->getNativeReflection();
+
+            if ($nativeReflection->hasProperty($propertyName)) {
+                return ! $nativeReflection->getProperty($propertyName)->hasType();
+            }
+
+            $parentClassReflection = $parentClassReflection->getParentClass();
+        }
+
+        return false;
     }
 
     private function refactorPropertyFetch(PropertyFetch $propertyFetch): ?Node
