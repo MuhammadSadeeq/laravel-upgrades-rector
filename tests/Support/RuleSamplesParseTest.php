@@ -16,7 +16,7 @@ use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
 /**
- * Plan P0-14 AC: "Fix the N unparseable getRuleDefinition() samples".
+ * Every getRuleDefinition() code sample must parse as PHP.
  * This gate keeps them fixed — every code sample of every rule must parse
  * as PHP (optionally wrapped in an opening tag).
  */

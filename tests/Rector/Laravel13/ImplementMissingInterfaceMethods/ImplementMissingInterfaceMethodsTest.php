@@ -10,7 +10,7 @@ use Rector\Testing\PHPUnit\AbstractRectorTestCase;
 
 /**
  * One configurable rule replaces the eleven per-interface contract rules
- * (plan P2-02, decision D4). Fixtures migrated from those suites.
+ * (decision D4). Fixtures migrated from those suites.
  */
 final class ImplementMissingInterfaceMethodsTest extends AbstractRectorTestCase
 {

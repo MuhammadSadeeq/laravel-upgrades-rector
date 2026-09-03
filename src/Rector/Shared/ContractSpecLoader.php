@@ -8,7 +8,7 @@ use RuntimeException;
 
 /**
  * Loads the per-major contract addition lists from
- * resources/contracts/laravel-<major>.php (plan P2-02, decision D4).
+ * resources/contracts/laravel-<major>.php (decision D4).
  */
 final class ContractSpecLoader
 {

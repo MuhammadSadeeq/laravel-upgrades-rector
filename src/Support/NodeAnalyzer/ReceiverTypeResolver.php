@@ -12,7 +12,7 @@ use PHPStan\Type\Type;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 
 /**
- * Three-valued receiver typing (plan P2-01): transform rules act only on Yes;
+ * Three-valued receiver typing: transform rules act only on Yes;
  * Unknown becomes an advisory finding; Never/No is a confident skip.
  */
 final class ReceiverTypeResolver

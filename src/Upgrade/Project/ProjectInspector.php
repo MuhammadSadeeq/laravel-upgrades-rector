@@ -13,7 +13,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Process\SymfonyProcessRunner;
 
 /**
  * Inspects the project being upgraded: Laravel version, PHP version,
- * git state, dependencies and configuration (plan P4-02).
+ * git state, dependencies and configuration.
  *
  * Project PHP files are intentionally treated as text here. Reading a config
  * file must not execute application code or trigger Composer side effects.
@@ -88,7 +88,7 @@ final class ProjectInspector
         );
     }
 
-    /** Return an immutable snapshot of all P4-02 facts. */
+    /** Return an immutable snapshot of the inspected project facts. */
     public function inspect(): ProjectInspection
     {
         $version = $this->laravelVersion();

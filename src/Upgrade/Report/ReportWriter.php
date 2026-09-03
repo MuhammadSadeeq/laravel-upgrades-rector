@@ -7,7 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report;
 use MuhammadSadeeq\LaravelUpgradesRector\PackageInfo;
 
 /**
- * Renders the versioned upgrade report document (Appendix D).
+ * Renders the versioned upgrade report document.
  *
  * The writer only renders data. Atomic persistence is owned by the report
  * generator so callers can update the canonical JSON and Markdown files
@@ -40,7 +40,7 @@ final class ReportWriter
     }
 
     /**
-     * Render the required Appendix D sections in their canonical order.
+     * Render the required report sections in their canonical order.
      *
      * @param  array<string, mixed>  $report
      */

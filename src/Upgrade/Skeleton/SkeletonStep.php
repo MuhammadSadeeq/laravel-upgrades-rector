@@ -13,7 +13,7 @@ use RuntimeException;
  * Synchronizes a project with the target Laravel skeleton.
  *
  * The short sync() API remains available for callers that only want config
- * reconciliation. syncProject() applies the complete Phase 5 file policy.
+ * reconciliation. syncProject() applies the complete skeleton file policy.
  */
 final class SkeletonStep
 {
@@ -58,7 +58,7 @@ final class SkeletonStep
 
     /**
      * Merges missing config keys from a target snapshot. This is kept
-     * backwards-compatible with the original Phase 5 prototype.
+     * backwards-compatible with the original prototype.
      *
      * @return list<string>
      */

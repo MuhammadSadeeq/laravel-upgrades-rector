@@ -34,8 +34,8 @@ return RectorConfig::configure()
 
 /*
  * Deliberately NOT registered — dead or harmful advisory rules whose checks
- * move to the Phase 3 PHPStan advisory engine, the Phase 5 config merger or
- * the Phase 4 verification step:
+ * move to the PHPStan advisory engine, the config merger or
+ * the verification step:
  *
  * - UpdateCacheConfigurationRector       → wrong session-cookie guidance; all fixtures were no-ops
  * - UpdateNotificationBehaviorRector     → targeted the cohort that is already safe

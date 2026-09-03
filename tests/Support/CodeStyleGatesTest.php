@@ -10,7 +10,7 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * Plan P1-06: static gates over src/ that encode the plan's hard rules.
+ * Static gates over src/ that encode the project's hard rules.
  *
  * - no ORIGINAL_NODE nulling (it forces full-class reprint churn, deleting
  *   blank lines and collapsing promoted constructors);
@@ -58,6 +58,43 @@ final class CodeStyleGatesTest extends TestCase
                         '%s:%d legacy AST construct (Class_::MODIFIER_*/PropertyProperty) — use Modifiers::* and PropertyItem.',
                         $relative,
                         $lineNo
+                    );
+                }
+            }
+        }
+
+        self::assertSame([], $violations, implode("\n", $violations));
+    }
+
+    public function test_shipped_code_does_not_reference_internal_planning_documents(): void
+    {
+        $violations = [];
+        $pattern = '/\bP[0-7]-[0-9]{2}\b|\b[Pp]hase [0-7]\b|UPGRADE-PLATFORM-PLAN|plan-progress|\bAppendix [A-G]\b|\(plan /';
+
+        $paths = [];
+
+        foreach (['src', 'config', 'resources'] as $directory) {
+            foreach ($this->srcFiles($directory) as $file) {
+                $paths[] = $file->getPathname();
+            }
+        }
+
+        // bin/ scripts are extensionless, so the .php filter would skip them.
+        foreach ((array) glob(dirname(__DIR__, 2).'/bin/*') as $binary) {
+            if (is_string($binary) && is_file($binary)) {
+                $paths[] = $binary;
+            }
+        }
+
+        foreach ($paths as $path) {
+            $lines = file($path) ?: [];
+
+            foreach ($lines as $index => $line) {
+                if (preg_match($pattern, $line) === 1) {
+                    $violations[] = sprintf(
+                        '%s:%d references an internal planning document; describe the behaviour instead.',
+                        $this->relative($path),
+                        $index + 1
                     );
                 }
             }

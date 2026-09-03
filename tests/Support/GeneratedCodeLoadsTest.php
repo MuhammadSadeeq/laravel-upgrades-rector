@@ -7,7 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Tests\Support;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Plan P1-02 "Generated-code load gate".
+ * Generated-code load gate.
  *
  * Rector fixture AFTER halves are class definitions that claim to satisfy
  * real framework contracts. A fixture whose expected output omits (or

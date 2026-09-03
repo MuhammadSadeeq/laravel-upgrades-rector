@@ -13,7 +13,7 @@ use PhpParser\Node\Stmt\Expression;
 /**
  * Yields every method/static/new call nested anywhere inside a statement,
  * regardless of shape — bare expression, assignment, return, argument,
- * array item or chained call (plan P2-01, rule standard #4).
+ * array item or chained call.
  *
  * Replaces per-rule "expr instanceof X" ladders and StaticCallExtractor.
  */

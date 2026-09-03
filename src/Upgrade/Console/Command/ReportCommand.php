@@ -10,7 +10,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-/** Regenerates the root Markdown report from canonical report.json (P4-11). */
+/** Regenerates the root Markdown report from the canonical report.json. */
 final class ReportCommand extends Command
 {
     public function __construct(private readonly UpgradeReportGenerator $reportGenerator = new UpgradeReportGenerator)
@@ -24,7 +24,7 @@ final class ReportCommand extends Command
             ->setName('report')
             ->setDescription('Regenerate UPGRADE-REPORT.md from canonical report.json')
             ->addOption('working-dir', 'd', InputOption::VALUE_REQUIRED, 'Project directory', '.')
-            // Kept as a parse-compatible option for callers of the pre-P4-11
+            // Kept as a parse-compatible option for callers of the earlier
             // command. Reports are always read from the project state folder.
             ->addOption('output-dir', 'o', InputOption::VALUE_REQUIRED, 'Deprecated; reports are written at the project root')
             ->addOption('findings-jsonl', null, InputOption::VALUE_REQUIRED, 'Deprecated; report.json is the canonical input');

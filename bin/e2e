@@ -8,7 +8,7 @@ use MuhammadSadeeq\LaravelUpgradesRector\Upgrade\E2E\E2eApplicationDirectoryAllo
 use Symfony\Component\Process\Process;
 
 /**
- * End-to-end upgrade harness (plan P1-05).
+ * End-to-end upgrade harness.
  *
  * Usage: php bin/e2e <from-major> <to-major> [keep|modern]
  *
@@ -791,7 +791,7 @@ function assertFindingEntrySchema(mixed $finding, int $index): void
 }
 
 /**
- * Convert a report file to the stable Appendix E finding snapshot format.
+ * Convert a report file to the stable finding snapshot format.
  * Empty Finding::file values are the sole project-level representation and
  * become the explicit <project> sentinel; every other path must resolve to a
  * relative path inside the temporary application being upgraded.

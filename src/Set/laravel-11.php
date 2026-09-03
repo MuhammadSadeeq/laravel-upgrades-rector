@@ -50,8 +50,8 @@ return RectorConfig::configure()
 
 /*
  * Deliberately NOT registered — dead or harmful advisory rules whose checks
- * move to the Phase 3 PHPStan advisory engine, the Phase 4 preflight/post
- * steps or the Phase 5 config merger:
+ * move to the PHPStan advisory engine, the preflight/post
+ * steps or the config merger:
  *
  * - UpdateSqliteVersionRector          → environment preflight (sqlite >= 3.26)
  * - UpdateCachePrefixConfigRector      → matched a shape that never occurs in real configs

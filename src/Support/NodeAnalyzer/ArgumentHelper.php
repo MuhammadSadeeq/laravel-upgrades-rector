@@ -9,7 +9,7 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 
 /**
- * Argument inspection helpers shared by transform rules (plan P2-01,
+ * Argument inspection helpers shared by transform rules
  * rule standard #5): named arguments are skipped or mapped explicitly,
  * first-class callables and spreads never get rewritten silently.
  */

@@ -7,7 +7,7 @@ namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report;
 use JsonException;
 
 /**
- * In-memory finding collector shared across upgrade steps (plan P3-01).
+ * In-memory finding collector shared across upgrade steps.
  * Serialised to JSONL at .laravel-upgrade/findings.jsonl for cross-process use.
  */
 final class FindingCollector

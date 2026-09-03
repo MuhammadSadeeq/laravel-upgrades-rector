@@ -14,7 +14,7 @@ use PHPStan\Type\ObjectType;
 
 /**
  * Flags every ->change() call on a Blueprint receiver without explicit index
- * modifiers (plan P3-03, ColumnChangeRequiresModifiersRule).
+ * modifiers.
  *
  * Port of the former UpdateColumnModificationRector advisory comment, now
  * as a structured PHPStan rule with file/line/severity metadata.

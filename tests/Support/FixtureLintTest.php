@@ -10,7 +10,7 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * Plan P1-03: static hygiene rules for every rule fixture.
+ * Static hygiene rules for every rule fixture.
  *
  * - every *.php.inc declares a namespace (global-namespace fixtures hid the
  *   relative-name bug once already);

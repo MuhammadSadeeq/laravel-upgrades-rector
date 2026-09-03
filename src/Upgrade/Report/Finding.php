@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MuhammadSadeeq\LaravelUpgradesRector\Upgrade\Report;
 
 /**
- * One upgrade advisory finding (plan P3-01, Appendix D schema).
+ * One upgrade advisory finding, as recorded in the upgrade report.
  * Immutable value object; collected across steps into report.json.
  */
 final class Finding

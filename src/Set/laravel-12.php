@@ -13,9 +13,9 @@ return RectorConfig::configure()
 
 /*
  * Deliberately NOT registered — dead or harmful advisory rules whose checks
- * move to the Phase 3 PHPStan advisory engine or the Phase 5 config merger:
+ * move to the PHPStan advisory engine or the config merger:
  *
- * - UpdateComposerDependenciesRector          → `laravel-upgrade deps` command (P0-02)
+ * - UpdateComposerDependenciesRector          → `laravel-upgrade deps` command
  * - ReplaceHasVersion4UuidsRector             → contradicted the v7 rule on the same import
  * - UpdateBlueprintConstructorRector          → flagged already-correct Laravel 12 code forever
  * - UpdateContainerDependencyResolutionRector → fired on every constructor with a defaulted

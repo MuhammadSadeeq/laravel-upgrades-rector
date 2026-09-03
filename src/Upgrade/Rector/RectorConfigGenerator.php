@@ -8,7 +8,7 @@ use RuntimeException;
 
 /**
  * Generates the per-run Rector configuration used by the orchestrator
- * (plan P2-06, decision D11): absolute project paths, target set, PHP
+ * (decision D11): absolute project paths, target set, PHP
  * version, optional Larastan and a project-local cache directory.
  *
  * The generated file is written to .laravel-upgrade/rector-<major>.php so

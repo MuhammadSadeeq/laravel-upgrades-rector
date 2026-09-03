@@ -8,7 +8,7 @@ declare(strict_types=1);
  * When LARAVEL_ENV is set (11|12|13), the matching real framework vendor tree
  * under tests/env/ is loaded BEFORE this package's autoloader, so every
  * Illuminate/Carbon/Cashier symbol resolves to the genuine framework code —
- * the type stubs are gone on purpose (plan P1-01). Rule suites that do not
+ * the type stubs are gone on purpose. Rule suites that do not
  * match the active environment skip themselves via AbstractUpgradeRectorTestCase.
  */
 $laravelEnv = getenv('LARAVEL_ENV');

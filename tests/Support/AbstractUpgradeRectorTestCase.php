@@ -10,7 +10,7 @@ use Rector\Testing\PHPUnit\AbstractRectorTestCase;
  * Base test case for upgrade rules. Adds a second-pass idempotency gate to
  * Rector's fixture runner: after the standard before/after assertion, the
  * rule is applied AGAIN to its own expected output and must produce no
- * further change (plan P0-13).
+ * further change.
  *
  * A fixture may opt out with a first-line `// @not-idempotent-by-design`
  * comment — expected only for rules that deliberately converge over
