@@ -27,9 +27,9 @@
     ],
     "require": {
         "php": "^8.1",
-        "rector/rector": "^2.3",
+        "rector/rector": "^2.6",
         "composer/semver": "^3.4",
-        "nikic/php-parser": "^5.0",
+        "nikic/php-parser": "^5.5",
         "symfony/console": "^6.4 || ^7.0",
         "symfony/process": "^6.4 || ^7.0",
         "symplify/rule-doc-generator-contracts": "^11.0",

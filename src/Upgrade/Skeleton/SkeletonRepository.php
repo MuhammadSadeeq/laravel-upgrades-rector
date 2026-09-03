@@ -81,6 +81,8 @@ final class SkeletonRepository
             throw new RuntimeException(sprintf('No metadata exists for Laravel %d.', $major));
         }
 
+        // Manifest entries are decoded JSON objects, so their keys are strings.
+        /** @var array<string, mixed> $entry */
         return $entry;
     }
 

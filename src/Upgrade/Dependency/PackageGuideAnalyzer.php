@@ -49,10 +49,11 @@ final class PackageGuideAnalyzer
                     continue;
                 }
 
-                $componentCount = $majorGuide->counter?->count($workingDirectory);
-                $suffix = $componentCount === null
+                $counter = $majorGuide->counter;
+                $componentCount = $counter?->count($workingDirectory);
+                $suffix = $counter === null || $componentCount === null
                     ? ''
-                    : sprintf(' Detected %d %s.', $componentCount, $majorGuide->counter?->label);
+                    : sprintf(' Detected %d %s.', $componentCount, $counter->label);
                 $futureNote = $majorGuide->isFuture() && $majorGuide->notes !== null
                     ? ' '.$majorGuide->notes
                     : '';

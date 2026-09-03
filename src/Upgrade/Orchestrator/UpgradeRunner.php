@@ -277,7 +277,9 @@ final class UpgradeRunner
                     $checkpointFailed = $checkpoint === null || $checkpoint->isFailed();
 
                     if ($checkpointFailed) {
-                        $checkpointMessage ??= 'Git checkpoint failed: '.$checkpoint?->message;
+                        $checkpointMessage ??= $checkpoint === null
+                            ? 'Git checkpoint failed.'
+                            : 'Git checkpoint failed: '.$checkpoint->message;
                         $result = StepResult::failed(
                             message: $checkpointMessage,
                             data: $checkpoint === null ? ['check' => 'git-checkpoint'] : ['git' => $checkpoint->data],
