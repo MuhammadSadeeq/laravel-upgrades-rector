@@ -36,7 +36,7 @@
         "composer/metadata-minifier": "^1.0"
     },
     "require-dev": {
-        "phpstan/phpstan": "^1.10 || ^2.0",
+        "phpstan/phpstan": "^2.2",
         "phpunit/phpunit": "^11.0",
         "laravel/pint": "^1.30",
         "driftingly/rector-laravel": "^2.5"
