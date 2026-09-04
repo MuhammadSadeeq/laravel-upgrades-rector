@@ -350,11 +350,63 @@ final class PreflightStep implements StepInterface
             return $this->failure('git', 'Could not inspect git status.', $this->processData($result));
         }
 
-        if (trim($result->combinedOutput()) !== '') {
+        $entries = $this->userVisibleStatusEntries($result->combinedOutput());
+
+        if ($entries !== []) {
             return $this->failure('git', 'The working tree is not clean.', $this->processData($result));
         }
 
         return null;
+    }
+
+    /**
+     * Porcelain entries that represent the user's own changes.
+     *
+     * The tool writes its plan, journal and merge artifacts into
+     * .laravel-upgrade/, so a plan run leaves that directory untracked. Counting
+     * it as a dirty tree would make `plan` followed by `to` — the documented
+     * flow — fail preflight. The commit step already excludes the same path.
+     *
+     * @return list<string>
+     */
+    private function userVisibleStatusEntries(string $porcelainOutput): array
+    {
+        $entries = [];
+
+        foreach (explode("\n", $porcelainOutput) as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $path = strlen($line) > 3 ? substr($line, 3) : '';
+
+            // Renames are reported as "old -> new"; the destination decides.
+            $arrowPosition = strpos($path, ' -> ');
+
+            if ($arrowPosition !== false) {
+                $path = substr($path, $arrowPosition + 4);
+            }
+
+            $path = trim($path);
+
+            if (str_starts_with($path, '"') && str_ends_with($path, '"')) {
+                $path = substr($path, 1, -1);
+            }
+
+            $path = str_replace('\\', '/', $path);
+
+            while (str_starts_with($path, './')) {
+                $path = substr($path, 2);
+            }
+
+            if ($path === '.laravel-upgrade' || str_starts_with($path, '.laravel-upgrade/')) {
+                continue;
+            }
+
+            $entries[] = $path;
+        }
+
+        return $entries;
     }
 
     private function binaryResolver(): BinaryResolver

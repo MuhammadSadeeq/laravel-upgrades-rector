@@ -125,6 +125,45 @@ final class RealStepTest extends TestCase
         self::assertSame('--porcelain', $runner->requests[2]->arguments[2]);
     }
 
+    public function test_preflight_ignores_the_tools_own_artifact_directory(): void
+    {
+        // A plan run leaves .laravel-upgrade/ untracked. Treating that as a dirty
+        // tree made the documented "plan, then apply" flow fail preflight.
+        $runner = new FakeProcessRunner([
+            new ProcessResult([], 0, 'Composer version 2.7.0'),
+            new ProcessResult([], 0, 'valid'),
+            new ProcessResult([], 0, "?? .laravel-upgrade/\n"),
+        ]);
+        $result = $this->preflight($runner)->execute($this->context(['git' => true]));
+
+        self::assertTrue($result->isSuccessful());
+    }
+
+    public function test_preflight_still_rejects_user_changes_alongside_the_artifact_directory(): void
+    {
+        $runner = new FakeProcessRunner([
+            new ProcessResult([], 0, 'Composer version 2.7.0'),
+            new ProcessResult([], 0, 'valid'),
+            new ProcessResult([], 0, "?? .laravel-upgrade/\n M app/Models/User.php\n"),
+        ]);
+        $result = $this->preflight($runner)->execute($this->context(['git' => true]));
+
+        self::assertTrue($result->isFailed());
+        self::assertSame('git', $result->data['check']);
+    }
+
+    public function test_preflight_rejects_a_path_that_merely_resembles_the_artifact_directory(): void
+    {
+        $runner = new FakeProcessRunner([
+            new ProcessResult([], 0, 'Composer version 2.7.0'),
+            new ProcessResult([], 0, 'valid'),
+            new ProcessResult([], 0, "?? .laravel-upgrades-notes.md\n"),
+        ]);
+        $result = $this->preflight($runner)->execute($this->context(['git' => true]));
+
+        self::assertTrue($result->isFailed());
+    }
+
     public function test_preflight_rejects_a_dirty_git_tree_when_git_safety_is_enabled(): void
     {
         $runner = new FakeProcessRunner([
