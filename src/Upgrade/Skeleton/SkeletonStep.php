@@ -351,6 +351,19 @@ final class SkeletonStep
                 continue;
             }
 
+            // Files that decide which application structure is in force must
+            // never be synced in keep mode. bootstrap/app.php is the pivot: the
+            // target version boots through withMiddleware()/withExceptions()
+            // and never loads app/Http/Kernel.php, so replacing it would
+            // silently drop every alias, group and handler the project defines
+            // while leaving the legacy files in place. Adopting the new
+            // structure is what --structure=modern is for.
+            if ($this->structureOnly($targetMajor, $relative)) {
+                $this->reportStructurePreserved($collector, $targetMajor, $relative);
+
+                continue;
+            }
+
             $oursPath = $projectDirectory.'/'.$relative;
             $basePath = $fromDirectory.'/'.$relative;
             $theirsPath = $toDirectory.'/'.$relative;
@@ -680,6 +693,27 @@ final class SkeletonStep
     private function nonPhpFile(string $relative): bool
     {
         return in_array($relative, self::NON_PHP_FILES, true);
+    }
+
+    private function reportStructurePreserved(
+        ?FindingCollector $collector,
+        int $targetMajor,
+        string $relative
+    ): void {
+        $collector?->add(
+            'laravelUpgrade.skeletonStructurePreserved',
+            Finding::SEVERITY_INFO,
+            $targetMajor,
+            $relative,
+            0,
+            sprintf(
+                'The Laravel %d skeleton rewrites "%s" as part of its application structure, so it was left unchanged.',
+                $targetMajor,
+                $relative
+            ),
+            'Your existing structure keeps working. To adopt the new one, re-run with --structure=modern, '
+                .'which migrates the kernels, exception handler and providers together.'
+        );
     }
 
     private function structureOnly(int $targetMajor, string $relative): bool

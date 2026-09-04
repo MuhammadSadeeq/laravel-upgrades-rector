@@ -413,6 +413,17 @@ final class AdvisoryStep implements StepInterface
                 $ruleId = $this->messageString($message, 'identifier')
                     ?? $this->messageString($message, 'id')
                     ?? 'phpstan';
+
+                // Report upgrade advisories only. Every rule this package
+                // registers uses a laravelUpgrade.* identifier; anything else is
+                // a pre-existing static-analysis result about the project's own
+                // code, which the user did not ask this step to audit and which
+                // can be a false positive on stock framework files. Analysis
+                // failures are surfaced separately from the run's error list.
+                if (! str_starts_with($ruleId, 'laravelUpgrade.')) {
+                    continue;
+                }
+
                 $text = $this->messageString($message, 'message') ?? 'PHPStan advisory reported.';
                 $metadata = is_array($message['metadata'] ?? null)
                     ? $this->stringKeyedArray($message['metadata'])

@@ -72,6 +72,33 @@ final class AdvisoryStepTest extends TestCase
         self::assertSame('https://example.test/upgrade', $finding['guideUrl'] ?? null);
     }
 
+    public function test_static_analysis_results_unrelated_to_the_upgrade_are_not_reported(): void
+    {
+        // Stock routes/console.php binds $this inside the Artisan closure, which
+        // core PHPStan reports as an undefined variable. That is a pre-existing
+        // result about the project's own code, not an upgrade advisory.
+        $runner = new AdvisoryFakeProcessRunner([
+            new ProcessResult([], 1, $this->phpstanJson([
+                'message' => 'Undefined variable: $this',
+                'line' => 18,
+                'identifier' => 'variable.undefined',
+            ])),
+        ]);
+
+        $result = $this->step($runner)->execute($this->context(planMode: true));
+
+        self::assertTrue($result->isSuccessful(), $result->message);
+        $findings = $result->data['findings'] ?? null;
+        self::assertIsArray($findings);
+
+        foreach (array_column($findings, 'ruleId') as $ruleId) {
+            self::assertIsString($ruleId);
+            self::assertStringStartsWith('laravelUpgrade.', $ruleId);
+        }
+
+        self::assertNotContains('variable.undefined', array_column($findings, 'ruleId'));
+    }
+
     public function test_low_confidence_rule_metadata_survives_into_finding_data(): void
     {
         $runner = new AdvisoryFakeProcessRunner([

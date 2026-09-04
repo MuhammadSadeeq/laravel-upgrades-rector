@@ -16,6 +16,7 @@
         }
     },
     "structureOnly": [
+        "bootstrap/app.php",
         "bootstrap/providers.php"
     ]
 }
