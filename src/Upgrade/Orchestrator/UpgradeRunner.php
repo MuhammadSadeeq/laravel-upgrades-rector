@@ -43,6 +43,31 @@ final class UpgradeRunner
     }
 
     /**
+     * The paths recorded by completed steps, as journaled so far.
+     *
+     * @param  array<string, mixed>  $state
+     * @return list<string>
+     */
+    private function changedFilesFromState(array $state): array
+    {
+        $changedFiles = $state['changedFiles'] ?? [];
+
+        if (! is_array($changedFiles)) {
+            return [];
+        }
+
+        $safeChangedFiles = [];
+
+        foreach ($changedFiles as $changedFile) {
+            if (is_string($changedFile)) {
+                $safeChangedFiles[] = $changedFile;
+            }
+        }
+
+        return $safeChangedFiles;
+    }
+
+    /**
      * @param  array<string, mixed>  $options
      */
     public function run(UpgradePlan $plan, array $options = []): UpgradeRunResult
@@ -56,20 +81,10 @@ final class UpgradeRunner
 
         // Verification needs the aggregate paths recorded by earlier real
         // steps. Keep these transient in the context; they are journal data,
-        // not user-supplied run options.
-        $changedFiles = $state['changedFiles'] ?? [];
-
-        if (is_array($changedFiles)) {
-            $safeChangedFiles = [];
-
-            foreach ($changedFiles as $changedFile) {
-                if (is_string($changedFile)) {
-                    $safeChangedFiles[] = $changedFile;
-                }
-            }
-
-            $options['changedFiles'] = $safeChangedFiles;
-        }
+        // not user-supplied run options. The journal grows as steps complete,
+        // so this is refreshed after each one — on a fresh run it starts empty,
+        // and a stale snapshot would leave verification with nothing to check.
+        $options['changedFiles'] = $this->changedFilesFromState($state);
         $runId = $this->stateString($state, 'runId');
 
         if ($plan->isNoOp()) {
@@ -365,6 +380,19 @@ final class UpgradeRunner
                     $result->findingsCount,
                 );
                 $completed = $this->completedStepsForTransition($state, $transition);
+
+                // Rebuild the context so the steps that follow see what this
+                // one changed. UpgradeContext is immutable, and verification
+                // decides what to lint and load from these paths.
+                $options['changedFiles'] = $this->changedFilesFromState($state);
+                $context = new UpgradeContext(
+                    workingDirectory: $this->stateStore->workingDirectory(),
+                    plan: $plan,
+                    runId: $runId,
+                    options: $options,
+                    activeFromMajor: $targetMajor - 1,
+                    activeToMajor: $targetMajor,
+                );
 
                 try {
                     $this->observer?->stepCompleted($transition, $stepName, $context, $result);

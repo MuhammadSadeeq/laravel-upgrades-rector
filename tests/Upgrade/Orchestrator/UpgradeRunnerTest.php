@@ -281,6 +281,36 @@ final class UpgradeRunnerTest extends TestCase
         self::assertNull($store->load());
     }
 
+    public function test_later_steps_see_the_files_earlier_steps_changed(): void
+    {
+        // Verification decides what to lint and load from these paths. The
+        // context is immutable and was previously built once, before any step
+        // ran, so on a fresh run it always reported nothing changed and the
+        // class-load check silently had nothing to verify.
+        $changed = ['/project/app/Models/User.php'];
+        $steps = [];
+
+        foreach (UpgradePlan::canonicalStepNames() as $name) {
+            $steps[] = new RecordingStep($name, changedFiles: $name === 'code' ? $changed : []);
+        }
+
+        $runner = new UpgradeRunner(new StateStore($this->workingDirectory), $steps);
+        $result = $runner->run(new UpgradePlan(10, 11));
+
+        self::assertTrue($result->success);
+
+        $verify = null;
+
+        foreach ($steps as $step) {
+            if ($step->name() === 'verify') {
+                $verify = $step;
+            }
+        }
+
+        self::assertInstanceOf(RecordingStep::class, $verify);
+        self::assertSame($changed, $verify->contexts[0]['options']['changedFiles'] ?? null);
+    }
+
     public function test_duplicate_step_names_are_rejected(): void
     {
         $steps = $this->steps();
@@ -353,12 +383,16 @@ final class RecordingStep implements StepInterface
     /** @var list<array{from: int, to: int, options: array<string, mixed>}> */
     public array $contexts = [];
 
+    /**
+     * @param  list<string>  $changedFiles
+     */
     public function __construct(
         private readonly string $stepName,
         private readonly bool $fails = false,
         private readonly bool $throws = false,
         private readonly ?int $failureCode = null,
         private readonly ?int $failureFrom = null,
+        private readonly array $changedFiles = [],
     ) {}
 
     public function name(): string
@@ -383,7 +417,10 @@ final class RecordingStep implements StepInterface
             return StepResult::failed($this->stepName.' failed', exitCode: $this->failureCode);
         }
 
-        return StepResult::successful(message: $this->stepName.' completed');
+        return StepResult::successful(
+            message: $this->stepName.' completed',
+            changedFiles: $this->changedFiles,
+        );
     }
 }
 
