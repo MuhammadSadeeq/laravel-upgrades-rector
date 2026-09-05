@@ -125,7 +125,10 @@ final class UpdateSanctumConfigRector extends AbstractRector
                     ? ltrim($item->value->class->toString(), '\\')
                     : ltrim($className, '\\');
 
-                if (in_array($rawClassName, [ltrim($mapping['fqcn'], '\\'), ltrim($className, '\\')], true)) {
+                // Either written form may already name the target class. Compare
+                // both against the target — comparing them against each other
+                // always matches, because both describe the same node.
+                if (in_array(ltrim($mapping['fqcn'], '\\'), [$rawClassName, ltrim($className, '\\')], true)) {
                     $updatedItems[] = $item;
 
                     continue;

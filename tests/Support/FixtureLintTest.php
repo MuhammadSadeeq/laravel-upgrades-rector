@@ -115,8 +115,18 @@ final class FixtureLintTest extends TestCase
 
         $namespaced = preg_match('/^namespace\s+\w/m', $contents) === 1;
 
-        if (! $namespaced) {
+        // Config files are never namespaced, so a fixture standing in for one
+        // must not be either: adding a namespace changes how bare class names
+        // resolve and makes the fixture unable to reproduce real behaviour.
+        // Such a fixture opts out explicitly.
+        $isConfigShaped = str_contains($contents, '@config-fixture');
+
+        if (! $namespaced && ! $isConfigShaped) {
             $violations[] = "$where/$name: declares no namespace";
+        }
+
+        if ($namespaced && $isConfigShaped) {
+            $violations[] = "$where/$name: marked @config-fixture but declares a namespace";
         }
 
         $hasSeparator = str_contains($contents, '-----');

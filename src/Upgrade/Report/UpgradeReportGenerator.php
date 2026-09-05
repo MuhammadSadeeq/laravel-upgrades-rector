@@ -201,12 +201,27 @@ final class UpgradeReportGenerator
             'findings' => [],
             'verification' => [],
             'verificationHistory' => [],
-            'whatToolDidNotDo' => [
-                'The .env file was never modified.',
-                'package.json and frontend dependencies were not upgraded by the Laravel skeleton pass.',
-                'Structure modernization was not performed while structure=keep.',
-                'Unknown packages and application-specific behavior require manual review.',
-            ],
+            'whatToolDidNotDo' => $this->whatToolDidNotDo($context),
+        ];
+    }
+
+    /**
+     * The limits of this run, stated accurately for the options it used.
+     *
+     * @return list<string>
+     */
+    private function whatToolDidNotDo(UpgradeContext $context): array
+    {
+        $structure = $context->option('structure', 'keep');
+        $isModern = is_string($structure) && $structure === 'modern';
+
+        return [
+            'The .env file was never modified.',
+            'package.json and frontend dependencies were not upgraded by the Laravel skeleton pass.',
+            $isModern
+                ? 'Structure modernization was performed; review the migrated bootstrap, providers and retired kernels.'
+                : 'Structure modernization was not performed while structure=keep.',
+            'Unknown packages and application-specific behavior require manual review.',
         ];
     }
 
