@@ -216,6 +216,43 @@ final class SkeletonStepTest extends TestCase
         ));
     }
 
+    public function test_a_migration_changed_upstream_is_not_copied_into_a_project_that_lacks_it(): void
+    {
+        // A migration absent from the project was deliberately skipped by an
+        // earlier transition. When the next pair of snapshots both contain it,
+        // it is classified as modified rather than added, and copying it then
+        // reintroduces a table an existing migration already creates.
+        $root = $this->tmpDir.'/migration-snapshots';
+        mkdir($root.'/11/database/migrations', 0777, true);
+        mkdir($root.'/12/database/migrations', 0777, true);
+        file_put_contents($root.'/MANIFEST.json', json_encode([
+            '11' => ['complete' => true],
+            '12' => ['complete' => true],
+        ], JSON_THROW_ON_ERROR));
+
+        $migration = 'database/migrations/0001_01_01_000002_create_jobs_table.php';
+        file_put_contents($root.'/11/'.$migration, '<?php
+// eleven
+');
+        file_put_contents($root.'/12/'.$migration, '<?php
+// twelve
+');
+
+        $collector = new FindingCollector;
+        (new SkeletonStep(new SkeletonRepository($root)))->syncProject(
+            $this->tmpDir,
+            11,
+            12,
+            $collector,
+        );
+
+        self::assertFileDoesNotExist($this->tmpDir.'/'.$migration);
+        self::assertContains('laravelUpgrade.skeletonMigrationAdded', array_map(
+            static fn ($finding): string => $finding->ruleId,
+            $collector->all(),
+        ));
+    }
+
     public function test_added_migrations_are_advisory_structure_only_files_are_skipped_and_removed_files_are_not_deleted(): void
     {
         $root = $this->tmpDir.'/policy-snapshots';

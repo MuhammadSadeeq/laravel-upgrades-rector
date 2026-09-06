@@ -364,6 +364,18 @@ final class SkeletonStep
                 continue;
             }
 
+            // Migrations are application history, never skeleton content. A
+            // migration the project does not have was deliberately skipped by
+            // an earlier transition, so copying it here reintroduces it: the
+            // consolidated jobs migration and a retained failed_jobs migration
+            // both create the same table. The added and renamed branches refuse
+            // for the same reason.
+            if ($this->isMigration($relative)) {
+                $this->reportSkeletonMigration($collector, $targetMajor, $relative, $projectDirectory);
+
+                continue;
+            }
+
             $oursPath = $projectDirectory.'/'.$relative;
             $basePath = $fromDirectory.'/'.$relative;
             $theirsPath = $toDirectory.'/'.$relative;
@@ -693,6 +705,28 @@ final class SkeletonStep
     private function nonPhpFile(string $relative): bool
     {
         return in_array($relative, self::NON_PHP_FILES, true);
+    }
+
+    private function reportSkeletonMigration(
+        ?FindingCollector $collector,
+        int $targetMajor,
+        string $relative,
+        string $projectDirectory
+    ): void {
+        if ($collector === null || file_exists($projectDirectory.'/'.$relative)) {
+            return;
+        }
+
+        $collector->add(
+            'laravelUpgrade.skeletonMigrationAdded',
+            Finding::SEVERITY_MEDIUM,
+            $targetMajor,
+            $relative,
+            0,
+            sprintf('Laravel %d changed migration "%s" in the application skeleton.', $targetMajor, $relative),
+            'Review the migration and publish or adapt it manually; it was not copied because it may '
+                .'create a table an existing migration already creates.',
+        );
     }
 
     private function reportStructurePreserved(
