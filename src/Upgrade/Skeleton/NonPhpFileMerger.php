@@ -107,7 +107,23 @@ final class NonPhpFileMerger
                 $theirs = $this->preservePhpunitSchema($ours, $theirs);
             }
 
+            // The tool adds its own artifact directory to .gitignore. That line
+            // is package-owned, not a user customization, but a three-way merge
+            // sees it as one and conflicts whenever upstream rewrites the file
+            // — as Laravel 12 does. Hold it aside and restore it afterwards.
+            $managedIgnoreEntry = $relative === '.gitignore'
+                ? $this->managedIgnoreEntry($ours)
+                : null;
+
+            if ($managedIgnoreEntry !== null) {
+                $ours = $this->withoutManagedIgnoreEntry($ours);
+            }
+
             $status = $merger->mergeWithStatus($ours, $base, $theirs);
+
+            if ($managedIgnoreEntry !== null && ! $status['conflicted']) {
+                $status['content'] = $this->withManagedIgnoreEntry($status['content'], $managedIgnoreEntry);
+            }
 
             if ($status['content'] === $ours) {
                 continue;
@@ -207,6 +223,35 @@ final class NonPhpFileMerger
     /**
      * Updates the PHPUnit schema while retaining all other project XML.
      */
+    /** The package-managed ignore line as written, or null when absent. */
+    private function managedIgnoreEntry(string $contents): ?string
+    {
+        if (preg_match('/(?m)^(\s*\/?\.laravel-upgrade\/?\s*)$/', $contents, $matches) !== 1) {
+            return null;
+        }
+
+        return trim($matches[1]);
+    }
+
+    private function withoutManagedIgnoreEntry(string $contents): string
+    {
+        $stripped = preg_replace('/(?m)^\s*\/?\.laravel-upgrade\/?\s*(?:\r\n|\n|\r)?/', '', $contents);
+
+        return $stripped ?? $contents;
+    }
+
+    private function withManagedIgnoreEntry(string $contents, string $entry): string
+    {
+        if ($this->managedIgnoreEntry($contents) !== null) {
+            return $contents;
+        }
+
+        $eol = str_contains($contents, "\r\n") ? "\r\n" : "\n";
+        $suffix = ($contents === '' || str_ends_with($contents, $eol)) ? '' : $eol;
+
+        return $contents.$suffix.$entry.$eol;
+    }
+
     public function updatePhpunitSchema(string $path, int $phpunitMajor, bool $dryRun = false): bool
     {
         if (! is_file($path)) {

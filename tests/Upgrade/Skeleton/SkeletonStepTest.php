@@ -38,6 +38,24 @@ final class SkeletonStepTest extends TestCase
         @rmdir($this->tmpDir);
     }
 
+    public function test_structural_files_are_never_synced_for_any_supported_target(): void
+    {
+        // bootstrap/app.php decides which application structure boots. In keep
+        // mode a project may still hold the legacy form, which cannot be merged
+        // against a modern snapshot, so every transition must leave it alone.
+        foreach ([11, 12, 13] as $major) {
+            $path = dirname(__DIR__, 3).'/resources/config-policies/'.$major.'.json';
+
+            self::assertFileExists($path);
+
+            $policy = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+
+            self::assertIsArray($policy);
+            self::assertIsArray($policy['structureOnly'] ?? null, "structureOnly missing for $major");
+            self::assertContains('bootstrap/app.php', $policy['structureOnly'], "bootstrap/app.php must be structure-only for $major");
+        }
+    }
+
     public function test_sync_merges_missing_keys(): void
     {
         file_put_contents($this->tmpDir.'/config/cache.php',

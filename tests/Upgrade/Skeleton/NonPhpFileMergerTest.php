@@ -24,6 +24,32 @@ final class NonPhpFileMergerTest extends TestCase
         $this->removeDirectory($this->directory);
     }
 
+    public function test_the_managed_ignore_entry_survives_an_upstream_gitignore_rewrite(): void
+    {
+        // Laravel 12 reorders .gitignore wholesale. The tool's own artifact
+        // entry is package-owned, so it must not be mistaken for a user
+        // customization and turned into a merge conflict.
+        $from = "/vendor\n/node_modules\n.env\n";
+        $to = "*.log\n.DS_Store\n.env\n/node_modules\n/vendor\n";
+        file_put_contents($this->directory.'/from/.gitignore', $from);
+        file_put_contents($this->directory.'/to/.gitignore', $to);
+        file_put_contents($this->directory.'/project/.gitignore', $from.".laravel-upgrade/\n");
+
+        $result = (new NonPhpFileMerger)->sync(
+            $this->directory.'/project',
+            $this->directory.'/from',
+            $this->directory.'/to',
+        );
+
+        self::assertSame([], $result['conflicts']);
+
+        $merged = (string) file_get_contents($this->directory.'/project/.gitignore');
+
+        self::assertStringNotContainsString('<<<<<<<', $merged);
+        self::assertSame(1, substr_count($merged, '.laravel-upgrade/'));
+        self::assertStringContainsString('*.log', $merged);
+    }
+
     public function test_phpunit_schema_uses_the_truthfully_detected_locked_major(): void
     {
         $from = '<phpunit xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.0/phpunit.xsd" />';

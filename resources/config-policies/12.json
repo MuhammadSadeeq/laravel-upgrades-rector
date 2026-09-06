@@ -1,4 +1,7 @@
 {
     "behaviourChanging": {},
-    "structureOnly": []
+    "structureOnly": [
+        "bootstrap/app.php",
+        "bootstrap/providers.php"
+    ]
 }

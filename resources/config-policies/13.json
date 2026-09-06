@@ -17,5 +17,8 @@
             "guide": "#cache-serializable-classes"
         }
     },
-    "structureOnly": []
+    "structureOnly": [
+        "bootstrap/app.php",
+        "bootstrap/providers.php"
+    ]
 }
